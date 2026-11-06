@@ -14,7 +14,7 @@ for(const player of [1,2]){
  const frames=svg.match(new RegExp('id="p'+player+'f[0-9]+"','g'))||[];
  assert.equal(frames.length,17,'fighter '+player+' must expose 17 sprite poses');
 }
-for(const state of ["p.kind==='grab'","p.kind==='counter'","p.kind==='special'","p.dodgeTimer>0","p.crouch","p.run","moveVx*face<-.5","p.hp<=0","p.victory"]){
+for(const state of ["p.kind==='grab'","p.kind==='counter'","p.kind==='special'","p.kind==='heavyPunch'","p.kind==='heavyKick'","p.kind==='kick'","p.dodgeTimer>0","p.crouch","p.run","p.block","p.stun>0","p.y<0","moveVx*face<-.5","p.hp<=0","p.victory"]){
  assert(html.includes(state),'animation state must be mapped to a sprite clip: '+state);
 }
 assert(html.includes('id="voice"'),'announcer voice must be user-toggleable');
