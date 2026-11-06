@@ -70,7 +70,7 @@ function fighter(p,i){
  if(spriteAtlas.complete&&spriteAtlas.naturalWidth){let frame=0,phase=p.attackTotal?1-p.attack/p.attackTotal:0,moveVx=p.netVx??p.vx,cycle=(p.frame%800)/800;
  if(p.hp<=0){let koElapsed=p.koAt?performance.now()-p.koAt:500;frame=koElapsed<480?clipFrame([9,15,10],koElapsed/480):10}
  else if(p.victory)frame=clipFrame([11,0,11,0],cycle);
- else if(p.stun>0)frame=clipFrame(Math.abs(moveVx)>3?[15,9,15]:[9,15],(p.frame%240)/240);
+ else if(p.stun>0)frame=p.stun>240?clipFrame([15,9,15],(p.frame%240)/240):clipFrame([9,15],(p.frame%180)/180);
  else if(p.kind==='grab'&&p.attack>0)frame=clipFrame([0,14,15,14,0],phase);
  else if(p.kind==='counter'&&p.attack>0)frame=clipFrame([15,4,0],phase);
  else if((p.kind==='special'||p.kind==='super')&&p.attack>0)frame=clipFrame([0,16,16,15,16],phase);
