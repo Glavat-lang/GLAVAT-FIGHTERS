@@ -26,7 +26,7 @@ assert(html.includes("function saveLocalMatch(winner,reason)"),'offline champion
 assert(html.includes("localStorage.getItem('gf-local-stats')"),'player profile must include locally saved match history');
 
 
-assert(html.includes('u.volume=Math.max(0,Math.min(1,effectsVolume))'),'announcer voice must follow the effects volume control');
+assert(html.includes('u.volume=Math.max(0,Math.min(1,voiceVolume))'),'announcer voice must follow the effects volume control');
 assert(html.includes('function fighterGrunt(line,pitch=1)'),'fighters must expose their own synthetic voice reactions');
 assert(html.includes("fighterGrunt(kind==='special'?'Hyaa!':kind==='grab'?'Ugh!':'Ah!'"),'attack and special moves must trigger character voice reactions');
 assert(html.includes("function clipFrame(frames,phase)"),'sprite animation clips must advance through timed frames');
