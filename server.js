@@ -46,7 +46,7 @@ function leave(ws) {
   room.players = room.players.filter(p => p !== ws);
   room.started = false;
   room.states = [null,null];
-  room.players.forEach((p, i) => { p.playerNo = i + 1; p.hp = 100; send(p, { type:"opponent-left" }); });
+  room.players.forEach((p, i) => { p.playerNo = i + 1; p.hp = 100; send(p, { type:"opponent-left", playerNo:i + 1 }); });
   cleanRoom(code);
 }
 function validNumber(n, min, max) {
