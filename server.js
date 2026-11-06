@@ -79,7 +79,7 @@ function join(ws,msg) {
   }
   if(room.slots.every(Boolean)) return send(ws,{type:'room-full',message:'В комнате уже два игрока.'});
   const idx=room.slots.findIndex(s=>!s);
-  room.slots[idx]={ws,state:playerState(idx===0?0.29:0.71,idx===0?1:-1)};
+  room.gcAt=0; room.slots[idx]={ws,state:playerState(idx===0?0.29:0.71,idx===0?1:-1)};
   ws.room=room; ws.playerNo=idx+1; ws.lastMsg=0;
   send(ws,{type:'joined',code,playerNo:idx+1,count:room.slots.filter(Boolean).length,arena:room.arena});
   if(room.slots.every(Boolean)){
@@ -100,7 +100,7 @@ function handle(ws,msg){
     const p=slot.state;
     // Client supplies intent/pose only. Health, power, stun and hit results stay server-owned.
     p.x=clamp(s.x,20,980);p.y=clamp(s.y,-260,0);p.dir=s.dir===-1?-1:1;
-    p.block=!!s.block;p.attack=valid(s.attack,0,30)?s.attack:0;
+    p.block=!!s.block&&p.stun<=0;p.attack=valid(s.attack,0,30)?s.attack:0;
     p.stun=Math.max(0,p.stun-1);
     if(other) send(other.ws,{type:'opponent-state',playerNo:idx+1,state:publicPlayer(p)});
     return;
