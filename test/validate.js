@@ -23,6 +23,7 @@ assert(html.includes('id="voiceVolume"'),'announcer and fighter voices must have
 assert(html.includes('localStorage.getItem("gf-settings")')&&html.includes("localStorage.setItem('gf-settings'"),'audio settings must persist between visits');
 assert(html.includes("easy?210:hard?75:115"),'CPU must expose a distinct easy reaction profile');
 assert(html.includes("function saveLocalMatch(winner,reason)"),'offline championships must persist player statistics locally');
+assert(html.includes('function generateRoomCode()')&&html.includes('crypto.getRandomValues(bytes)'),'new online rooms must start with a unique random invite code');
 assert(html.includes("localStorage.getItem('gf-local-stats')"),'player profile must include locally saved match history');
 
 
