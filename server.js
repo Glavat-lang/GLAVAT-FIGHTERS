@@ -1,150 +1,163 @@
-const http = require("http");
-const fs = require("fs");
-const path = require("path");
-const WebSocket = require("ws");
+'use strict';
+const http = require('http');
+const fs = require('fs');
+const path = require('path');
+const crypto = require('crypto');
+const WebSocket = require('ws');
 
 const PORT = Number(process.env.PORT) || 3000;
-const PUBLIC = path.join(__dirname, "public");
+const PUBLIC = path.join(__dirname, 'public');
 const rooms = new Map();
-const MAX_ROOMS = 5000;
+const MAX_ROOMS = 2000, MAX_CLIENTS = 4000, ROOM_TTL = 90_000;
+const clamp = (n, lo, hi) => Math.max(lo, Math.min(hi, n));
+const now = () => Date.now();
 
 const server = http.createServer((req, res) => {
+  if (req.method !== 'GET' && req.method !== 'HEAD') { res.writeHead(405); return res.end(); }
   let pathname;
-  try { pathname = decodeURIComponent((req.url || "/").split("?")[0]); }
-  catch { res.writeHead(400); return res.end("Bad request"); }
-  const relative = pathname === "/" ? "index.html" : pathname.replace(/^\/+/, "");
+  try { pathname = decodeURIComponent((req.url || '/').split('?')[0]); }
+  catch { res.writeHead(400); return res.end('Bad request'); }
+  const relative = pathname === '/' ? 'index.html' : pathname.replace(/^\/+/, '');
   const full = path.resolve(PUBLIC, relative);
-  if (full !== PUBLIC && !full.startsWith(PUBLIC + path.sep)) {
-    res.writeHead(403); return res.end("Forbidden");
-  }
+  if (full !== PUBLIC && !full.startsWith(PUBLIC + path.sep)) { res.writeHead(403); return res.end('Forbidden'); }
   fs.readFile(full, (err, data) => {
-    if (err) { res.writeHead(404); return res.end("Not found"); }
-    const ext = path.extname(full);
-    const types = { ".html":"text/html; charset=utf-8", ".js":"text/javascript; charset=utf-8", ".css":"text/css; charset=utf-8", ".png":"image/png", ".ico":"image/x-icon" };
-    res.writeHead(200, { "Content-Type": types[ext] || "application/octet-stream", "Cache-Control":"no-store" });
+    if (err) { res.writeHead(404); return res.end('Not found'); }
+    const types = { '.html':'text/html; charset=utf-8', '.js':'text/javascript; charset=utf-8', '.css':'text/css; charset=utf-8', '.png':'image/png', '.webp':'image/webp', '.svg':'image/svg+xml' };
+    res.writeHead(200, { 'Content-Type':types[path.extname(full)] || 'application/octet-stream', 'Cache-Control':'no-store', 'X-Content-Type-Options':'nosniff' });
+    if (req.method === 'HEAD') return res.end();
     res.end(data);
   });
 });
 
-const wss = new WebSocket.Server({ server, maxPayload: 4096 });
-function send(ws, data) {
-  if (ws.readyState === WebSocket.OPEN) ws.send(JSON.stringify(data));
+const wss = new WebSocket.Server({ server, maxPayload: 2048, perMessageDeflate:false });
+function send(ws, data) { if (ws && ws.readyState === WebSocket.OPEN) ws.send(JSON.stringify(data)); }
+function playerState(x, dir) { return { x, y:0, dir, hp:100, power:0, block:false, attack:0, stun:0, invuln:0, lastAttack:0 }; }
+function publicPlayer(p) { return { x:p.x, y:p.y, dir:p.dir, hp:p.hp, power:p.power, block:p.block, attack:p.attack, stun:p.stun }; }
+function snapshot(room) {
+  return { type:'snapshot', room:room.code, status:room.status, round:room.round, wins:room.wins.slice(), timer:room.timer,
+    players:room.slots.map(s => s ? publicPlayer(s.state) : null) };
 }
-function broadcast(room, data, except) {
-  for (const player of room.players) if (player !== except) send(player, data);
+function broadcast(room, data) { room.slots.forEach(s => { if (s) send(s.ws, data); }); }
+function snapshotAll(room) { broadcast(room, snapshot(room)); }
+function roomFor(code) { return rooms.get(code); }
+function closeRoomIfEmpty(room) { if (room.slots.every(s => !s)) { room.gcAt=now()+ROOM_TTL; room.status='empty'; } }
+function resetRound(room) {
+  room.timer=99; room.roundStarted=now(); room.status='playing';
+  room.slots.forEach((s,i)=>{ if(s) s.state=playerState(i===0?0.29:0.71, i===0?1:-1); });
+  broadcast(room,{type:'round-start',round:room.round,wins:room.wins.slice(),timer:99});
+  snapshotAll(room);
 }
-function cleanRoom(code) {
-  const room = rooms.get(code);
-  if (room && room.players.length === 0) rooms.delete(code);
+function endRound(room, winner, reason) {
+  if(room.status!=='playing') return;
+  room.status='round-over';
+  if(winner===0||winner===1) room.wins[winner]++;
+  broadcast(room,{type:'round-end',winner,reason,round:room.round,wins:room.wins.slice(),champion:room.wins.some(v=>v>=2)});
+  snapshotAll(room);
 }
 function leave(ws) {
-  const code = ws.roomCode;
-  if (!code) return;
-  const room = rooms.get(code);
-  ws.roomCode = null;
-  if (!room) return;
-  room.players = room.players.filter(p => p !== ws);
-  room.started = false;
-  room.states = [null,null];
-  room.players.forEach((p, i) => { p.playerNo = i + 1; p.hp = 100; send(p, { type:"opponent-left", playerNo:i + 1 }); });
-  cleanRoom(code);
+  const room=ws.room;
+  if(!room) return;
+  ws.room=null;
+  const idx=room.slots.findIndex(s=>s && s.ws===ws);
+  if(idx<0) return;
+  room.slots[idx]=null;
+  room.status='waiting';
+  room.rematchVotes.clear();
+  broadcast(room,{type:'opponent-left',playerNo:idx+1});
+  if(room.slots.every(s=>!s)) closeRoomIfEmpty(room);
 }
-function validNumber(n, min, max) {
-  return typeof n === "number" && Number.isFinite(n) && n >= min && n <= max;
-}
-wss.on("connection", ws => {
-  ws.isAlive = true;
-  ws.on("pong", () => { ws.isAlive = true; });
-  ws.on("message", raw => {
-    let msg;
-    try { msg = JSON.parse(raw.toString()); } catch { return; }
-    if (!msg || typeof msg !== "object") return;
-
-    if (msg.type === "join") {
-      leave(ws);
-      const code = String(msg.code || "").toUpperCase().replace(/[^A-Z0-9]/g, "").slice(0, 8);
-      if (code.length < 3) return send(ws, { type:"join-error", message:"Код должен содержать минимум 3 символа." });
-      let room = rooms.get(code);
-      if (!room) {
-        if (rooms.size >= MAX_ROOMS) return send(ws, { type:"server-full" });
-        room = { players:[], started:false, states:[null,null], attacks:[0,0], arena:["sunset","night","dojo"].includes(msg.arena) ? msg.arena : "sunset" };
-        rooms.set(code, room);
-      }
-      if (room.players.length >= 2) return send(ws, { type:"room-full", code });
-      room.players.push(ws);
-      ws.hp = 100;
-      ws.roomCode = code;
-      ws.playerNo = room.players.length;
-      room.states[ws.playerNo - 1] = null;
-      send(ws, { type:"joined", code, playerNo:ws.playerNo, count:room.players.length });
-      if (room.players.length === 2) {
-        room.started = true;
-        room.states = [null,null];
-        room.attacks = [0,0];
-        room.players.forEach(p => { p.hp = 100; send(p, { type:"match-start", arena:room.arena }); });
-      }
-      return;
-    }
-
-    const code = ws.roomCode;
-    const room = code && rooms.get(code);
-    if (!room || !ws.playerNo) return;
-    const index = ws.playerNo - 1;
-    const other = room.players[1 - index];
-
-    if (msg.type === "state" && room.started && other) {
-      const s = msg.state || {};
-      if (!validNumber(s.x, 0, 10000) || !validNumber(s.y, -1000, 0)) return;
-      const state = {
-        x:s.x, y:s.y,
-        dir:s.dir === -1 ? -1 : 1,
-        attack:validNumber(s.attack,0,30) ? s.attack : 0,
-        block:!!s.block,
-        hp:ws.hp
-      };
-      room.states[index] = state;
-      send(other, { type:"opponent-state", state });
-      return;
-    }
-
-    if (msg.type === "attack" && room.started && other) {
-      const a = msg.attack || {};
-      const now = Date.now();
-      if (now - room.attacks[index] < 260) return;
-      const attacker = room.states[index];
-      const victim = room.states[1 - index];
-      if (!attacker || !victim) return;
-      if (!["punch","kick","special"].includes(a.kind)) return;
-      const dx = Math.abs(victim.x - attacker.x);
-      const dy = Math.abs(victim.y - attacker.y);
-      if (dx > 118 || dy > 58 || victim.block) return;
-      const kind = a.kind;
-      const damage = kind === "special" ? 22 : kind === "kick" ? 13 : 9;
-      room.attacks[index] = now;
-      const victimHp = Math.max(0, (other.hp == null ? 100 : other.hp) - damage);
-      other.hp = victimHp;
-      send(other, { type:"damage", hp:victimHp, damage, kind });
-      return;
-    }
-
-    if (msg.type === "rematch" && other) {
-      room.started = true;
-      room.states = [null,null];
-      room.attacks = [0,0];
-      room.players.forEach(p => { p.hp = 100; send(p, { type:"match-start" }); });
-    }
-  });
-  ws.on("close", () => leave(ws));
-  ws.on("error", () => leave(ws));
-});
-
-const heartbeat = setInterval(() => {
-  for (const ws of wss.clients) {
-    if (!ws.isAlive) { ws.terminate(); continue; }
-    ws.isAlive = false;
-    ws.ping();
+function valid(n,lo,hi){return typeof n==='number'&&Number.isFinite(n)&&n>=lo&&n<=hi;}
+function join(ws,msg) {
+  leave(ws);
+  const code=String(msg.code||'').toUpperCase().replace(/[^A-Z0-9]/g,'').slice(0,8);
+  if(code.length<3) return send(ws,{type:'join-error',message:'Код комнаты — минимум 3 символа.'});
+  let room=roomFor(code);
+  if(!room){
+    if(rooms.size>=MAX_ROOMS) return send(ws,{type:'server-full',message:'Сервер комнат временно заполнен.'});
+    room={code,slots:[null,null],status:'waiting',round:1,wins:[0,0],timer:99,arena:['sunset','night','dojo'].includes(msg.arena)?msg.arena:'sunset',rematchVotes:new Set(),gcAt:0};
+    rooms.set(code,room);
   }
-}, 30000);
-wss.on("close", () => clearInterval(heartbeat));
-
-server.listen(PORT, "0.0.0.0", () => console.log("GLAVAT FIGHTERS listening on " + PORT));
+  if(room.slots.every(Boolean)) return send(ws,{type:'room-full',message:'В комнате уже два игрока.'});
+  const idx=room.slots.findIndex(s=>!s);
+  room.slots[idx]={ws,state:playerState(idx===0?0.29:0.71,idx===0?1:-1)};
+  ws.room=room; ws.playerNo=idx+1; ws.lastMsg=0;
+  send(ws,{type:'joined',code,playerNo:idx+1,count:room.slots.filter(Boolean).length,arena:room.arena});
+  if(room.slots.every(Boolean)){
+    room.wins=[0,0];room.round=1;room.rematchVotes.clear();resetRound(room);
+    broadcast(room,{type:'match-start',arena:room.arena,round:1,wins:[0,0]});
+  }
+}
+function handle(ws,msg){
+  if(!msg||typeof msg!=='object') return;
+  if(msg.type==='join') return join(ws,msg);
+  const room=ws.room;
+  if(!room) return;
+  const idx=ws.playerNo-1, slot=room.slots[idx], other=room.slots[1-idx];
+  if(!slot||slot.ws!==ws) return;
+  if(msg.type==='state' && room.status==='playing'){
+    const s=msg.state||{};
+    if(!valid(s.x,0,10000)||!valid(s.y,-1000,0)) return;
+    const p=slot.state;
+    // Client supplies intent/pose only. Health, power, stun and hit results stay server-owned.
+    p.x=clamp(s.x,20,980);p.y=clamp(s.y,-260,0);p.dir=s.dir===-1?-1:1;
+    p.block=!!s.block;p.attack=valid(s.attack,0,30)?s.attack:0;
+    p.stun=Math.max(0,p.stun-1);
+    if(other) send(other.ws,{type:'opponent-state',playerNo:idx+1,state:publicPlayer(p)});
+    return;
+  }
+  if(msg.type==='attack' && room.status==='playing' && other){
+    const kind=msg.attack&&msg.attack.kind;
+    if(!['punch','kick','special'].includes(kind)) return;
+    const nowAt=now(),a=slot.state,v=other.state;
+    const cooldown=kind==='special'?850:kind==='kick'?380:260;
+    if(nowAt-a.lastAttack<cooldown||a.stun>0) return;
+    if(kind==='special'&&a.power<100) return;
+    const dx=v.x-a.x,dy=Math.abs(v.y-a.y),range=kind==='special'?170:kind==='kick'?128:104;
+    if(Math.sign(dx)!==a.dir||Math.abs(dx)>range||dy>58||v.invuln>nowAt) return;
+    a.lastAttack=nowAt;
+    if(kind==='special')a.power=0;
+    const blocked=v.block && Math.sign(dx)===-v.dir;
+    const damage=blocked?Math.max(1,Math.round((kind==='special'?22:kind==='kick'?13:9)*.18)):(kind==='special'?24:kind==='kick'?15:10);
+    v.hp=clamp(v.hp-damage,0,100);v.stun=blocked?5:kind==='special'?25:kind==='kick'?16:11;v.invuln=nowAt+(blocked?120:280);
+    v.x=clamp(v.x+a.dir*(blocked?8:kind==='special'?34:kind==='kick'?20:12),20,980);
+    a.power=clamp(a.power+(kind==='special'?0:kind==='kick'?17:12),0,100);
+    broadcast(room,{type:'damage',playerNo:1-idx,hp:v.hp,damage,kind,attackerNo:idx+1,blocked,power:a.power});
+    snapshotAll(room);
+    if(v.hp<=0)endRound(room,idx,'ko');
+    return;
+  }
+  if(msg.type==='rematch'){
+    room.rematchVotes.add(idx);
+    if(room.rematchVotes.size===2){
+      room.rematchVotes.clear();
+      if(room.wins.some(v=>v>=2)){room.wins=[0,0];room.round=1;}
+      else room.round++;
+      resetRound(room);broadcast(room,{type:'match-start',arena:room.arena,round:room.round,wins:room.wins.slice()});
+    }else send(ws,{type:'rematch-wait'});
+  }
+}
+wss.on('connection',ws=>{
+  if(wss.clients.size>MAX_CLIENTS){ws.close(1013,'Server busy');return;}
+  ws.isAlive=true;ws.on('pong',()=>ws.isAlive=true);
+  ws.on('message',raw=>{
+    if(raw.length>2048)return;
+    const t=now();if(t-(ws.lastMsg||0)<12)return;ws.lastMsg=t;
+    let msg;try{msg=JSON.parse(raw.toString())}catch{return}
+    try{handle(ws,msg)}catch(err){console.error('socket message error',err)}
+  });
+  ws.on('close',()=>leave(ws));ws.on('error',()=>leave(ws));
+});
+const heartbeat=setInterval(()=>{for(const ws of wss.clients){if(!ws.isAlive){ws.terminate();continue}ws.isAlive=false;ws.ping()}},25000);
+const roomClock=setInterval(()=>{
+  const t=now();
+  for(const [code,room] of rooms){
+    if(room.gcAt&&room.gcAt<t){rooms.delete(code);continue}
+    if(room.status==='playing'&&room.slots.every(Boolean)){
+      const left=Math.max(0,99-Math.floor((t-room.roundStarted)/1000));
+      if(left!==room.timer){room.timer=left;broadcast(room,{type:'timer',timer:left})}
+      if(left===0){const a=room.slots[0].state.hp,b=room.slots[1].state.hp;endRound(room,a===b?null:a>b?0:1,'time')}
+    }
+  }
+},200);
+wss.on('close',()=>{clearInterval(heartbeat);clearInterval(roomClock)});
+server.listen(PORT,'0.0.0.0',()=>console.log('GLAVAT FIGHTERS server listening on '+PORT));
