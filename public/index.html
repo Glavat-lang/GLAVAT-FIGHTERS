@@ -231,7 +231,8 @@ function connect(){
  socket.onerror=()=>{document.getElementById('joinmsg').textContent='Ошибка соединения. Проверь интернет и попробуй ещё раз.';document.getElementById('join').style.display='flex';};
  socket.onclose=()=>{if(online){online=false;opponentConnected=false;matchStarted=false;document.getElementById('status').textContent='СОЕДИНЕНИЕ ПОТЕРЯНО';document.getElementById('joinmsg').textContent='Соединение прервано. Нажми «Войти в бой», чтобы подключиться снова.';document.getElementById('join').style.display='flex';}};
 }
-document.getElementById('start').onclick=()=>{document.getElementById('joinmsg').textContent='Подключаемся…';connect();};\ndocument.getElementById('training').onclick=()=>{online=false;opponentConnected=false;matchStarted=true;ended=false;arena=document.getElementById('arena').value;timer=99;timerStamp=Date.now();fighters[0].x=W*.28;fighters[1].x=W*.72;fighters.forEach(f=>{f.hp=100;f.y=0;f.vx=0;f.vy=0;f.attack=0;f.flash=0;});updateHud();document.getElementById('timer').textContent='99';document.getElementById('status').textContent='PLAYER 1 VS CPU';document.getElementById('join').style.display='none';};
+document.getElementById('start').onclick=()=>{document.getElementById('joinmsg').textContent='Подключаемся…';connect();};
+document.getElementById('training').onclick=()=>{online=false;opponentConnected=false;matchStarted=true;ended=false;arena=document.getElementById('arena').value;timer=99;timerStamp=Date.now();fighters[0].x=W*.28;fighters[1].x=W*.72;fighters.forEach(f=>{f.hp=100;f.y=0;f.vx=0;f.vy=0;f.attack=0;f.flash=0;});updateHud();document.getElementById('timer').textContent='99';document.getElementById('status').textContent='PLAYER 1 VS CPU';document.getElementById('join').style.display='none';};
 
 updateHud();
 document.getElementById('room').value=Math.random().toString(36).slice(2,6).toUpperCase();
