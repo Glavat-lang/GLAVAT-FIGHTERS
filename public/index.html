@@ -13,8 +13,7 @@ header{display:flex;justify-content:space-between;align-items:center;padding:10p
 .bar{height:19px;border:3px solid #d9d5e8;border-radius:3px;background:#241d3c;box-shadow:0 2px #080615,0 0 8px #f59a4b44;overflow:hidden;transform:skewX(-8deg)}
 .fill{height:100%;width:100%;background:linear-gradient(180deg,#fff08a 0%,#ffc52f 45%,#e66c25 100%);box-shadow:inset 0 2px #fff7b5;transition:width .16s}
 #hp2{background:linear-gradient(90deg,#ffdf42,#ff9b28)}
-#timer{font-size:30px;font-weight:1000;text-align:center;color:#ffe18a;text-shadow:2px 3px #9b2b45,4px 5px #080817;font-family:monospace
-canvas{display:block;width:100%;flex:1;min-height:0;image-rendering:pixelated;touch-action:none}
+#timer{font-size:30px;font-weight:1000;text-align:center;color:#ffe18a;text-shadow:2px 3px #9b2b45,4px 5px #080817;font-family:monospace}\ncanvas{display:block;width:100%;flex:1;min-height:0;image-rendering:pixelated;touch-action:none}
 #join{position:absolute;inset:0;background:#100c25ee;display:flex;align-items:center;justify-content:center;padding:20px}
 .panel{width:min(440px,100%);background:linear-gradient(145deg,#302044,#15152e 70%);border:3px solid #ffbd58;border-radius:5px;padding:22px;text-align:center;box-shadow:0 8px 0 #090615,0 0 35px #ed744855}
 .panel h1{margin:0 0 8px;color:#ffcf70;font-size:27px;font-style:italic;text-shadow:2px 3px #a12d55,4px 4px #090615;letter-spacing:1px}.panel p{color:#d5c9e8;font-size:14px;line-height:1.45}
@@ -158,11 +157,16 @@ function drawFighter(f,index){
  ctx.restore();
 }
 function draw(){
- ctx.clearRect(0,0,W,H);drawBackground();
+ ctx.clearRect(0,0,W,H);ctx.save();
+ if(shake>0){ctx.translate((Math.random()-.5)*shake,(Math.random()-.5)*shake);shake*=.82;if(shake<.4)shake=0;}
+ drawBackground();
  fighters.forEach((f,i)=>drawFighter(f,i));
+ for(const p of particles){ctx.globalAlpha=Math.max(0,p.life/p.max);ctx.fillStyle=p.color;ctx.fillRect(Math.round(p.x),Math.round(p.y),p.size,p.size);p.x+=p.vx;p.y+=p.vy;p.vy+=.18;p.life--;}
+ ctx.globalAlpha=1;particles=particles.filter(p=>p.life>0);
  ctx.font='bold 12px Arial';ctx.fillStyle='#fff';ctx.textAlign='center';
  ctx.fillText(online?(opponentConnected?'ОНЛАЙН-БОЙ':'ЖДЁМ ВТОРОГО ИГРОКА'):'АРКАДНЫЙ РЕЖИМ',W/2,20);
  if(roundBanner>0){ctx.save();ctx.textAlign='center';ctx.font='italic 1000 '+Math.max(28,H*.1)+'px Arial';ctx.lineWidth=5;ctx.strokeStyle='#21132d';ctx.fillStyle='#ffd05c';ctx.shadowColor='#ff613f';ctx.shadowBlur=18;ctx.strokeText('ROUND 1',W/2,H*.43);ctx.fillText('ROUND 1',W/2,H*.43);ctx.restore();roundBanner--;}
+ ctx.restore();
 }
 function clamp(v,a,b){return Math.max(a,Math.min(b,v))}
 function attack(attacker,kind){
