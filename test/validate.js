@@ -14,4 +14,9 @@ for(const player of [1,2]){
  const frames=svg.match(new RegExp('id="p'+player+'f[0-9]+"','g'))||[];
  assert.equal(frames.length,17,'fighter '+player+' must expose 17 sprite poses');
 }
-process.stdout.write('Server, browser script and 17-pose sprite atlas validation passed.\n');
+for(const state of ["p.kind==='grab'","p.kind==='counter'","p.kind==='special'","p.dodgeTimer>0","p.crouch","p.run","moveVx*face<-.5","p.hp<=0","p.victory"]){
+ assert(html.includes(state),'animation state must be mapped to a sprite clip: '+state);
+}
+assert(html.includes('id="voice"'),'announcer voice must be user-toggleable');
+assert(html.includes("function clipFrame(frames,phase)"),'sprite animation clips must advance through timed frames');
+process.stdout.write('Server, browser script, 17 sprite poses and animation state mappings validated.\\n');
