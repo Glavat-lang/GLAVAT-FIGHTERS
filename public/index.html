@@ -1,0 +1,158 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<meta name="theme-color" content="#130d2c"><title>GLAVAT FIGHTERS</title>
+<style>
+*{box-sizing:border-box}html,body{margin:0;width:100%;height:100%;overflow:hidden;background:#100c25;color:#fff;font-family:Arial,sans-serif;touch-action:none}
+#wrap{height:100%;display:flex;flex-direction:column;background:linear-gradient(#1b1745,#351747 55%,#100d20)}
+header{display:flex;justify-content:space-between;align-items:center;padding:8px 12px;gap:8px}
+.logo{font-weight:1000;letter-spacing:2px;color:#ffb34e;text-shadow:3px 3px #8d234e;font-size:clamp(16px,4vw,25px)}
+#status{font-size:12px;color:#d8c9ff;text-align:right}
+#hud{display:grid;grid-template-columns:1fr 54px 1fr;gap:8px;padding:0 12px;align-items:center}
+.bar{height:16px;border:3px solid #eee;border-radius:4px;background:#382849;box-shadow:0 2px #080615;overflow:hidden}
+.fill{height:100%;width:100%;background:linear-gradient(90deg,#ffdf42,#ff9b28)}
+#hp2{background:linear-gradient(90deg,#ffdf42,#ff9b28)}
+#timer{font-size:27px;font-weight:1000;text-align:center;color:#ffb13e;text-shadow:2px 2px #9b2b45}
+canvas{display:block;width:100%;flex:1;min-height:0;image-rendering:pixelated}
+#join{position:absolute;inset:0;background:#100c25ee;display:flex;align-items:center;justify-content:center;padding:20px}
+.panel{width:min(440px,100%);background:#21183c;border:3px solid #ffb34e;border-radius:12px;padding:20px;text-align:center;box-shadow:0 8px 0 #090615}
+.panel h1{margin:0 0 8px;color:#ffb34e;font-size:25px}.panel p{color:#d5c9e8;font-size:14px;line-height:1.45}
+input{width:100%;padding:13px;border:2px solid #78619c;border-radius:8px;background:#100c25;color:white;font-size:20px;text-align:center;text-transform:uppercase;letter-spacing:4px}
+button{border:0;border-radius:8px;background:#ffad3d;color:#27142c;font-weight:900;padding:13px 17px;font-size:15px;box-shadow:0 4px #a84c32}
+button:active{transform:translateY(3px);box-shadow:0 1px #a84c32}
+#start{width:100%;margin-top:12px}
+#controls{display:flex;justify-content:space-between;align-items:end;padding:8px 14px 14px;gap:12px}
+.pad,.moves{display:flex;gap:8px;align-items:center}
+.ctrl{width:clamp(48px,13vw,66px);height:clamp(48px,13vw,66px);border-radius:50%;padding:0;font-size:20px;background:#d7d0ed;border:3px solid #fff;box-shadow:0 4px #62547c;touch-action:none}
+.moves{display:grid;grid-template-columns:repeat(2,clamp(50px,14vw,68px));gap:7px}
+.moves .ctrl{width:100%;height:clamp(43px,11vw,58px);border-radius:12px;font-size:12px;background:#ffad3d}
+#foot{font-size:10px;color:#9d91b6;text-align:center;padding-bottom:5px}
+@media(min-width:800px){#controls{max-width:900px;width:100%;margin:auto}.ctrl{width:64px;height:64px}}
+</style></head>
+<body><div id="wrap">
+<header><div class="logo">GLAVAT FIGHTERS</div><div id="status">АРКАДНЫЙ ПРОТОТИП · ONLINE</div></header>
+<div id="hud"><div><div style="font-size:10px;margin-bottom:3px">PLAYER 1</div><div class="bar"><div class="fill" id="hp1"></div></div></div><div id="timer">99</div><div><div style="font-size:10px;text-align:right;margin-bottom:3px">PLAYER 2</div><div class="bar"><div class="fill" id="hp2"></div></div></div></div>
+<canvas id="game"></canvas>
+<div id="controls">
+ <div class="pad"><button class="ctrl" data-key="left">◀</button><button class="ctrl" data-key="right">▶</button><button class="ctrl" data-key="jump">▲</button></div>
+ <div class="moves"><button class="ctrl" data-key="punch">УДАР</button><button class="ctrl" data-key="kick">НОГА</button><button class="ctrl" data-key="block">БЛОК</button><button class="ctrl" data-key="special">СУПЕР</button></div>
+</div><div id="foot">ПОВОРОТ ЭКРАНА НЕ ОБЯЗАТЕЛЕН · ДЕРЖИ КНОПКИ ДЛЯ ДВИЖЕНИЯ</div>
+</div>
+<div id="join"><div class="panel"><h1>GLAVAT FIGHTERS</h1><p>Создай комнату и отправь код второму игроку. Оба откройте эту страницу на своих телефонах.</p><input id="room" maxlength="8" placeholder="КОД КОМНАТЫ" value="GLAVAT"><button id="start">ВОЙТИ В БОЙ</button><p id="joinmsg">Пока это ранний прототип. Для онлайн-боя нужен запущенный сервер.</p></div></div>
+<script>
+const canvas=document.getElementById('game'),ctx=canvas.getContext('2d');
+let W=900,H=500, me=1, code='GLAVAT', socket=null, online=false, opponentConnected=false;
+let keys={}, lastSend=0, timer=99, hp=[100,100], ended=false, timerStamp=Date.now();
+const fighters=[
+ {x:220,y:0,vx:0,vy:0,dir:1,hp:100,attack:0,flash:0,block:false,pose:0},
+ {x:680,y:0,vx:0,vy:0,dir:-1,hp:100,attack:0,flash:0,block:false,pose:0}
+];
+function resize(){const r=canvas.getBoundingClientRect();W=Math.max(320,r.width);H=Math.max(260,r.height);canvas.width=Math.floor(W*devicePixelRatio);canvas.height=Math.floor(H*devicePixelRatio);ctx.setTransform(devicePixelRatio,0,0,devicePixelRatio,0,0);}
+addEventListener('resize',resize);resize();
+function floor(){return H*.82}
+function drawBackground(){
+ const g=ctx.createLinearGradient(0,0,0,H);g.addColorStop(0,'#30205e');g.addColorStop(.55,'#d65b62');g.addColorStop(1,'#f5a34b');ctx.fillStyle=g;ctx.fillRect(0,0,W,H);
+ ctx.fillStyle='#242044';for(let i=0;i<18;i++){let x=i*W/16;let h=H*(.13+((i*37)%19)/100);ctx.fillRect(x,floor()-h, W/22,h);}
+ ctx.fillStyle='#ffcf68';ctx.beginPath();ctx.arc(W*.5,H*.43,H*.09,0,7);ctx.fill();
+ ctx.fillStyle='#252039';ctx.fillRect(0,floor(),W,H-floor());
+ ctx.strokeStyle='#f58c55';ctx.lineWidth=2;for(let i=0;i<12;i++){ctx.beginPath();ctx.moveTo(i*W/11,floor());ctx.lineTo(W/2+(i-5.5)*W*.16,H);ctx.stroke();}
+ ctx.strokeStyle='#7d4261';for(let y=floor()+22;y<H;y+=25){ctx.beginPath();ctx.moveTo(0,y);ctx.lineTo(W,y);ctx.stroke();}
+ ctx.fillStyle='#17172e';ctx.fillRect(W*.72,H*.23,W*.28,H*.59);ctx.fillRect(W*.68,H*.29,W*.32,8);
+ for(let i=0;i<6;i++){ctx.fillStyle='#ffc15a';ctx.fillRect(W*.75+i*W*.043,H*.34,7,12);}
+}
+function pixelRect(x,y,w,h,c){ctx.fillStyle=c;ctx.fillRect(Math.round(x),Math.round(y),w,h)}
+function drawFighter(f,index){
+ const x=f.x,y=f.y,scale=Math.max(.75,Math.min(1.15,H/480)),s=scale;
+ ctx.save();ctx.translate(x,y);ctx.scale(f.dir,1);
+ if(f.flash>0)ctx.globalAlpha=.55;
+ ctx.fillStyle='#100d20aa';ctx.beginPath();ctx.ellipse(0,0,34*s,8*s,0,0,7);ctx.fill();
+ const moving=Math.abs(f.vx)>.3,step=moving?Math.sin(Date.now()/65)*7*s:0;
+ pixelRect(-20*s,-57*s+step,16*s,55*s,index===0?'#263b68':'#e6dfd3');
+ pixelRect(5*s,-57*s-step,16*s,55*s,index===0?'#263b68':'#e6dfd3');
+ pixelRect(-24*s,-8*s+step,25*s,9*s,'#e8e8ef');pixelRect(4*s,-8*s-step,27*s,9*s,'#e8e8ef');
+ pixelRect(-24*s,-119*s,49*s,64*s,index===0?'#d9dce5':'#f0eee9');
+ pixelRect(-22*s,-115*s,44*s,7*s,index===0?'#8d9db6':'#c4c4ca');
+ let arm=f.attack>0?25:0;
+ pixelRect(-34*s,-111*s,14*s,48*s,index===0?'#c88968':'#e0a47d');
+ pixelRect(18*s,-111*s,14*s,43*s,index===0?'#c88968':'#e0a47d');
+ pixelRect(24*s,-103*s+arm,23*s,15*s,'#d89a76');
+ pixelRect(-17*s,-151*s,35*s,34*s,index===0?'#c88968':'#e0a47d');
+ pixelRect(-19*s,-153*s,37*s,10*s,index===0?'#30252c':'#51352e');
+ pixelRect(5*s,-137*s,4*s,4*s,'#251b20');
+ pixelRect(13*s,-128*s,5*s,3*s,'#572e32');
+ if(f.block)pixelRect(23*s,-125*s,20*s,12*s,'#f0bf65');
+ if(f.attack>0)pixelRect(34*s,-103*s,31*s,12*s,'#ffe28a');
+ if(f.flash>0)ctx.globalAlpha=1;
+ ctx.restore();
+}
+function draw(){
+ ctx.clearRect(0,0,W,H);drawBackground();
+ fighters.forEach((f,i)=>drawFighter(f,i));
+ ctx.font='bold 12px Arial';ctx.fillStyle='#fff';ctx.textAlign='center';
+ ctx.fillText(online?(opponentConnected?'ОНЛАЙН-БОЙ':'ЖДЁМ ВТОРОГО ИГРОКА'):'ТРЕНИРОВКА / ОЖИДАНИЕ СЕРВЕРА',W/2,20);
+}
+function clamp(v,a,b){return Math.max(a,Math.min(b,v))}
+function attack(attacker,kind){
+ const f=fighters[attacker], other=fighters[1-attacker];if(f.attack>0||ended)return;
+ f.attack=kind==='special'?22:14;
+ if(Math.abs(f.x-other.x)<105 && Math.abs(f.y-other.y)<55 && !other.block){
+  const dmg=kind==='special'?22:kind==='kick'?13:9;
+  other.hp=clamp(other.hp-dmg,0,100);other.flash=9;other.x+=f.dir*22;
+  if(online&&socket?.readyState===1)socket.send(JSON.stringify({type:'hit',attack:{kind,dmg,x:other.x}}));
+  updateHud();
+ }
+}
+function updateHud(){document.getElementById('hp1').style.width=fighters[0].hp+'%';document.getElementById('hp2').style.width=fighters[1].hp+'%';}
+function step(){
+ if(!ended && Date.now()-timerStamp>=1000){timer=Math.max(0,timer-1);timerStamp=Date.now();document.getElementById('timer').textContent=String(timer).padStart(2,'0');if(timer===0)ended=true;}
+ const idx=me-1, f=fighters[idx], other=fighters[1-idx];
+ if(!ended){
+  if(keys.left)f.vx=-3.2;else if(keys.right)f.vx=3.2;else f.vx*=.72;
+  if(keys.jump&&f.y>=0)f.vy=-10;
+  f.block=!!keys.block;
+  if(keys.punch)attack(idx,'punch');if(keys.kick)attack(idx,'kick');if(keys.special)attack(idx,'special');
+  f.x=clamp(f.x+f.vx,45,W-45);f.y+=f.vy;f.vy+=.55;if(f.y>0){f.y=0;f.vy=0;}
+  f.attack=Math.max(0,f.attack-1);f.flash=Math.max(0,f.flash-1);
+  f.dir=other.x>=f.x?1:-1;
+  if(!online){
+   if(Math.abs(other.x-f.x)<125 && Math.random()<.025)attack(1-idx,'punch');
+   if(other.x>f.x+100)other.x-=.65;else if(other.x<f.x-100)other.x+=.65;
+   other.dir=other.x>=f.x?1:-1;
+   other.attack=Math.max(0,other.attack-1);other.flash=Math.max(0,other.flash-1);
+  }
+  if(online&&socket?.readyState===1&&Date.now()-lastSend>45){
+   socket.send(JSON.stringify({type:'state',state:{x:f.x,y:f.y,hp:f.hp,dir:f.dir,attack:f.attack,block:f.block}}));lastSend=Date.now();
+  }
+  if(fighters.some(p=>p.hp<=0)){ended=true;document.getElementById('status').textContent='НОКАУТ!';}
+ }
+ draw();requestAnimationFrame(step);
+}
+requestAnimationFrame(step);
+document.querySelectorAll('[data-key]').forEach(b=>{
+ const k=b.dataset.key;
+ const down=e=>{e.preventDefault();keys[k]=true};
+ const up=e=>{e.preventDefault();keys[k]=false};
+ b.addEventListener('pointerdown',down);b.addEventListener('pointerup',up);b.addEventListener('pointercancel',up);b.addEventListener('pointerleave',up);
+});
+addEventListener('keydown',e=>{const m={ArrowLeft:'left',ArrowRight:'right',ArrowUp:'jump',a:'punch',s:'kick',d:'block',f:'special'};if(m[e.key])keys[m[e.key]]=true;});
+addEventListener('keyup',e=>{const m={ArrowLeft:'left',ArrowRight:'right',ArrowUp:'jump',a:'punch',s:'kick',d:'block',f:'special'};if(m[e.key])keys[m[e.key]]=false;});
+function connect(){
+ code=document.getElementById('room').value.trim().toUpperCase()||'GLAVAT';
+ const proto=location.protocol==='https:'?'wss':'ws';
+ try{socket=new WebSocket(proto+'://'+location.host);}catch(e){return;}
+ socket.onopen=()=>socket.send(JSON.stringify({type:'join',code}));
+ socket.onmessage=e=>{
+  const m=JSON.parse(e.data);
+  if(m.type==='joined'){me=m.playerNo;online=true;document.getElementById('joinmsg').textContent='Комната '+m.code+'. Ты игрок '+me+'.';document.getElementById('status').textContent='КОМНАТА '+m.code;}
+  if(m.type==='opponent-joined'){opponentConnected=true;document.getElementById('status').textContent='СОПЕРНИК ПОДКЛЮЧИЛСЯ';}
+  if(m.type==='opponent-state'){const o=fighters[2-me];Object.assign(o,m.state);updateHud();}
+  if(m.type==='opponent-hit'){const own=fighters[me-1];own.hp=clamp(own.hp-m.attack.dmg,0,100);own.flash=8;updateHud();}
+  if(m.type==='room-full')document.getElementById('joinmsg').textContent='Комната уже заполнена. Попробуй другой код.';
+  if(m.type==='opponent-left'){opponentConnected=false;document.getElementById('status').textContent='СОПЕРНИК ВЫШЕЛ';}
+ };
+ socket.onerror=()=>{document.getElementById('joinmsg').textContent='Не удалось подключиться. Запусти сервер или используй тренировочный режим.';};
+}
+document.getElementById('start').onclick=()=>{document.getElementById('join').style.display='none';connect();};
+updateHud();
+</script></body></html>
