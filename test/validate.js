@@ -19,5 +19,7 @@ for(const state of ["p.kind==='grab'","p.kind==='counter'","p.kind==='special'",
 }
 assert(html.includes('id="voice"'),'announcer voice must be user-toggleable');
 assert(html.includes('u.volume=Math.max(0,Math.min(1,effectsVolume))'),'announcer voice must follow the effects volume control');
+assert(html.includes('function fighterGrunt(line,pitch=1)'),'fighters must expose their own synthetic voice reactions');
+assert(html.includes("fighterGrunt(kind==='special'?'Hyaa!':kind==='grab'?'Ugh!':'Ah!'"),'attack and special moves must trigger character voice reactions');
 assert(html.includes("function clipFrame(frames,phase)"),'sprite animation clips must advance through timed frames');
 process.stdout.write('Server, browser script, 17 sprite poses and animation state mappings validated.\\n');
