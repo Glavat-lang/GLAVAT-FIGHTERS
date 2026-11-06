@@ -31,7 +31,7 @@ function waitFor(client,predicate,timeout=5000) {
     const poll=setInterval(()=>{
       const found=client.messages.find(predicate);
       if(found){clearInterval(poll);resolve(found)}
-      else if(Date.now()-start>timeout){clearInterval(poll);reject(new Error('timed out waiting for server event; received: '+client.messages.map(m=>m.type+(m.kind?':'+m.kind:'')).join(', ')))}
+      else if(Date.now()-start>timeout){clearInterval(poll);reject(new Error('timed out waiting for server event; received: '+client.messages.map(m=>m.type+(m.kind?':'+m.kind:'')).join(', ')+'; last players='+JSON.stringify(client.messages.filter(m=>m.type==='snapshot').at(-1)?.players)))}
     },15);
   });
 }
