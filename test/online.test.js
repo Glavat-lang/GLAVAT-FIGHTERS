@@ -75,7 +75,16 @@ function waitFor(client,predicate,timeout=5000,from=0) {
     const initial=await waitFor(attacker,m=>m.type==='snapshot'&&m.players?.every(Boolean));
     assert.equal(initial.players[0].x,290,'round reset must spawn player one at 290');
     assert.equal(initial.players[1].x,710,'round reset must spawn player two at 710');
-    attacker.ws.send(JSON.stringify({type:'input',input:{right:true,face:1}}));
+    attacker.ws.send(JSON.stringify({type:'input',input:{right:true,run:true,face:1}}));
+    await sleep(75);
+    let movement=attacker.messages.filter(m=>m.type==='snapshot'&&m.players?.every(Boolean)).at(-1)?.players[0];
+    assert.ok(movement.vx>0,'authoritative snapshots must expose forward velocity');
+    assert.equal(movement.run,true,'authoritative snapshots must expose running state');
+    attacker.ws.send(JSON.stringify({type:'input',input:{right:true,run:false,crouch:true,face:1}}));
+    await sleep(75);
+    movement=attacker.messages.filter(m=>m.type==='snapshot'&&m.players?.every(Boolean)).at(-1)?.players[0];
+    assert.equal(movement.crouch,true,'authoritative snapshots must expose crouch state');
+    attacker.ws.send(JSON.stringify({type:'input',input:{right:true,crouch:false,face:1}}));
     defender.ws.send(JSON.stringify({type:'input',input:{left:true,face:-1}}));
     await sleep(500);
     attacker.ws.send(JSON.stringify({type:'input',input:{right:false,face:1}}));
