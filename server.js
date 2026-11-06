@@ -152,7 +152,7 @@ function join(ws,msg) {
       broadcast(room,{type:'match-resumed',status:'round-over',arena:room.arena,round:room.round,wins:room.wins.slice(),fighters:room.slots.map(s=>s.fighter),timer:room.timer});
       snapshotAll(room);broadcast(room,{type:'round-end',...room.lastResult});
     }else{
-      room.wins=[0,0];room.round=1;room.matchComplete=false;room.resumeStatus='playing';room.rematchVotes.clear();resetRound(room);
+      room.wins=[0,0];room.round=1;room.matchComplete=false;room.statsSaved=false;room.resumeStatus='playing';room.rematchVotes.clear();resetRound(room);
       broadcast(room,{type:'match-start',arena:room.arena,round:1,wins:[0,0],fighters:room.slots.map(s=>s.fighter)});
     }
   }
