@@ -98,10 +98,10 @@ function handle(ws,msg){
     const s=msg.state||{};
     if(!valid(s.x,0,10000)||!valid(s.y,-1000,0)) return;
     const p=slot.state;
+    const stateNow=now();p.stun=Math.max(0,p.stun-Math.min(100,stateNow-p.lastStateAt));p.lastStateAt=stateNow;
     // Client supplies intent/pose only. Health, power, stun and hit results stay server-owned.
     p.x=clamp(s.x,20,980);p.y=clamp(s.y,-260,0);p.dir=s.dir===-1?-1:1;
     p.block=!!s.block&&p.stun<=0;p.attack=valid(s.attack,0,30)?s.attack:0;
-    p.stun=Math.max(0,p.stun-1);
     if(other) send(other.ws,{type:'opponent-state',playerNo:idx+1,state:publicPlayer(p)});
     return;
   }
