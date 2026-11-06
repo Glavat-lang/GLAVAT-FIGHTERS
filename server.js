@@ -128,7 +128,7 @@ function join(ws,msg) {
     rooms.set(code,room);
   }
   const playerId=readPlayerId(ws._cookie||'');
-  let idx=room.slots.findIndex(s=>s&&!s.ws&&s.playerId===playerId&&s.disconnectedAt&&now()-s.disconnectedAt<ROOM_TTL);
+  let idx=playerId?room.slots.findIndex(s=>s&&!s.ws&&s.playerId===playerId&&s.disconnectedAt&&now()-s.disconnectedAt<ROOM_TTL):-1;
   const reconnect=idx>=0;
   if(!reconnect){
     const reserved=room.slots.some(s=>s&&!s.ws&&s.disconnectedAt&&now()-s.disconnectedAt<ROOM_TTL);
