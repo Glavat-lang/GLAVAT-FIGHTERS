@@ -75,7 +75,7 @@ function snapshotAll(room) { broadcast(room, snapshot(room)); }
 function roomFor(code) { return rooms.get(code); }
 function closeRoomIfEmpty(room) { if (room.slots.every(s => !s)) { room.gcAt=now()+ROOM_TTL; room.status='empty'; } }
 function resetRound(room) {
-  room.timer=99; room.roundStarted=now(); room.status='playing';
+  room.timer=99; room.roundStarted=now(); room.status='playing'; room.lastResult=null;
   room.slots.forEach((s,i)=>{ if(s) s.state=playerState(i===0?290:710, i===0?1:-1); });
   broadcast(room,{type:'round-start',round:room.round,wins:room.wins.slice(),timer:99});
   snapshotAll(room);
@@ -97,8 +97,9 @@ function endRound(room, winner, reason) {
   if(winner===0||winner===1) room.wins[winner]++;
   const champion=room.wins.some(v=>v>=2)||(winner===null&&room.round>=3);
   room.matchComplete=champion;
+  room.lastResult={winner,reason,round:room.round,wins:room.wins.slice(),champion};
   if(champion)saveMatch(room,winner,reason);
-  broadcast(room,{type:'round-end',winner,reason,round:room.round,wins:room.wins.slice(),champion});
+  broadcast(room,{type:'round-end',...room.lastResult});
   snapshotAll(room);
 }
 function leave(ws) {
@@ -107,31 +108,52 @@ function leave(ws) {
   ws.room=null;
   const idx=room.slots.findIndex(s=>s && s.ws===ws);
   if(idx<0) return;
-  room.slots[idx]=null;
+  const slot=room.slots[idx];
+  slot.ws=null;slot.disconnectedAt=now();
+  if(room.status!=='waiting')room.resumeStatus=room.status;
   room.status='waiting';
   room.rematchVotes.clear();
   broadcast(room,{type:'opponent-left',playerNo:idx+1});
-  if(room.slots.every(s=>!s)) closeRoomIfEmpty(room);
+  if(room.slots.every(s=>s&&!s.ws))room.gcAt=now()+ROOM_TTL;
 }
 function valid(n,lo,hi){return typeof n==='number'&&Number.isFinite(n)&&n>=lo&&n<=hi;}
 function join(ws,msg) {
-  leave(ws);
   const code=String(msg.code||'').toUpperCase().replace(/[^A-Z0-9]/g,'').slice(0,8);
   if(code.length<3) return send(ws,{type:'join-error',message:'Код комнаты — минимум 3 символа.'});
   let room=roomFor(code);
   if(!room){
     if(rooms.size>=MAX_ROOMS) return send(ws,{type:'server-full',message:'Сервер комнат временно заполнен.'});
-    room={code,slots:[null,null],status:'waiting',round:1,wins:[0,0],timer:99,statsSaved:false,matchComplete:false,arena:['sunset','night','dojo','underground','neon'].includes(msg.arena)?msg.arena:'sunset',rematchVotes:new Set(),gcAt:0};
+    room={code,slots:[null,null],status:'waiting',resumeStatus:'waiting',lastResult:null,round:1,wins:[0,0],timer:99,statsSaved:false,matchComplete:false,arena:['sunset','night','dojo','underground','neon'].includes(msg.arena)?msg.arena:'sunset',rematchVotes:new Set(),gcAt:0};
     rooms.set(code,room);
   }
-  if(room.slots.every(Boolean)) return send(ws,{type:'room-full',message:'В комнате уже два игрока.'});
-  const idx=room.slots.findIndex(s=>!s);
-  room.gcAt=0; room.statsSaved=false; room.slots[idx]={ws,playerId:readPlayerId(ws._cookie||''),state:playerState(idx===0?290:710,idx===0?1:-1),fighter:msg.fighter===1?1:0};
-  ws.room=room; ws.playerNo=idx+1; ws.lastMsg=0;
-  send(ws,{type:'joined',code,playerNo:idx+1,count:room.slots.filter(Boolean).length,arena:room.arena});
-  if(room.slots.every(Boolean)){
-    room.wins=[0,0];room.round=1;room.matchComplete=false;room.rematchVotes.clear();resetRound(room);
-    broadcast(room,{type:'match-start',arena:room.arena,round:1,wins:[0,0],fighters:room.slots.map(s=>s.fighter)});
+  const playerId=readPlayerId(ws._cookie||'');
+  let idx=room.slots.findIndex(s=>s&&!s.ws&&s.playerId===playerId&&s.disconnectedAt&&now()-s.disconnectedAt<ROOM_TTL);
+  const reconnect=idx>=0;
+  if(!reconnect){
+    const reserved=room.slots.some(s=>s&&!s.ws&&s.disconnectedAt&&now()-s.disconnectedAt<ROOM_TTL);
+    if(reserved)return send(ws,{type:'room-reserved',message:'Место временно зарезервировано за отключившимся игроком.'});
+    idx=room.slots.findIndex(s=>!s);
+    if(idx<0)return send(ws,{type:'room-full',message:'В комнате уже два игрока.'});
+    room.slots[idx]={ws,playerId,state:playerState(idx===0?290:710,idx===0?1:-1),fighter:msg.fighter===1?1:0,disconnectedAt:0};
+  }else{
+    room.slots[idx].ws=ws;room.slots[idx].disconnectedAt=0;
+  }
+  room.gcAt=0;
+  ws.room=room;ws.playerNo=idx+1;ws.lastMsg=0;
+  send(ws,{type:'joined',code,playerNo:idx+1,count:room.slots.filter(s=>s&&s.ws).length,arena:room.arena,reconnected:reconnect});
+  if(room.slots.every(s=>s&&s.ws)){
+    if(reconnect&&room.resumeStatus==='playing'&&!room.matchComplete){
+      room.status='playing';room.roundStarted=now()-(99-room.timer)*1000;room.lastSnapshot=0;
+      broadcast(room,{type:'match-resumed',status:'playing',arena:room.arena,round:room.round,wins:room.wins.slice(),fighters:room.slots.map(s=>s.fighter),timer:room.timer});
+      snapshotAll(room);
+    }else if(reconnect&&room.resumeStatus==='round-over'&&room.lastResult){
+      room.status='round-over';
+      broadcast(room,{type:'match-resumed',status:'round-over',arena:room.arena,round:room.round,wins:room.wins.slice(),fighters:room.slots.map(s=>s.fighter),timer:room.timer});
+      snapshotAll(room);broadcast(room,{type:'round-end',...room.lastResult});
+    }else{
+      room.wins=[0,0];room.round=1;room.matchComplete=false;room.resumeStatus='playing';room.rematchVotes.clear();resetRound(room);
+      broadcast(room,{type:'match-start',arena:room.arena,round:1,wins:[0,0],fighters:room.slots.map(s=>s.fighter)});
+    }
   }
 }
 function handle(ws,msg){
@@ -226,6 +248,8 @@ const heartbeat=setInterval(()=>{for(const ws of wss.clients){if(!ws.isAlive){ws
 const roomClock=setInterval(()=>{
   const t=now();
   for(const [code,room] of rooms){
+    for(let i=0;i<2;i++){const slot=room.slots[i];if(slot&&!slot.ws&&slot.disconnectedAt&&t-slot.disconnectedAt>=ROOM_TTL)room.slots[i]=null;}
+    if(room.slots.every(s=>!s)){rooms.delete(code);continue}
     if(room.gcAt&&room.gcAt<t){rooms.delete(code);continue}
     if(room.status==='playing'&&room.slots.every(Boolean)){
       const left=Math.max(0,99-Math.floor((t-room.roundStarted)/1000));
