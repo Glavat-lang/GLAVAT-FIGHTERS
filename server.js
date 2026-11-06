@@ -5,24 +5,36 @@ const path = require('path');
 const crypto = require('crypto');
 const WebSocket = require('ws');
 const STATS_FILE=process.env.STATS_FILE||path.join(__dirname,'data','fighter-stats.json');
-let statsData={},statsQueue=Promise.resolve();
-function initStats(){
-  fs.mkdirSync(path.dirname(STATS_FILE),{recursive:true});
-  try{const parsed=JSON.parse(fs.readFileSync(STATS_FILE,'utf8'));if(parsed&&typeof parsed==='object'&&!Array.isArray(parsed))statsData=parsed;}
-  catch(e){if(e.code!=='ENOENT')throw e;fs.writeFileSync(STATS_FILE,'{}',{mode:0o600});}
-  return true;
-}
-let dbReady=Promise.resolve().then(initStats).catch(e=>{console.error('stats database init failed',e.message);return false;});
-function persistStats(){
-  const snapshot=JSON.stringify(statsData),tmp=STATS_FILE+'.tmp';
-  statsQueue=statsQueue.then(()=>fs.promises.writeFile(tmp,snapshot,{mode:0o600})).then(()=>fs.promises.rename(tmp,STATS_FILE));
-  return statsQueue;
-}
-const emptyStats=()=>({matches:0,wins:0,losses:0,draws:0,knockouts:0,win_streak:0,best_streak:0,favorite_fighter:0,fighter_0_count:0,fighter_1_count:0});
+const database=require('./database');
+let statsData={};
+async function initStats(){statsData=await database.init(STATS_FILE);return true;}
+let dbReady=Promise.resolve().then(initStats).catch(e=>{console.error('persistent database init failed',e.message);return false;});
+function persistStats(){return database.persistStats(statsData);}
+const emptyStats=database.emptyStats;
 async function profile(id,res){
   if(!await dbReady)return json(res,503,{error:'Statistics database unavailable'});
-  const x=statsData[id]||emptyStats();
-  json(res,200,{...x,winRate:x.matches?Math.round(x.wins/x.matches*100):0});
+  try{await database.ensurePlayer(id);const x=statsData[id]||emptyStats();
+    json(res,200,{...x,winRate:x.matches?Math.round(x.wins/x.matches*100):0});
+  }catch(error){console.error('profile lookup failed',error.message);json(res,503,{error:'Profile temporarily unavailable'});}
+}
+async function matchHistory(id,res){
+  if(!await dbReady)return json(res,503,{error:'Match history unavailable'});
+  try{await database.ensurePlayer(id);json(res,200,{matches:await database.getHistory(id,20)});}
+  catch(error){console.error('match history lookup failed',error.message);json(res,503,{error:'Match history temporarily unavailable'});}
+}
+async function playerSettings(id,res,method,body){
+  if(!await dbReady)return json(res,503,{error:'Settings database unavailable'});
+  try{
+    await database.ensurePlayer(id);
+    if(method==='GET')return json(res,200,{settings:await database.getSettings(id)});
+    return json(res,200,{settings:await database.saveSettings(id,body)});
+  }catch(error){console.error('player settings failed',error.message);return json(res,503,{error:'Settings temporarily unavailable'});}
+}
+function readJsonBody(req,limit=8192){
+  return new Promise((resolve,reject)=>{let data='';req.on('data',chunk=>{data+=chunk;if(data.length>limit){reject(new Error('Request body too large'));req.destroy();}});
+    req.on('end',()=>{try{resolve(data?JSON.parse(data):{});}catch{reject(new Error('Invalid JSON'));}});
+    req.on('error',reject);
+  });
 }
 async function leaderboard(res){
   if(!await dbReady)return json(res,503,{error:'Statistics database unavailable'});
@@ -58,12 +70,15 @@ function attackIntersects(a,v,kind,range){
 const server = http.createServer((req, res) => {
   let playerId=readPlayerId(req.headers.cookie||'');
   if(!playerId){playerId=crypto.randomUUID();res.setHeader('Set-Cookie',`gf_player=${playerId}; Path=/; HttpOnly; SameSite=Lax; Secure; Max-Age=31536000`);}
-  if (req.method !== 'GET' && req.method !== 'HEAD') { res.writeHead(405); return res.end(); }
+  if (req.method !== 'GET' && req.method !== 'HEAD' && !(req.method==='PUT'&&req.url?.split('?')[0]==='/api/settings')) { res.writeHead(405); return res.end(); }
   let pathname;
   try { pathname = decodeURIComponent((req.url || '/').split('?')[0]); }
   catch { res.writeHead(400); return res.end('Bad request'); }
   if(pathname==='/health'&&req.method==='GET')return dbReady.then(ready=>json(res,ready?200:503,{ok:ready,statsReady:ready}));
   if(pathname==='/api/profile'&&req.method==='GET')return profile(playerId,res);
+  if(pathname==='/api/history'&&req.method==='GET')return matchHistory(playerId,res);
+  if(pathname==='/api/settings'&&req.method==='GET')return playerSettings(playerId,res,'GET');
+  if(pathname==='/api/settings'&&req.method==='PUT')return readJsonBody(req).then(body=>playerSettings(playerId,res,'PUT',body)).catch(error=>json(res,error.message==='Request body too large'?413:400,{error:error.message}));
   if(pathname==='/api/leaderboard'&&req.method==='GET')return leaderboard(res);
   const relative = pathname === '/' ? 'index.html' : pathname.replace(/^\/+/, '');
   const full = path.resolve(PUBLIC, relative);
@@ -95,16 +110,22 @@ function resetRound(room) {
   broadcast(room,{type:'round-start',round:room.round,wins:room.wins.slice(),timer:99});
   snapshotAll(room);
 }
-function saveMatch(room,winner,reason){
- if(room.statsSaved)return Promise.resolve();room.statsSaved=true;
- return dbReady.then(async ready=>{if(!ready)throw new Error('stats store is not ready');for(let i=0;i<2;i++){const slot=room.slots[i];if(!slot||!slot.playerId)continue;
+async function saveMatch(room,winner,reason){
+ if(room.statsSaved)return;
+ if(!await dbReady)throw new Error('persistent database is not ready');
+ for(let i=0;i<2;i++){const slot=room.slots[i];if(!slot||!slot.playerId)continue;
   const won=winner===i,draw=winner===null,ko=reason==='ko'&&won,x=statsData[slot.playerId]||emptyStats();
   x.matches++;if(won){x.wins++;x.win_streak++;x.knockouts+=ko?1:0;}else if(draw){x.draws++;x.win_streak=0;}else{x.losses++;x.win_streak=0;}
   x.best_streak=Math.max(x.best_streak,x.win_streak);
   if(slot.fighter===0)x.fighter_0_count++;else x.fighter_1_count++;
   x.favorite_fighter=x.fighter_0_count>=x.fighter_1_count?0:1;
   statsData[slot.playerId]=x;
- }}).then(()=>persistStats()).catch(e=>console.error('stats save failed',e.message));
+ }
+ await database.recordMatch(statsData,{
+  roomCode:room.code,playerIds:room.slots.map(slot=>slot.playerId),
+  fighters:room.slots.map(slot=>slot.fighter),winner,reason,round:room.round
+ });
+ room.statsSaved=true;
 }
 async function endRound(room, winner, reason) {
   if(room.status!=='playing') return;
@@ -112,8 +133,9 @@ async function endRound(room, winner, reason) {
   if(winner===0||winner===1) room.wins[winner]++;
   const champion=room.wins.some(v=>v>=2)||(winner===null&&room.round>=3);
   room.matchComplete=champion;
-  room.lastResult={winner,reason,round:room.round,wins:room.wins.slice(),champion};
-  if(champion)await saveMatch(room,winner,reason);
+  room.lastResult={winner,reason,round:room.round,wins:room.wins.slice(),champion,statsSaved:!champion};
+  if(champion){try{await saveMatch(room,winner,reason);room.lastResult.statsSaved=true;}
+    catch(error){room.lastResult.statsSaved=false;console.error('match persistence failed',error.message);}}
   room.status='round-over';
   broadcast(room,{type:'round-end',...room.lastResult});
   snapshotAll(room);
@@ -143,6 +165,7 @@ function join(ws,msg) {
     rooms.set(code,room);
   }
   const playerId=readPlayerId(ws._cookie||'');
+  if(playerId)database.ensurePlayer(playerId).catch(error=>console.error('player registration failed',error.message));
   let idx=playerId?room.slots.findIndex(s=>s&&!s.ws&&s.playerId===playerId&&s.disconnectedAt&&now()-s.disconnectedAt<ROOM_TTL):-1;
   const reconnect=idx>=0;
   if(!reconnect){
