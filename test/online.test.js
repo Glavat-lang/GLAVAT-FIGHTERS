@@ -21,7 +21,7 @@ async function ready() {
   }
   throw new Error('server did not start; exit: '+JSON.stringify(childExit)+'; child output: '+childOutput);
 }
-function identity(){return new Promise((resolve,reject)=>http.get(base+'/',res=>{res.resume();res.on('end',()=>resolve(res.headers['set-cookie']?.[0]?.split(';')[0]||''))}).on('error',reject))}
+function identity(){return new Promise((resolve,reject)=>{const req=http.get(base+'/',res=>{res.on('end',()=>resolve(res.headers['set-cookie']?.[0]?.split(';')[0]||''));res.on('error',reject);res.resume()});req.on('error',e=>reject(new Error(e.message+'; child='+childOutput+'; exit='+JSON.stringify(childExit))))})}
 function getJson(route,cookie){return new Promise((resolve,reject)=>http.get(base+route,{headers:cookie?{Cookie:cookie}:{}},res=>{let data='';res.setEncoding('utf8');res.on('data',x=>data+=x);res.on('end',()=>resolve({status:res.statusCode,body:JSON.parse(data)}))}).on('error',reject))}
 function connect(code,cookie='') {
   return new Promise((resolve,reject)=>{
