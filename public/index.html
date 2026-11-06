@@ -144,12 +144,12 @@ function connect(){
  socket.onmessage=e=>{
   const m=JSON.parse(e.data);
   if(m.type==='joined'){me=m.playerNo;online=true;document.getElementById('join').style.display='none';document.getElementById('joinmsg').textContent='Комната '+m.code+'. Ты игрок '+me+'.';document.getElementById('status').textContent='ЖДЁМ СОПЕРНИКА · '+m.code;}
-  if(m.type==='match-start'){opponentConnected=true;matchStarted=true;ended=false;timer=99;timerStamp=Date.now();fighters.forEach(p=>{p.hp=100;p.flash=0;p.attack=0;});updateHud();document.getElementById('timer').textContent='99';document.getElementById('status').textContent='БОЙ НАЧАЛСЯ · '+code;}
+  if(m.type==='match-start'){opponentConnected=true;matchStarted=true;ended=false;timer=99;timerStamp=Date.now();fighters[0].x=W*.25;fighters[1].x=W*.75;fighters.forEach(p=>{p.hp=100;p.flash=0;p.attack=0;p.y=0;p.vx=0;p.vy=0;});updateHud();document.getElementById('timer').textContent='99';document.getElementById('status').textContent='БОЙ НАЧАЛСЯ · '+code;}
   if(m.type==='opponent-state'){const o=fighters[2-me];Object.assign(o,m.state);updateHud();}
   if(m.type==='damage'){const own=fighters[me-1];own.hp=clamp(m.hp,0,100);own.flash=8;updateHud();if(own.hp<=0){ended=true;document.getElementById('status').textContent='НОКАУТ!';}}
   if(m.type==='room-full'){document.getElementById('joinmsg').textContent='Комната уже заполнена. Попробуй другой код.';document.getElementById('join').style.display='flex';}
   if(m.type==='join-error'||m.type==='server-full'){document.getElementById('joinmsg').textContent=m.message||'Сервер перегружен. Попробуй позже.';document.getElementById('join').style.display='flex';}
-  if(m.type==='opponent-left'){opponentConnected=false;matchStarted=false;document.getElementById('status').textContent='СОПЕРНИК ВЫШЕЛ · ОЖИДАНИЕ';}
+  if(m.type==='opponent-left'){if(m.playerNo)me=m.playerNo;opponentConnected=false;matchStarted=false;document.getElementById('status').textContent='СОПЕРНИК ВЫШЕЛ · ОЖИДАНИЕ';}
  };
  socket.onerror=()=>{document.getElementById('joinmsg').textContent='Ошибка соединения. Проверь интернет и попробуй ещё раз.';document.getElementById('join').style.display='flex';};
  socket.onclose=()=>{if(online){online=false;opponentConnected=false;matchStarted=false;document.getElementById('status').textContent='СОЕДИНЕНИЕ ПОТЕРЯНО';document.getElementById('joinmsg').textContent='Соединение прервано. Нажми «Войти в бой», чтобы подключиться снова.';document.getElementById('join').style.display='flex';}};
