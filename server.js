@@ -119,7 +119,7 @@ function handle(ws,msg){
   if(!slot||slot.ws!==ws) return;
   if(msg.type==='input' && room.status==='playing'){
     const v=msg.input||{},p=slot.state;
-    p.input={left:!!v.left,right:!!v.right,jump:!!v.jump,dodge:!!v.dodge,run:!!v.run,crouch:!!v.crouch};
+    p.input={left:!!v.left,right:!!v.right,jump:!!v.jump,dodge:!!v.dodge,run:!!v.run,crouch:!!v.crouch};if(v.face===-1||v.face===1)p.dir=v.face;
     p.block=!!v.block&&p.stun<=0;
     if(p.input.jump&&!p.jumpLatch&&p.y===0&&p.stun<=0)p.vy=-9.5;
     p.jumpLatch=p.input.jump;
