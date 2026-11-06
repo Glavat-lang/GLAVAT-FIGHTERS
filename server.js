@@ -113,25 +113,29 @@ function resetRound(room) {
 async function saveMatch(room,winner,reason){
  if(room.statsSaved)return;
  if(!await dbReady)throw new Error('persistent database is not ready');
- for(let i=0;i<2;i++){const slot=room.slots[i];if(!slot||!slot.playerId)continue;
-  const won=winner===i,draw=winner===null,ko=reason==='ko'&&won,x=statsData[slot.playerId]||emptyStats();
-  x.matches++;if(won){x.wins++;x.win_streak++;x.knockouts+=ko?1:0;}else if(draw){x.draws++;x.win_streak=0;}else{x.losses++;x.win_streak=0;}
-  x.best_streak=Math.max(x.best_streak,x.win_streak);
-  if(slot.fighter===0)x.fighter_0_count++;else x.fighter_1_count++;
-  x.favorite_fighter=x.fighter_0_count>=x.fighter_1_count?0:1;
-  statsData[slot.playerId]=x;
+ if(!room.statsPrepared){
+  for(let i=0;i<2;i++){const slot=room.slots[i];if(!slot||!slot.playerId)continue;
+   const won=winner===i,draw=winner===null,ko=reason==='ko'&&won,x=statsData[slot.playerId]||emptyStats();
+   x.matches++;if(won){x.wins++;x.win_streak++;x.knockouts+=ko?1:0;}else if(draw){x.draws++;x.win_streak=0;}else{x.losses++;x.win_streak=0;}
+   x.best_streak=Math.max(x.best_streak,x.win_streak);
+   if(slot.fighter===0)x.fighter_0_count++;else x.fighter_1_count++;
+   x.favorite_fighter=x.fighter_0_count>=x.fighter_1_count?0:1;
+   statsData[slot.playerId]=x;
+  }
+  const ids=room.slots.map(slot=>slot.playerId);
+  if(ids[0]&&ids[1]&&statsData[ids[0]]&&statsData[ids[1]]){
+   const first=statsData[ids[0]],second=statsData[ids[1]];
+   const expectedFirst=1/(1+Math.pow(10,((second.rating||1000)-(first.rating||1000))/400));
+   const scoreFirst=winner===null ? 0.5 : winner===0 ? 1 : 0;
+   const delta=Math.round(32*(scoreFirst-expectedFirst));
+   first.rating=Math.max(0,(first.rating||1000)+delta);
+   second.rating=Math.max(0,(second.rating||1000)-delta);
+  }
+  room.statsPrepared=true;
  }
  const ids=room.slots.map(slot=>slot.playerId);
- if(ids[0]&&ids[1]&&statsData[ids[0]]&&statsData[ids[1]]){
-  const first=statsData[ids[0]],second=statsData[ids[1]];
-  const expectedFirst=1/(1+Math.pow(10,((second.rating||1000)-(first.rating||1000))/400));
-  const scoreFirst=winner===null ? 0.5 : winner===0 ? 1 : 0;
-  const delta=Math.round(32*(scoreFirst-expectedFirst));
-  first.rating=Math.max(0,(first.rating||1000)+delta);
-  second.rating=Math.max(0,(second.rating||1000)-delta);
- }
  await database.recordMatch(statsData,{
-  roomCode:room.code,playerIds:ids,
+  matchId:room.matchId,roomCode:room.code,playerIds:ids,
   fighters:room.slots.map(slot=>slot.fighter),winner,reason,round:room.round
  });
  room.statsSaved=true;
@@ -143,8 +147,12 @@ async function endRound(room, winner, reason) {
   const champion=room.wins.some(v=>v>=2)||(winner===null&&room.round>=3);
   room.matchComplete=champion;
   room.lastResult={winner,reason,round:room.round,wins:room.wins.slice(),champion,statsSaved:!champion};
-  if(champion){try{await saveMatch(room,winner,reason);room.lastResult.statsSaved=true;}
-    catch(error){room.lastResult.statsSaved=false;console.error('match persistence failed',error.message);}}
+  if(champion){
+    for(let attempt=0;attempt<3;attempt++){
+      try{await saveMatch(room,winner,reason);room.lastResult.statsSaved=true;break;}
+      catch(error){room.lastResult.statsSaved=false;console.error('match persistence attempt '+(attempt+1)+' failed',error.message);if(attempt<2)await new Promise(resolve=>setTimeout(resolve,250*(attempt+1)));}
+    }
+  }
   room.status='round-over';
   broadcast(room,{type:'round-end',...room.lastResult});
   snapshotAll(room);
@@ -170,7 +178,7 @@ function join(ws,msg) {
   let room=roomFor(code);
   if(!room){
     if(rooms.size>=MAX_ROOMS) return send(ws,{type:'server-full',message:'Сервер комнат временно заполнен.'});
-    room={code,slots:[null,null],status:'waiting',resumeStatus:'waiting',lastResult:null,round:1,wins:[0,0],timer:99,statsSaved:false,matchComplete:false,arena:['sunset','night','dojo','underground','neon','harbor'].includes(msg.arena)?msg.arena:'sunset',rematchVotes:new Set(),gcAt:0};
+    room={code,slots:[null,null],status:'waiting',resumeStatus:'waiting',lastResult:null,round:1,wins:[0,0],timer:99,statsSaved:false,statsPrepared:false,matchId:crypto.randomUUID(),matchComplete:false,arena:['sunset','night','dojo','underground','neon','harbor'].includes(msg.arena)?msg.arena:'sunset',rematchVotes:new Set(),gcAt:0};
     rooms.set(code,room);
   }
   const playerId=readPlayerId(ws._cookie||'');
@@ -263,7 +271,7 @@ function handle(ws,msg){
     room.rematchVotes.add(idx);
     if(room.rematchVotes.size===2){
       room.rematchVotes.clear();
-      if(room.matchComplete||room.wins.some(v=>v>=2)){room.wins=[0,0];room.round=1;room.statsSaved=false;room.matchComplete=false;}
+      if(room.matchComplete||room.wins.some(v=>v>=2)){room.wins=[0,0];room.round=1;room.statsSaved=false;room.statsPrepared=false;room.matchId=crypto.randomUUID();room.matchComplete=false;}
       else room.round++;
       resetRound(room);broadcast(room,{type:'match-start',arena:room.arena,round:room.round,wins:room.wins.slice(),fighters:room.slots.map(s=>s.fighter)});
     }else send(ws,{type:'rematch-wait'});
