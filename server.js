@@ -245,7 +245,7 @@ const physicsTick=setInterval(()=>{
    p.stun=Math.max(0,p.stun-dt);if(p.invuln<=t)p.invuln=0;
    if(p.stun<=0){const move=(p.input.right?1:0)-(p.input.left?1:0);if(move)p.dir=move;p.vx=(p.dodgeUntil>t?p.dir*.37:move*(p.input.crouch?.06:p.input.run?.282:.186))*fighterStats(p.fighter).speed;p.block=!!p.input.block;}else p.block=false;
    p.x=clamp(p.x+p.vx*dt,70,930);p.vx*=Math.pow(.78,dt/16.67);
-   p.y+=p.vy*dt/16.67;p.vy+=.48*dt/16.67;if(p.y>0){p.y=0;p.vy=0;}
+   if(p.y<0||p.vy<0){p.y+=p.vy*dt/16.67;p.vy+=.48*dt/16.67;if(p.y>0){p.y=0;p.vy=0;}}else{p.y=0;p.vy=0;}
   }
   const a=room.slots[0].state,b=room.slots[1].state;
   if(Math.abs(a.x-b.x)<68){const mid=(a.x+b.x)/2;a.x=clamp(mid-34,70,896);b.x=clamp(mid+34,104,930);}
