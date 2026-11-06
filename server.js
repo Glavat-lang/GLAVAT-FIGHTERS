@@ -170,7 +170,7 @@ function join(ws,msg) {
   let room=roomFor(code);
   if(!room){
     if(rooms.size>=MAX_ROOMS) return send(ws,{type:'server-full',message:'Сервер комнат временно заполнен.'});
-    room={code,slots:[null,null],status:'waiting',resumeStatus:'waiting',lastResult:null,round:1,wins:[0,0],timer:99,statsSaved:false,matchComplete:false,arena:['sunset','night','dojo','underground','neon'].includes(msg.arena)?msg.arena:'sunset',rematchVotes:new Set(),gcAt:0};
+    room={code,slots:[null,null],status:'waiting',resumeStatus:'waiting',lastResult:null,round:1,wins:[0,0],timer:99,statsSaved:false,matchComplete:false,arena:['sunset','night','dojo','underground','neon','harbor'].includes(msg.arena)?msg.arena:'sunset',rematchVotes:new Set(),gcAt:0};
     rooms.set(code,room);
   }
   const playerId=readPlayerId(ws._cookie||'');
