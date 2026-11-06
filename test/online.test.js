@@ -44,8 +44,11 @@ function waitFor(client,predicate,timeout=3500) {
     const code='T'+Math.random().toString(36).slice(2,7).toUpperCase();
     const p1=await connect(code),p2=await connect(code);
     await Promise.all([waitFor(p1,m=>m.type==='match-start'),waitFor(p2,m=>m.type==='match-start')]);
-    p1.ws.send(JSON.stringify({type:'state',state:{x:300,y:0,dir:1,attack:0,block:false}}));
-    p2.ws.send(JSON.stringify({type:'state',state:{x:360,y:0,dir:-1,attack:0,block:false}}));
+    p1.ws.send(JSON.stringify({type:'input',input:{right:true}}));
+    p2.ws.send(JSON.stringify({type:'input',input:{left:true}}));
+    await sleep(420);
+    p1.ws.send(JSON.stringify({type:'input',input:{right:false}}));
+    p2.ws.send(JSON.stringify({type:'input',input:{left:false}}));
     const damage=waitFor(p2,m=>m.type==='damage');
     await sleep(80);
     p1.ws.send(JSON.stringify({type:'attack',attack:{kind:'punch'}}));
