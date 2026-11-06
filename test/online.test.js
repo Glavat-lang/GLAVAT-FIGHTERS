@@ -7,14 +7,14 @@ const WebSocket = require('ws');
 const port = 34000 + Math.floor(Math.random() * 10000);
 const base = 'http://127.0.0.1:' + port;
 const child = spawn(process.execPath, ['server.js'], { env: { ...process.env, PORT: String(port) }, stdio: ['ignore','pipe','pipe'] });
-let childOutput='';child.stdout.on('data',x=>childOutput+=x);child.stderr.on('data',x=>childOutput+=x);
+let childOutput='',childExit=null;child.stdout.on('data',x=>childOutput+=x);child.stderr.on('data',x=>childOutput+=x);child.on('error',e=>childOutput+=' spawn error: '+e.message);child.on('exit',(code,signal)=>{childExit={code,signal}});
 const sleep = ms => new Promise(r => setTimeout(r, ms));
 async function ready() {
   for (let i=0;i<80;i++) {
     try { await new Promise((resolve,reject)=>{const req=http.get(base,res=>{res.resume();resolve()});req.on('error',reject);req.setTimeout(300,reject)}); return; }
     catch { await sleep(50); }
   }
-  throw new Error('server did not start; child output: '+childOutput);
+  throw new Error('server did not start; exit: '+JSON.stringify(childExit)+'; child output: '+childOutput);
 }
 function connect(code) {
   return new Promise((resolve,reject)=>{
