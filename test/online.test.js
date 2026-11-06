@@ -92,6 +92,13 @@ function waitFor(client,predicate,timeout=5000,from=0) {
     defender.ws.send(JSON.stringify({type:'attack',attack:{kind:'counter'}}));
     const counter=await counterHit;
     assert.equal(counter.damage,18,'a successful block must enable a counterattack');
+    await sleep(200);
+    attacker.ws.send(JSON.stringify({type:'input',input:{right:true,face:1}}));
+    defender.ws.send(JSON.stringify({type:'input',input:{left:true,face:-1}}));
+    await sleep(250);
+    attacker.ws.send(JSON.stringify({type:'input',input:{right:false,face:1}}));
+    defender.ws.send(JSON.stringify({type:'input',input:{left:false,face:-1}}));
+    await sleep(25);
     const grabHit=waitFor(defender,m=>m.type==='damage'&&m.kind==='grab');
     const grabStart=waitFor(attacker,m=>m.type==='attack-start'&&m.kind==='grab');
     await sleep(800);
