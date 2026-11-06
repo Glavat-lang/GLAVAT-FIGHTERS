@@ -57,6 +57,7 @@ function waitFor(client,predicate,timeout=5000) {
     await sleep(500);
     attacker.ws.send(JSON.stringify({type:'input',input:{right:false,face:1}}));
     defender.ws.send(JSON.stringify({type:'input',input:{left:false,face:-1}}));
+    await sleep(25);
     const airborne=waitFor(attacker,m=>m.type==='snapshot'&&m.players?.[0]?.y< -10);
     attacker.ws.send(JSON.stringify({type:'input',input:{jump:true,right:false,face:1}}));
     await airborne;
