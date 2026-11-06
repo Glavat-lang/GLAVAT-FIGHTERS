@@ -44,8 +44,8 @@ const server = http.createServer((req, res) => {
 
 const wss = new WebSocket.Server({ server, maxPayload: 2048, perMessageDeflate:false });
 function send(ws, data) { if (ws && ws.readyState === WebSocket.OPEN) ws.send(JSON.stringify(data)); }
-function playerState(x, dir) { return { x, y:0, dir, hp:100, power:0, block:false, attack:0, stun:0, invuln:0, lastAttack:0, lastStateAt:now(), attackToken:null }; }
-function publicPlayer(p) { return { x:p.x, y:p.y, dir:p.dir, hp:p.hp, power:p.power, block:p.block, attack:p.attack, stun:p.stun }; }
+function playerState(x, dir) { return { x, y:0, vx:0, vy:0, dir, hp:100, power:0, block:false, input:{left:false,right:false,jump:false,dodge:false},jumpLatch:false,dodgeUntil:0,hp:100,power:0,attack:0,stun:0,invuln:0,lastAttack:0,lastStateAt:now(),lastPhysicsAt:now(),attackToken:null }; }
+function publicPlayer(p) { return { x:p.x, y:p.y, dir:p.dir, hp:p.hp, power:p.power, block:p.block, attack:p.attack, stun:p.stun, invuln:p.invuln }; }
 function snapshot(room) {
   return { type:'snapshot', room:room.code, status:room.status, round:room.round, wins:room.wins.slice(), timer:room.timer,
     players:room.slots.map(s => s ? publicPlayer(s.state) : null) };
@@ -117,43 +117,41 @@ function handle(ws,msg){
   if(!room) return;
   const idx=ws.playerNo-1, slot=room.slots[idx], other=room.slots[1-idx];
   if(!slot||slot.ws!==ws) return;
-  if(msg.type==='state' && room.status==='playing'){
-    const s=msg.state||{};
-    if(!valid(s.x,0,10000)||!valid(s.y,-1000,0)) return;
-    const p=slot.state;
-    const stateNow=now();p.stun=Math.max(0,p.stun-Math.min(100,stateNow-p.lastStateAt));p.lastStateAt=stateNow;
-    // Client supplies intent/pose only. Health, power, stun and hit results stay server-owned.
-    p.x=clamp(s.x,20,980);p.y=clamp(s.y,-260,0);p.dir=s.dir===-1?-1:1;
-    p.block=!!s.block&&p.stun<=0;p.attack=valid(s.attack,0,600)?s.attack:0;
-    if(other) send(other.ws,{type:'opponent-state',playerNo:idx+1,state:publicPlayer(p)});
+  if(msg.type==='input' && room.status==='playing'){
+    const v=msg.input||{},p=slot.state;
+    p.input={left:!!v.left,right:!!v.right,jump:!!v.jump,dodge:!!v.dodge};
+    p.block=!!v.block&&p.stun<=0;
+    if(p.input.jump&&!p.jumpLatch&&p.y===0&&p.stun<=0)p.vy=-9.5;
+    p.jumpLatch=p.input.jump;
+    if(p.input.dodge&&p.dodgeUntil<=now()&&p.stun<=0){p.dodgeUntil=now()+850;p.invuln=now()+240;p.vx=p.dir*8;}
     return;
   }
   if(msg.type==='attack' && room.status==='playing' && other){
     const kind=msg.attack&&msg.attack.kind;
-    if(!['punch','kick','special','heavyPunch','heavyKick'].includes(kind)) return;
+    if(!['punch','kick','special','heavyPunch','heavyKick','grab','airPunch','airKick'].includes(kind)) return;
     const nowAt=now(),a=slot.state,v=other.state;
-    const cooldown=kind==='special'?850:kind.startsWith('heavy')?620:kind==='kick'?380:260;
+    const cooldown=kind==='special'?1000:kind==='grab'?900:kind.startsWith('heavy')?680:kind==='kick'?420:300;
     if(nowAt-a.lastAttack<cooldown||a.stun>0) return;
     if(kind==='special'&&a.power<100) return;
-    const dx=v.x-a.x,dy=Math.abs(v.y-a.y),range=kind==='special'?170:kind==='heavyKick'?155:kind==='heavyPunch'?132:kind==='kick'?128:104;
+    const dx=v.x-a.x,dy=Math.abs(v.y-a.y),range=kind==='special'?430:kind==='grab'?190:kind==='heavyKick'?360:kind==='heavyPunch'?320:kind==='kick'||kind==='airKick'?310:kind==='airPunch'?280:260;
     if(Math.sign(dx)!==a.dir||Math.abs(dx)>range+35||dy>75) return;
     a.lastAttack=nowAt;
     if(kind==='special')a.power=0;
     const token=crypto.randomUUID();
     a.attackToken=token;
-    const windup=kind==='special'?260:kind.startsWith('heavy')?235:kind==='kick'?165:115;
+    const windup=kind==='special'?300:kind==='grab'?180:kind.startsWith('heavy')?250:kind==='kick'||kind==='airKick'?175:130;
     broadcast(room,{type:'attack-start',playerNo:idx+1,kind,windup});
     setTimeout(()=>{
       if(room.status!=='playing'||room.round!==roundAtAttack||a.attackToken!==token||!room.slots[idx]||!room.slots[1-idx])return;
       const currentA=room.slots[idx].state,currentV=room.slots[1-idx].state;
       const hitDx=currentV.x-currentA.x,hitDy=Math.abs(currentV.y-currentA.y);
       if(Math.sign(hitDx)!==currentA.dir||Math.abs(hitDx)>range||hitDy>58||currentV.invuln>now())return;
-      const blocked=currentV.block&&Math.sign(hitDx)===-currentV.dir;
-      const baseDamage=kind==='special'?24:kind==='heavyKick'?21:kind==='heavyPunch'?17:kind==='kick'?15:10;
+      const blocked=kind!=='grab'&&currentV.block&&Math.sign(hitDx)===-currentV.dir;
+      const baseDamage=kind==='special'?25:kind==='grab'?20:kind==='heavyKick'?21:kind==='heavyPunch'?17:kind==='kick'||kind==='airKick'?15:kind==='airPunch'?12:10;
       const damage=blocked?Math.max(1,Math.round(baseDamage*.18)):baseDamage;
-      currentV.hp=clamp(currentV.hp-damage,0,100);currentV.stun=blocked?70:kind==='special'||kind==='heavyKick'?330:kind==='heavyPunch'?260:kind==='kick'?210:160;currentV.invuln=now()+(blocked?120:280);
-      currentV.x=clamp(currentV.x+currentA.dir*(blocked?8:kind==='special'?34:kind==='heavyKick'?28:kind==='heavyPunch'?22:kind==='kick'?20:12),20,980);
-      currentA.power=clamp(currentA.power+(kind==='special'?0:kind==='heavyKick'?23:kind==='heavyPunch'?20:kind==='kick'?17:12),0,100);
+      currentV.hp=clamp(currentV.hp-damage,0,100);currentV.stun=blocked?70:kind==='grab'?440:kind==='special'||kind==='heavyKick'?350:kind==='heavyPunch'?270:kind==='kick'||kind==='airKick'?220:160;currentV.invuln=now()+(blocked?120:280);
+      currentV.x=clamp(currentV.x+currentA.dir*(blocked?8:kind==='grab'?58:kind==='special'?48:kind==='heavyKick'?38:kind==='heavyPunch'?30:kind==='kick'||kind==='airKick'?26:18),70,930);
+      currentA.power=clamp(currentA.power+(kind==='special'?0:kind==='grab'?20:kind==='heavyKick'?23:kind==='heavyPunch'?20:kind==='kick'||kind==='airKick'?17:12),0,100);
       broadcast(room,{type:'damage',playerNo:2-idx,hp:currentV.hp,damage,kind,attackerNo:idx+1,blocked,power:currentA.power});
       snapshotAll(room);
       if(currentV.hp<=0)endRound(room,idx,'ko');
@@ -182,6 +180,21 @@ wss.on('connection',(ws,req)=>{ws._cookie=req.headers.cookie||'';
   });
   ws.on('close',()=>leave(ws));ws.on('error',()=>leave(ws));
 });
+const physicsTick=setInterval(()=>{
+ const t=now();
+ for(const room of rooms.values()){
+  if(room.status!=='playing'||!room.slots.every(Boolean))continue;
+  for(let i=0;i<2;i++){const p=room.slots[i].state,dt=clamp(t-p.lastPhysicsAt,0,50);p.lastPhysicsAt=t;
+   p.stun=Math.max(0,p.stun-dt);p.invuln=Math.max(t,p.invuln);
+   if(p.stun<=0){const move=(p.input.right?1:0)-(p.input.left?1:0);if(move)p.dir=move;p.vx=move*.46*(p.input.dodge&&p.dodgeUntil>t?1:1);p.block=!!p.block;}
+   p.x=clamp(p.x+p.vx*dt,70,930);p.vx*=Math.pow(.78,dt/16.67);
+   p.y+=p.vy*dt/16.67;p.vy+=.48*dt/16.67;if(p.y>0){p.y=0;p.vy=0;}
+  }
+  const a=room.slots[0].state,b=room.slots[1].state;
+  if(Math.abs(a.x-b.x)<68){const mid=(a.x+b.x)/2;a.x=clamp(mid-34,70,896);b.x=clamp(mid+34,104,930);}
+  if(t-(room.lastSnapshot||0)>50){room.lastSnapshot=t;snapshotAll(room);}
+ }
+},33);
 const heartbeat=setInterval(()=>{for(const ws of wss.clients){if(!ws.isAlive){ws.terminate();continue}ws.isAlive=false;ws.ping()}},25000);
 const roomClock=setInterval(()=>{
   const t=now();
@@ -194,5 +207,5 @@ const roomClock=setInterval(()=>{
     }
   }
 },200);
-wss.on('close',()=>{clearInterval(heartbeat);clearInterval(roomClock)});
+wss.on('close',()=>{clearInterval(heartbeat);clearInterval(roomClock);clearInterval(physicsTick)});
 server.listen(PORT,'0.0.0.0',()=>console.log('GLAVAT FIGHTERS server listening on '+PORT));
