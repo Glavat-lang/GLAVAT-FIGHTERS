@@ -43,7 +43,7 @@ button:active{transform:translateY(3px);box-shadow:0 1px #a84c32}
 <script>
 const canvas=document.getElementById('game'),ctx=canvas.getContext('2d');
 let W=900,H=500, me=1, code='GLAVAT', socket=null, online=false, opponentConnected=false;
-let keys={}, lastSend=0, timer=99, hp=[100,100], ended=false, timerStamp=Date.now();
+let keys={}, lastSend=0, timer=99, hp=[100,100], ended=false, timerStamp=Date.now(), matchStarted=false, reconnecting=false;
 const fighters=[
  {x:220,y:0,vx:0,vy:0,dir:1,hp:100,attack:0,flash:0,block:false,pose:0},
  {x:680,y:0,vx:0,vy:0,dir:-1,hp:100,attack:0,flash:0,block:false,pose:0}
@@ -96,16 +96,16 @@ function clamp(v,a,b){return Math.max(a,Math.min(b,v))}
 function attack(attacker,kind){
  const f=fighters[attacker], other=fighters[1-attacker];if(f.attack>0||ended)return;
  f.attack=kind==='special'?22:14;
- if(Math.abs(f.x-other.x)<105 && Math.abs(f.y-other.y)<55 && !other.block){
+ if(Math.abs(f.x-other.x)<105 && Math.abs(f.y-other.y)<55 && !other.block && (!online || opponentConnected)){
   const dmg=kind==='special'?22:kind==='kick'?13:9;
   other.hp=clamp(other.hp-dmg,0,100);other.flash=9;other.x+=f.dir*22;
-  if(online&&socket?.readyState===1)socket.send(JSON.stringify({type:'hit',attack:{kind,dmg,x:other.x}}));
+  if(online&&socket?.readyState===1)socket.send(JSON.stringify({type:'attack',attack:{kind,attackerX:f.x,attackerY:f.y,dir:f.dir}}));
   updateHud();
  }
 }
 function updateHud(){document.getElementById('hp1').style.width=fighters[0].hp+'%';document.getElementById('hp2').style.width=fighters[1].hp+'%';}
 function step(){
- if(!ended && Date.now()-timerStamp>=1000){timer=Math.max(0,timer-1);timerStamp=Date.now();document.getElementById('timer').textContent=String(timer).padStart(2,'0');if(timer===0)ended=true;}
+ if(matchStarted && !ended && Date.now()-timerStamp>=1000){timer=Math.max(0,timer-1);timerStamp=Date.now();document.getElementById('timer').textContent=String(timer).padStart(2,'0');if(timer===0){ended=true;document.getElementById('status').textContent='ВРЕМЯ ВЫШЛО';}}
  const idx=me-1, f=fighters[idx], other=fighters[1-idx];
  if(!ended){
   if(keys.left)f.vx=-3.2;else if(keys.right)f.vx=3.2;else f.vx*=.72;
@@ -121,7 +121,7 @@ function step(){
    other.dir=other.x>=f.x?1:-1;
    other.attack=Math.max(0,other.attack-1);other.flash=Math.max(0,other.flash-1);
   }
-  if(online&&socket?.readyState===1&&Date.now()-lastSend>45){
+  if(online&&socket?.readyState===1&&Date.now()-lastSend>50){
    socket.send(JSON.stringify({type:'state',state:{x:f.x,y:f.y,hp:f.hp,dir:f.dir,attack:f.attack,block:f.block}}));lastSend=Date.now();
   }
   if(fighters.some(p=>p.hp<=0)){ended=true;document.getElementById('status').textContent='НОКАУТ!';}
@@ -144,15 +144,17 @@ function connect(){
  socket.onopen=()=>socket.send(JSON.stringify({type:'join',code}));
  socket.onmessage=e=>{
   const m=JSON.parse(e.data);
-  if(m.type==='joined'){me=m.playerNo;online=true;document.getElementById('joinmsg').textContent='Комната '+m.code+'. Ты игрок '+me+'.';document.getElementById('status').textContent='КОМНАТА '+m.code;}
-  if(m.type==='opponent-joined'){opponentConnected=true;document.getElementById('status').textContent='СОПЕРНИК ПОДКЛЮЧИЛСЯ';}
+  if(m.type==='joined'){me=m.playerNo;online=true;document.getElementById('joinmsg').textContent='Комната '+m.code+'. Ты игрок '+me+'.';document.getElementById('status').textContent='ЖДЁМ СОПЕРНИКА · '+m.code;}
+  if(m.type==='match-start'){opponentConnected=true;matchStarted=true;ended=false;timer=99;timerStamp=Date.now();document.getElementById('timer').textContent='99';document.getElementById('status').textContent='БОЙ НАЧАЛСЯ · '+code;}
   if(m.type==='opponent-state'){const o=fighters[2-me];Object.assign(o,m.state);updateHud();}
-  if(m.type==='opponent-hit'){const own=fighters[me-1];own.hp=clamp(own.hp-m.attack.dmg,0,100);own.flash=8;updateHud();}
-  if(m.type==='room-full')document.getElementById('joinmsg').textContent='Комната уже заполнена. Попробуй другой код.';
-  if(m.type==='opponent-left'){opponentConnected=false;document.getElementById('status').textContent='СОПЕРНИК ВЫШЕЛ';}
+  if(m.type==='damage'){const own=fighters[me-1];own.hp=clamp(m.hp,0,100);own.flash=8;updateHud();if(own.hp<=0){ended=true;document.getElementById('status').textContent='НОКАУТ!';}}
+  if(m.type==='room-full'){document.getElementById('joinmsg').textContent='Комната уже заполнена. Попробуй другой код.';document.getElementById('join').style.display='flex';}
+  if(m.type==='opponent-left'){opponentConnected=false;matchStarted=false;document.getElementById('status').textContent='СОПЕРНИК ВЫШЕЛ · ОЖИДАНИЕ';}
  };
- socket.onerror=()=>{document.getElementById('joinmsg').textContent='Не удалось подключиться. Запусти сервер или используй тренировочный режим.';};
+ socket.onerror=()=>{document.getElementById('joinmsg').textContent='Ошибка соединения. Проверь интернет и попробуй ещё раз.';document.getElementById('join').style.display='flex';};
+ socket.onclose=()=>{if(online){online=false;opponentConnected=false;matchStarted=false;document.getElementById('status').textContent='СОЕДИНЕНИЕ ПОТЕРЯНО';document.getElementById('joinmsg').textContent='Соединение прервано. Нажми «Войти в бой», чтобы подключиться снова.';document.getElementById('join').style.display='flex';}};
 }
-document.getElementById('start').onclick=()=>{document.getElementById('join').style.display='none';connect();};
+document.getElementById('start').onclick=()=>{document.getElementById('joinmsg').textContent='Подключаемся…';connect();};
+
 updateHud();
 </script></body></html>
