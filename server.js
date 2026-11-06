@@ -31,7 +31,7 @@ const server = http.createServer((req, res) => {
 
 const wss = new WebSocket.Server({ server, maxPayload: 2048, perMessageDeflate:false });
 function send(ws, data) { if (ws && ws.readyState === WebSocket.OPEN) ws.send(JSON.stringify(data)); }
-function playerState(x, dir) { return { x, y:0, dir, hp:100, power:0, block:false, attack:0, stun:0, invuln:0, lastAttack:0 }; }
+function playerState(x, dir) { return { x, y:0, dir, hp:100, power:0, block:false, attack:0, stun:0, invuln:0, lastAttack:0, attackToken:null }; }
 function publicPlayer(p) { return { x:p.x, y:p.y, dir:p.dir, hp:p.hp, power:p.power, block:p.block, attack:p.attack, stun:p.stun }; }
 function snapshot(room) {
   return { type:'snapshot', room:room.code, status:room.status, round:room.round, wins:room.wins.slice(), timer:room.timer,
@@ -113,17 +113,28 @@ function handle(ws,msg){
     if(nowAt-a.lastAttack<cooldown||a.stun>0) return;
     if(kind==='special'&&a.power<100) return;
     const dx=v.x-a.x,dy=Math.abs(v.y-a.y),range=kind==='special'?170:kind==='kick'?128:104;
-    if(Math.sign(dx)!==a.dir||Math.abs(dx)>range||dy>58||v.invuln>nowAt) return;
+    if(Math.sign(dx)!==a.dir||Math.abs(dx)>range+35||dy>75) return;
     a.lastAttack=nowAt;
     if(kind==='special')a.power=0;
-    const blocked=v.block && Math.sign(dx)===-v.dir;
-    const damage=blocked?Math.max(1,Math.round((kind==='special'?22:kind==='kick'?13:9)*.18)):(kind==='special'?24:kind==='kick'?15:10);
-    v.hp=clamp(v.hp-damage,0,100);v.stun=blocked?5:kind==='special'?25:kind==='kick'?16:11;v.invuln=nowAt+(blocked?120:280);
-    v.x=clamp(v.x+a.dir*(blocked?8:kind==='special'?34:kind==='kick'?20:12),20,980);
-    a.power=clamp(a.power+(kind==='special'?0:kind==='kick'?17:12),0,100);
-    broadcast(room,{type:'damage',playerNo:1-idx,hp:v.hp,damage,kind,attackerNo:idx+1,blocked,power:a.power});
-    snapshotAll(room);
-    if(v.hp<=0)endRound(room,idx,'ko');
+    const token=crypto.randomUUID();
+    a.attackToken=token;
+    const windup=kind==='special'?260:kind==='kick'?165:115;
+    broadcast(room,{type:'attack-start',playerNo:idx+1,kind,windup});
+    setTimeout(()=>{
+      if(room.status!=='playing'||room.round!==roundAtAttack||a.attackToken!==token||!room.slots[idx]||!room.slots[1-idx])return;
+      const currentA=room.slots[idx].state,currentV=room.slots[1-idx].state;
+      const hitDx=currentV.x-currentA.x,hitDy=Math.abs(currentV.y-currentA.y);
+      if(Math.sign(hitDx)!==currentA.dir||Math.abs(hitDx)>range||hitDy>58||currentV.invuln>now())return;
+      const blocked=currentV.block&&Math.sign(hitDx)===-currentV.dir;
+      const damage=blocked?Math.max(1,Math.round((kind==='special'?22:kind==='kick'?13:9)*.18)):(kind==='special'?24:kind==='kick'?15:10);
+      currentV.hp=clamp(currentV.hp-damage,0,100);currentV.stun=blocked?5:kind==='special'?25:kind==='kick'?16:11;currentV.invuln=now()+(blocked?120:280);
+      currentV.x=clamp(currentV.x+currentA.dir*(blocked?8:kind==='special'?34:kind==='kick'?20:12),20,980);
+      currentA.power=clamp(currentA.power+(kind==='special'?0:kind==='kick'?17:12),0,100);
+      broadcast(room,{type:'damage',playerNo:1-idx,hp:currentV.hp,damage,kind,attackerNo:idx+1,blocked,power:currentA.power});
+      snapshotAll(room);
+      if(currentV.hp<=0)endRound(room,idx,'ko');
+    },windup);
+    const roundAtAttack=room.round;
     return;
   }
   if(msg.type==='rematch'){
