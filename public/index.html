@@ -43,7 +43,8 @@ button:active{transform:translateY(3px);box-shadow:0 1px #a84c32}
 <script>
 const canvas=document.getElementById('game'),ctx=canvas.getContext('2d');
 let W=900,H=500, me=1, code='GLAVAT', socket=null, online=false, opponentConnected=false, arena='sunset';
-let keys={}, lastSend=0, timer=99, hp=[100,100], ended=false, timerStamp=Date.now(), matchStarted=false, reconnecting=false;\nlet particles=[], shake=0, hitStop=0, roundBanner=0;
+let keys={}, lastSend=0, timer=99, hp=[100,100], ended=false, timerStamp=Date.now(), matchStarted=false, reconnecting=false;
+let particles=[], shake=0, hitStop=0, roundBanner=0;
 const fighters=[
  {x:220,y:0,vx:0,vy:0,dir:1,hp:100,attack:0,flash:0,block:false,pose:0},
  {x:680,y:0,vx:0,vy:0,dir:-1,hp:100,attack:0,flash:0,block:false,pose:0}
@@ -160,7 +161,8 @@ function draw(){
  ctx.clearRect(0,0,W,H);drawBackground();
  fighters.forEach((f,i)=>drawFighter(f,i));
  ctx.font='bold 12px Arial';ctx.fillStyle='#fff';ctx.textAlign='center';
- ctx.fillText(online?(opponentConnected?'ОНЛАЙН-БОЙ':'ЖДЁМ ВТОРОГО ИГРОКА'):'АРКАДНЫЙ РЕЖИМ',W/2,20);\n if(roundBanner>0){ctx.save();ctx.textAlign='center';ctx.font='italic 1000 '+Math.max(28,H*.1)+'px Arial';ctx.lineWidth=5;ctx.strokeStyle='#21132d';ctx.fillStyle='#ffd05c';ctx.shadowColor='#ff613f';ctx.shadowBlur=18;ctx.strokeText('ROUND 1',W/2,H*.43);ctx.fillText('ROUND 1',W/2,H*.43);ctx.restore();roundBanner--;}
+ ctx.fillText(online?(opponentConnected?'ОНЛАЙН-БОЙ':'ЖДЁМ ВТОРОГО ИГРОКА'):'АРКАДНЫЙ РЕЖИМ',W/2,20);
+ if(roundBanner>0){ctx.save();ctx.textAlign='center';ctx.font='italic 1000 '+Math.max(28,H*.1)+'px Arial';ctx.lineWidth=5;ctx.strokeStyle='#21132d';ctx.fillStyle='#ffd05c';ctx.shadowColor='#ff613f';ctx.shadowBlur=18;ctx.strokeText('ROUND 1',W/2,H*.43);ctx.fillText('ROUND 1',W/2,H*.43);ctx.restore();roundBanner--;}
 }
 function clamp(v,a,b){return Math.max(a,Math.min(b,v))}
 function attack(attacker,kind){
