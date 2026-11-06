@@ -71,6 +71,7 @@ wss.on("connection", ws => {
       }
       if (room.players.length >= 2) return send(ws, { type:"room-full", code });
       room.players.push(ws);
+      ws.hp = 100;
       ws.roomCode = code;
       ws.playerNo = room.players.length;
       room.states[ws.playerNo - 1] = null;
@@ -79,7 +80,7 @@ wss.on("connection", ws => {
         room.started = true;
         room.states = [null,null];
         room.attacks = [0,0];
-        room.players.forEach(p => send(p, { type:"match-start" }));
+        room.players.forEach(p => { p.hp = 100; send(p, { type:"match-start" }); });
       }
       return;
     }
