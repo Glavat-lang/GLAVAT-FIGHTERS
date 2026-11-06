@@ -112,8 +112,8 @@ wss.on("connection", ws => {
       const attacker = room.states[index];
       const victim = room.states[1 - index];
       if (!attacker || !victim) return;
-      if (!validNumber(a.attackerX,0,10000) || ![-1,1].includes(a.dir)) return;
-      const dx = Math.abs(victim.x - a.attackerX);
+      if (!["punch","kick","special"].includes(a.kind)) return;
+      const dx = Math.abs(victim.x - attacker.x);
       const dy = Math.abs(victim.y - attacker.y);
       if (dx > 118 || dy > 58 || victim.block) return;
       const kind = a.kind;
