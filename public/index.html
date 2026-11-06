@@ -32,7 +32,7 @@ const cv=document.getElementById('game'),c=cv.getContext('2d'),$=id=>document.ge
 const spriteAtlas=new Image();spriteAtlas.src='/fighters.svg';
 let w=640,h=360,dpr=1,arena='sunset',fighters=[0,1],mode='cpu',running=false,over=false,round=1,seconds=99,last=0,acc=0,shake=0,announceTimer=0,ws=null,me=1,roomCode='',opponent=false,keys={},keys2={},particles=[],sparks=[],lastPacket=0;
 let floorY=286,roundWins=[0,0],roundNo=1,paused=false,soundOn=true,audio=null,comboHits=0,comboTimer=0,musicTimer=null,musicStep=0,hitstop=0,musicVolume=.55,effectsVolume=.75,voiceOn=true;
-const makeF=(x,side)=>({x,y:0,vx:0,vy:0,dir:side,hp:100,power:0,stun:0,attack:0,attackTotal:0,kind:'',cool:0,block:false,victory:false,walk:0,frame:0,super:0,flash:0,ai:0,combo:0,dodgeTimer:0,counterReady:false,counterUntil:0,invuln:0,netX:null,netY:null,netVx:0,koAt:0,jumpLatch:false});
+const makeF=(x,side)=>({x,y:0,vx:0,vy:0,dir:side,hp:100,power:0,stun:0,attack:0,attackTotal:0,kind:'',cool:0,block:false,victory:false,walk:0,frame:0,super:0,flash:0,ai:0,combo:0,dodgeTimer:0,counterReady:false,counterUntil:0,invuln:0,netX:null,netY:null,netVx:null,koAt:0,jumpLatch:false});
 let f=[makeF(205,1),makeF(435,-1)];
 function resize(){let r=cv.getBoundingClientRect();dpr=Math.min(devicePixelRatio||1,2);w=Math.max(320,r.width);h=Math.max(220,r.height);floorY=h*.79;cv.width=Math.round(w*dpr);cv.height=Math.round(h*dpr);c.setTransform(dpr,0,0,dpr,0,0)}
 new ResizeObserver(resize).observe(cv);resize();
