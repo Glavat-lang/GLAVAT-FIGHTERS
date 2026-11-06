@@ -163,7 +163,7 @@ function handle(ws,msg){
     room.rematchVotes.add(idx);
     if(room.rematchVotes.size===2){
       room.rematchVotes.clear();
-      if(room.wins.some(v=>v>=2)){room.wins=[0,0];room.round=1;}
+      if(room.wins.some(v=>v>=2)){room.wins=[0,0];room.round=1;room.statsSaved=false;}
       else room.round++;
       resetRound(room);broadcast(room,{type:'match-start',arena:room.arena,round:room.round,wins:room.wins.slice(),fighters:room.slots.map(s=>s.fighter)});
     }else send(ws,{type:'rematch-wait'});
