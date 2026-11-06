@@ -45,6 +45,15 @@ const FIGHTER_BALANCE = Object.freeze([
   Object.freeze({speed:.92,damage:1.12,reach:1.08,recovery:1.12,guard:.14})
 ]);
 const fighterStats = id => FIGHTER_BALANCE[id===1?1:0];
+function attackIntersects(a,v,kind,range){
+  const dx=(v.x-a.x)*a.dir;
+  if(dx<18||dx>range+24)return false;
+  const shape=kind==='special'?{top:150,bottom:18}:kind==='grab'?{top:108,bottom:6}:kind==='airPunch'||kind==='airKick'?{top:132,bottom:14}:kind==='heavyKick'?{top:96,bottom:18}:kind==='heavyPunch'?{top:104,bottom:28}:kind==='kick'?{top:76,bottom:18}:{top:100,bottom:30};
+  const hitTop=a.y-shape.top,hitBottom=a.y-shape.bottom;
+  const hurtHeight=v.input?.crouch?66:112;
+  const hurtTop=v.y-hurtHeight,hurtBottom=v.y;
+  return hitTop<hurtBottom && hitBottom>hurtTop;
+}
 
 const server = http.createServer((req, res) => {
   let playerId=readPlayerId(req.headers.cookie||'');
@@ -200,8 +209,8 @@ function handle(ws,msg){
     setTimeout(()=>{
       if(room.status!=='playing'||room.round!==roundAtAttack||a.attackToken!==token||!room.slots[idx]||!room.slots[1-idx])return;
       const currentA=room.slots[idx].state,currentV=room.slots[1-idx].state;
-      const hitDx=currentV.x-currentA.x,hitDy=Math.abs(currentV.y-currentA.y);
-      if(Math.sign(hitDx)!==currentA.dir||Math.abs(hitDx)>range||hitDy>((kind==='airPunch'||kind==='airKick')?115:58)||currentV.invuln>now())return;
+      const hitDx=currentV.x-currentA.x;
+      if(!attackIntersects(currentA,currentV,kind,range)||currentV.invuln>now())return;
       const blocked=kind!=='grab'&&currentV.block&&Math.sign(hitDx)===-currentV.dir;
       const baseDamage=kind==='special'?25:kind==='grab'?20:kind==='counter'?18:kind==='heavyKick'?21:kind==='heavyPunch'?17:kind==='kick'||kind==='airKick'?15:kind==='airPunch'?12:10;
       const scaledDamage=Math.round(baseDamage*fighterStats(currentA.fighter).damage);
