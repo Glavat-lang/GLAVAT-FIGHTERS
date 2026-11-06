@@ -1,13 +1,15 @@
 'use strict';
 const assert = require('node:assert/strict');
 const { spawn } = require('node:child_process');
+const path = require('node:path');
+const os = require('node:os');
 const http = require('node:http');
 const WebSocket = require('ws');
 
 const port = 34000 + Math.floor(Math.random() * 10000);
 const base = 'http://127.0.0.1:' + port;
 const clients = new Set();
-const child = spawn(process.execPath, ['server.js'], { env: { ...process.env, PORT: String(port) }, stdio: ['ignore','pipe','pipe'] });
+const child = spawn(process.execPath, ['server.js'], { env: { ...process.env, PORT: String(port), STATS_FILE: path.join(os.tmpdir(),'gf-stats-'+process.pid+'-'+port+'.json') }, stdio: ['ignore','pipe','pipe'] });
 let childOutput='',childExit=null;child.stdout.on('data',x=>childOutput+=x);child.stderr.on('data',x=>childOutput+=x);child.on('error',e=>childOutput+=' spawn error: '+e.message);child.on('exit',(code,signal)=>{childExit={code,signal}});
 const sleep = ms => new Promise(r => setTimeout(r, ms));
 async function ready() {
@@ -40,7 +42,14 @@ function waitFor(client,predicate,timeout=5000,from=0) {
 (async()=>{
   try {
     await ready();
-    process.stdout.write('TEST 1: HTTP server ready\\n');
+    const profile=await new Promise((resolve,reject)=>http.get(base+'/api/profile',res=>{let data='';res.setEncoding('utf8');res.on('data',x=>data+=x);res.on('end',()=>resolve({status:res.statusCode,headers:res.headers,body:JSON.parse(data)}))}).on('error',reject));
+    assert.equal(profile.status,200,'profile endpoint must work with persistent stats storage');
+    assert.equal(profile.body.matches,0,'new player must start with empty statistics');
+    assert.match(profile.headers['set-cookie'][0],/gf_player=/,'server must issue a persistent player identity');
+    const board=await new Promise((resolve,reject)=>http.get(base+'/api/leaderboard',res=>{let data='';res.setEncoding('utf8');res.on('data',x=>data+=x);res.on('end',()=>resolve({status:res.statusCode,body:JSON.parse(data)}))}).on('error',reject));
+    assert.equal(board.status,200,'leaderboard endpoint must be backed by the stats store');
+    assert.deepEqual(board.body.players,[],'empty stats store must have an empty leaderboard');
+    process.stdout.write('TEST 1: HTTP server, persistent profile and leaderboard\\n');
     const atlas=await new Promise((resolve,reject)=>http.get(base+'/fighters.svg',res=>{let data='';res.setEncoding('utf8');res.on('data',chunk=>data+=chunk);res.on('end',()=>resolve({status:res.statusCode,type:res.headers['content-type'],data}))}).on('error',reject));
     assert.equal(atlas.status,200,'sprite atlas must be served');
     assert.match(atlas.type,/image\/svg\+xml/);
@@ -148,7 +157,7 @@ function waitFor(client,predicate,timeout=5000,from=0) {
     await Promise.all([waitFor(attacker,m=>m.type==='match-start'),waitFor(rejoin,m=>m.type==='match-start')]);
     process.stdout.write('TEST 10: reconnect and isolated rooms\\n');
     attacker.ws.close();rejoin.ws.close();third.ws.close();p3.ws.close();p4.ws.close();
-    process.stdout.write('Online combat, jump, air attack, dodge, guard, counter, grab, KO, round result, room capacity, isolation and reconnect tests passed.\\n');
+    process.stdout.write('Online combat, jump, air attack, dodge, guard, counter, grab, KO, round result, room capacity, isolation, reconnect and persistent stats API tests passed.\\n');
   } finally {
     for(const ws of clients){try{ws.terminate()}catch{}}
     child.kill('SIGTERM');
