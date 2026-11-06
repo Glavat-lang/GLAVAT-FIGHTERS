@@ -113,7 +113,7 @@ function drawFighter(f,index){
  // hard-edged arcade shadow
  ctx.fillStyle='#09081799';ctx.beginPath();ctx.ellipse(0,2,42*s,8*s,0,0,Math.PI*2);ctx.fill();
  // shoes and legs, with separate animated stance
- const pants=left?'#25344f':'#e5dfd2', shade=left?'#111d35':'#a9a49e', skin=left?'#bd8063':'#d69a78';
+ const pants=left?'#bd8063':'#e5dfd2', shade=left?'#8c5c4e':'#a9a49e', skin=left?'#bd8063':'#d69a78';
  const legA=stride,legB=-stride;
  function px(a,b,c,d,col){ctx.fillStyle=hit?'#fff0df':col;ctx.fillRect(Math.round(a*s),Math.round(b*s),Math.round(c*s),Math.round(d*s));}
  // rear leg
@@ -121,9 +121,9 @@ function drawFighter(f,index){
  // front leg
  px(3,-65+legB,18,43,pants);px(12,-38+legB,8,14,shade);px(0,-25+legB,27,8,left?'#d7d8df':'#f6f1e8');px(-2,-18+legB,31,7,left?'#e8e7e9':'#fffaf0');px(17,-12+legB,6,3,'#7e8192');
  // waist / belt
- px(-23,-78,47,16,left?'#25395f':'#e8e1d4');px(-22,-77,45,5,left?'#162542':'#29232b');px(-3,-77,8,7,'#c99a55');
+ px(-25,-82,52,25,left?'#263d69':'#e8e1d4');px(-22,-77,45,5,left?'#162542':'#29232b');px(-3,-77,8,7,'#c99a55');
  // torso silhouette and clothing panels
- px(-27,-125,54,51,left?'#d7dce5':'#f1eee7');px(-32,-120,12,37,left?'#c5cbd8':'#ddd8d0');px(20,-120,12,37,left?'#c5cbd8':'#ddd8d0');
+ px(-30,-125,60,51,left?'#d7dce5':'#f1eee7');px(-34,-120,14,37,left?'#c5cbd8':'#ddd8d0');px(20,-120,14,37,left?'#c5cbd8':'#ddd8d0');
  px(-24,-124,12,43,left?'#f2f0ed':'#fffaf2');px(11,-124,11,43,left?'#bfc8d8':'#d5d1ca');
  // chest folds / shirt details
  px(-13,-119,3,35,left?'#aeb8c8':'#c7c2b9');px(9,-119,3,35,left?'#aeb8c8':'#c7c2b9');
@@ -149,7 +149,7 @@ function drawFighter(f,index){
  px(-8,-160,9,3,hair);px(4,-161,10,3,hair);
  // nose, mouth, jaw / beard for left fighter
  px(13,-151,4,4,skin);px(7,-145,10,2,'#78463e');
- if(left){px(-12,-147,27,8,'#49302d');px(-10,-141,22,5,'#30252a');px(-18,-153,8,7,'#49302d');}
+ if(left){px(-17,-150,34,12,'#49302d');px(-15,-143,29,7,'#30252a');px(-21,-157,9,10,'#49302d');px(10,-156,10,9,'#49302d');px(-9,-139,19,4,'#211c24');}
  else{px(-13,-148,23,3,'#9e5e50');}
  // block pose: raised forearm shield
  if(f.block){px(29,-132,16,25,skin);px(31,-138,15,13,left?'#d8dce6':'#f3eee5');px(34,-141,12,8,skin);}
