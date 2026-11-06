@@ -79,12 +79,12 @@ function join(ws,msg) {
   }
   if(room.slots.every(Boolean)) return send(ws,{type:'room-full',message:'В комнате уже два игрока.'});
   const idx=room.slots.findIndex(s=>!s);
-  room.gcAt=0; room.slots[idx]={ws,state:playerState(idx===0?0.29:0.71,idx===0?1:-1)};
+  room.gcAt=0; room.slots[idx]={ws,state:playerState(idx===0?0.29:0.71,idx===0?1:-1),fighter:msg.fighter===1?1:0};
   ws.room=room; ws.playerNo=idx+1; ws.lastMsg=0;
   send(ws,{type:'joined',code,playerNo:idx+1,count:room.slots.filter(Boolean).length,arena:room.arena});
   if(room.slots.every(Boolean)){
     room.wins=[0,0];room.round=1;room.rematchVotes.clear();resetRound(room);
-    broadcast(room,{type:'match-start',arena:room.arena,round:1,wins:[0,0]});
+    broadcast(room,{type:'match-start',arena:room.arena,round:1,wins:[0,0],fighters:room.slots.map(s=>s.fighter)});
   }
 }
 function handle(ws,msg){
@@ -144,7 +144,7 @@ function handle(ws,msg){
       room.rematchVotes.clear();
       if(room.wins.some(v=>v>=2)){room.wins=[0,0];room.round=1;}
       else room.round++;
-      resetRound(room);broadcast(room,{type:'match-start',arena:room.arena,round:room.round,wins:room.wins.slice()});
+      resetRound(room);broadcast(room,{type:'match-start',arena:room.arena,round:room.round,wins:room.wins.slice(),fighters:room.slots.map(s=>s.fighter)});
     }else send(ws,{type:'rematch-wait'});
   }
 }
