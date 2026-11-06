@@ -75,6 +75,8 @@ function waitFor(client,predicate,timeout=5000,from=0) {
     const initial=await waitFor(attacker,m=>m.type==='snapshot'&&m.players?.every(Boolean));
     assert.equal(initial.players[0].x,290,'round reset must spawn player one at 290');
     assert.equal(initial.players[1].x,710,'round reset must spawn player two at 710');
+    assert.equal(initial.players[0].vy,0,'grounded player one must not accumulate gravity before jumping');
+    assert.equal(initial.players[1].vy,0,'grounded player two must not accumulate gravity before jumping');
     attacker.ws.send(JSON.stringify({type:'input',input:{right:true,run:true,face:1}}));
     await sleep(75);
     let movement=attacker.messages.filter(m=>m.type==='snapshot'&&m.players?.every(Boolean)).at(-1)?.players[0];
