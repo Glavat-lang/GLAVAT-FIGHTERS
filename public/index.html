@@ -159,16 +159,16 @@ function ai(dt){
  let a=f[1],p=f[0],dist=p.x-a.x,ad=Math.abs(dist),dir=dist>0?1:-1,hard=$('difficulty').value==='hard';
  a.dir=dir;if(a.stun>0){a.block=false;return}a.ai+=dt;a.aiThink=(a.aiThink||0)+dt;
  const threat=p.attack>0&&ad<(p.kind==='special'?210:p.kind==='heavyKick'?175:145);
- if(threat&&a.cool<=0&&a.aiThink>70){
+ if(threat&&a.aiThink>70){
   a.aiThink=0;
   if(p.kind==='grab'){a.dodgeTimer=230;a.invuln=performance.now()+190;a.vx=-dir*6.2;return}
   if(hard){a.block=true;return}
  }
  if(a.aiThink<105)return;
  a.aiThink=0;a.block=false;
- if(hard&&a.power>=100&&ad<245){doAttack(1,'special');return}
+ if(hard&&a.power>=100&&ad<170){doAttack(1,'special');return}
  if(hard&&a.counterReady&&performance.now()<a.counterUntil&&ad<150&&!threat){doAttack(1,'counter');return}
- if(ad>185){a.vx=dir*(hard?2.5:1.7)*(a.fighter===1?.92:1);a.run=hard;return}
+ if(ad>125){a.vx=dir*(hard?2.5:1.7)*(a.fighter===1?.92:1);a.run=hard;return}
  a.run=false;
  if(ad<68&&p.block){a.vx=-dir*(hard?1.8:1.15);return}
  a.vx=0;
