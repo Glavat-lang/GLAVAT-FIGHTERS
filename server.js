@@ -129,7 +129,7 @@ wss.on("connection", ws => {
       room.started = true;
       room.states = [null,null];
       room.attacks = [0,0];
-      room.players.forEach(p => send(p, { type:"match-start" }));
+      room.players.forEach(p => { p.hp = 100; send(p, { type:"match-start" }); });
     }
   });
   ws.on("close", () => leave(ws));
