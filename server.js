@@ -39,7 +39,7 @@ function readJsonBody(req,limit=8192){
 async function leaderboard(res){
   if(!await dbReady)return json(res,503,{error:'Statistics database unavailable'});
   const players=Object.entries(statsData).map(([id,x])=>({player_id:id.slice(0,8),...x,win_rate:x.matches?Math.round(x.wins/x.matches*100):0}))
-    .filter(x=>x.matches>0).sort((a,b)=>b.wins-a.wins||b.best_streak-a.best_streak||b.matches-a.matches).slice(0,50);
+    .filter(x=>x.matches>0).sort((a,b)=>(b.rating||1000)-(a.rating||1000)||b.wins-a.wins||b.best_streak-a.best_streak||b.matches-a.matches).slice(0,50);
   json(res,200,{players});
 }
 
@@ -121,8 +121,17 @@ async function saveMatch(room,winner,reason){
   x.favorite_fighter=x.fighter_0_count>=x.fighter_1_count?0:1;
   statsData[slot.playerId]=x;
  }
+ const ids=room.slots.map(slot=>slot.playerId);
+ if(ids[0]&&ids[1]&&statsData[ids[0]]&&statsData[ids[1]]){
+  const first=statsData[ids[0]],second=statsData[ids[1]];
+  const expectedFirst=1/(1+Math.pow(10,((second.rating||1000)-(first.rating||1000))/400));
+  const scoreFirst=winner===null ? 0.5 : winner===0 ? 1 : 0;
+  const delta=Math.round(32*(scoreFirst-expectedFirst));
+  first.rating=Math.max(0,(first.rating||1000)+delta);
+  second.rating=Math.max(0,(second.rating||1000)-delta);
+ }
  await database.recordMatch(statsData,{
-  roomCode:room.code,playerIds:room.slots.map(slot=>slot.playerId),
+  roomCode:room.code,playerIds:ids,
   fighters:room.slots.map(slot=>slot.fighter),winner,reason,round:room.round
  });
  room.statsSaved=true;
