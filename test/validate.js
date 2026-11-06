@@ -19,6 +19,10 @@ for(const state of ["p.kind==='grab'","p.kind==='counter'","p.kind==='special'",
  assert(html.includes(state),'animation state must be mapped to a sprite clip: '+state);
 }
 assert(html.includes('id="voice"'),'announcer voice must be user-toggleable');
+assert(html.includes('id="voiceVolume"'),'announcer and fighter voices must have an independent volume control');
+assert(html.includes("localStorage.getItem('gf-settings')")&&html.includes("localStorage.setItem('gf-settings'"),'audio settings must persist between visits');
+assert(html.includes("easy?210:hard?75:115"),'CPU must expose a distinct easy reaction profile');
+
 assert(html.includes('u.volume=Math.max(0,Math.min(1,effectsVolume))'),'announcer voice must follow the effects volume control');
 assert(html.includes('function fighterGrunt(line,pitch=1)'),'fighters must expose their own synthetic voice reactions');
 assert(html.includes("fighterGrunt(kind==='special'?'Hyaa!':kind==='grab'?'Ugh!':'Ah!'"),'attack and special moves must trigger character voice reactions');
