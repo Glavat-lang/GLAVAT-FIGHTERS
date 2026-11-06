@@ -73,12 +73,12 @@ function waitFor(client,predicate,timeout=5000,from=0) {
     attacker.ws.send(JSON.stringify({type:'attack',attack:{kind:'punch'}}));
     const hit=await damage;
     assert.equal(hit.playerNo,2,'damage must identify the second slot as victim');
-    assert.equal(hit.hp,90,'a regular punch must apply ten damage');
+    assert.equal(hit.hp,75,'air kick plus a regular punch must apply twenty-five total damage');
     const heavyDamage=waitFor(defender,m=>m.type==='damage'&&m.kind==='heavyKick');
     await sleep(700);
     attacker.ws.send(JSON.stringify({type:'attack',attack:{kind:'heavyKick'}}));
     const heavy=await heavyDamage;
-    assert.equal(heavy.hp,69,'a heavy kick must apply twenty-one damage');
+    assert.equal(heavy.hp,54,'a heavy kick must apply twenty-one additional damage');
     const blockHit=waitFor(defender,m=>m.type==='damage'&&m.blocked===true);
     defender.ws.send(JSON.stringify({type:'input',input:{block:true,face:-1}}));
     await sleep(700);
