@@ -85,6 +85,7 @@ function waitFor(client,predicate,timeout=5000) {
     assert.equal(blocked.blocked,true,'holding block must reduce incoming damage');
     assert.equal(blocked.damage,2,'blocked punch must deal chip damage only');
     defender.ws.send(JSON.stringify({type:'input',input:{block:false,face:-1}}));
+    await sleep(25);
     const counterHit=waitFor(attacker,m=>m.type==='damage'&&m.kind==='counter');
     defender.ws.send(JSON.stringify({type:'attack',attack:{kind:'counter'}}));
     const counter=await counterHit;
