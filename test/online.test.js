@@ -39,7 +39,7 @@ function waitFor(client,predicate,timeout=3500) {
     await ready();
     const atlas=await new Promise((resolve,reject)=>http.get(base+'/fighters.svg',res=>{let data='';res.setEncoding('utf8');res.on('data',chunk=>data+=chunk);res.on('end',()=>resolve({status:res.statusCode,type:res.headers['content-type'],data}))}).on('error',reject));
     assert.equal(atlas.status,200,'sprite atlas must be served');
-    assert.match(atlas.type,/image\\/svg\\+xml/);
+    assert.match(atlas.type,/image\/svg\+xml/);
     assert.match(atlas.data,/<svg/);
     const code='T'+Math.random().toString(36).slice(2,7).toUpperCase();
     const p1=await connect(code),p2=await connect(code);
