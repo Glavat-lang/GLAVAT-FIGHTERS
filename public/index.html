@@ -63,7 +63,7 @@ function drawBackground(){
 }
 function pixelRect(x,y,w,h,c){ctx.fillStyle=c;ctx.fillRect(Math.round(x),Math.round(y),w,h)}
 function drawFighter(f,index){
- const x=f.x,y=f.y,scale=Math.max(.75,Math.min(1.15,H/480)),s=scale;
+ const x=f.x,y=floor()+f.y,scale=Math.max(.75,Math.min(1.15,H/480)),s=scale;
  ctx.save();ctx.translate(x,y);ctx.scale(f.dir,1);
  if(f.flash>0)ctx.globalAlpha=.55;
  ctx.fillStyle='#100d20aa';ctx.beginPath();ctx.ellipse(0,0,34*s,8*s,0,0,7);ctx.fill();
