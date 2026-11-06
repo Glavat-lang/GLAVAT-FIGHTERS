@@ -21,6 +21,8 @@ for(const player of [1,2]){
 for(const state of ["p.kind==='grab'","p.kind==='counter'","p.kind==='special'","p.kind==='heavyPunch'","p.kind==='heavyKick'","p.kind==='kick'","p.dodgeTimer>0","p.crouch","p.run","p.block","p.stun>0","p.y<0","moveVx*face<-.5","p.hp<=0","p.victory"]){
  assert(html.includes(state),'animation state must be mapped to a sprite clip: '+state);
 }
+assert(html.includes('<option value="harbor">')&&html.includes("arena==='harbor'")&&server.includes("'harbor'].includes(msg.arena)"),'sixth harbor arena must be available and selectable online');
+assert(html.includes("if(sunset)")&&html.includes("else if(night)"),'sunset terrace and night city must render as distinct environments');
 assert(html.includes('id="voice"'),'announcer voice must be user-toggleable');
 assert(html.includes('id="voiceVolume"'),'announcer and fighter voices must have an independent volume control');
 assert(html.includes('localStorage.getItem("gf-settings")')&&html.includes("localStorage.setItem('gf-settings'"),'audio settings must persist between visits');
