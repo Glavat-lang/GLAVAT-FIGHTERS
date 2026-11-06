@@ -128,8 +128,8 @@ function handle(ws,msg){
       const blocked=currentV.block&&Math.sign(hitDx)===-currentV.dir;
       const baseDamage=kind==='special'?24:kind==='heavyKick'?21:kind==='heavyPunch'?17:kind==='kick'?15:10;
       const damage=blocked?Math.max(1,Math.round(baseDamage*.18)):baseDamage;
-      currentV.hp=clamp(currentV.hp-damage,0,100);currentV.stun=blocked?5:kind==='special'?25:kind==='kick'?16:11;currentV.invuln=now()+(blocked?120:280);
-      currentV.x=clamp(currentV.x+currentA.dir*(blocked?8:kind==='special'?34:kind==='kick'?20:12),20,980);
+      currentV.hp=clamp(currentV.hp-damage,0,100);currentV.stun=blocked?70:kind==='special'||kind==='heavyKick'?330:kind==='heavyPunch'?260:kind==='kick'?210:160;currentV.invuln=now()+(blocked?120:280);
+      currentV.x=clamp(currentV.x+currentA.dir*(blocked?8:kind==='special'?34:kind==='heavyKick'?28:kind==='heavyPunch'?22:kind==='kick'?20:12),20,980);
       currentA.power=clamp(currentA.power+(kind==='special'?0:kind==='heavyKick'?23:kind==='heavyPunch'?20:kind==='kick'?17:12),0,100);
       broadcast(room,{type:'damage',playerNo:2-idx,hp:currentV.hp,damage,kind,attackerNo:idx+1,blocked,power:currentA.power});
       snapshotAll(room);
