@@ -51,7 +51,7 @@ function endRound(room, winner, reason) {
   if(room.status!=='playing') return;
   room.status='round-over';
   if(winner===0||winner===1) room.wins[winner]++;
-  broadcast(room,{type:'round-end',winner,reason,round:room.round,wins:room.wins.slice(),champion:room.wins.some(v=>v>=2)});
+  const champion=room.wins.some(v=>v>=2);\n  if(champion)saveMatch(room,winner,reason);\n  broadcast(room,{type:'round-end',winner,reason,round:room.round,wins:room.wins.slice(),champion});
   snapshotAll(room);
 }
 function leave(ws) {
@@ -74,12 +74,12 @@ function join(ws,msg) {
   let room=roomFor(code);
   if(!room){
     if(rooms.size>=MAX_ROOMS) return send(ws,{type:'server-full',message:'Сервер комнат временно заполнен.'});
-    room={code,slots:[null,null],status:'waiting',round:1,wins:[0,0],timer:99,arena:['sunset','night','dojo','underground','neon'].includes(msg.arena)?msg.arena:'sunset',rematchVotes:new Set(),gcAt:0};
+    room={code,slots:[null,null],status:'waiting',round:1,wins:[0,0],timer:99,statsSaved:false,arena:['sunset','night','dojo','underground','neon'].includes(msg.arena)?msg.arena:'sunset',rematchVotes:new Set(),gcAt:0};
     rooms.set(code,room);
   }
   if(room.slots.every(Boolean)) return send(ws,{type:'room-full',message:'В комнате уже два игрока.'});
   const idx=room.slots.findIndex(s=>!s);
-  room.gcAt=0; room.slots[idx]={ws,state:playerState(idx===0?0.29:0.71,idx===0?1:-1),fighter:msg.fighter===1?1:0};
+  room.gcAt=0; room.statsSaved=false; room.slots[idx]={ws,playerId:readPlayerId(ws._cookie||''),state:playerState(idx===0?290:710,idx===0?1:-1),fighter:msg.fighter===1?1:0};
   ws.room=room; ws.playerNo=idx+1; ws.lastMsg=0;
   send(ws,{type:'joined',code,playerNo:idx+1,count:room.slots.filter(Boolean).length,arena:room.arena});
   if(room.slots.every(Boolean)){
@@ -148,7 +148,7 @@ function handle(ws,msg){
     }else send(ws,{type:'rematch-wait'});
   }
 }
-wss.on('connection',ws=>{
+wss.on('connection',(ws,req)=>{ws._cookie=req.headers.cookie||'';
   if(wss.clients.size>MAX_CLIENTS){ws.close(1013,'Server busy');return;}
   ws.isAlive=true;ws.on('pong',()=>ws.isAlive=true);
   ws.on('message',raw=>{
