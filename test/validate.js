@@ -28,7 +28,7 @@ assert(html.includes("a.attackHit=false;if(mode==='online')"),'attacks must rese
 assert(html.includes("clipFrame([0,1,4,5,4,1,0],phase)"),'basic punches must show anticipation, extension, and recovery frames');
 assert(html.includes("clipFrame([2,1,6,15,6,3,2],phase)"),'heavy kicks must show a multi-stage attack sequence');
 assert(server.includes("FIGHTER_BALANCE"),'server must define individual fighter balance profiles');
-assert(server.includes("fighterStats(a.fighter).damage"),'server damage must use the attacking fighter profile');
+assert(server.includes("fighterStats(currentA.fighter).damage"),'server damage must use the attacking fighter profile');
 assert(server.includes("fighterStats(p.fighter).speed"),'server movement must use the selected fighter profile');
 assert(server.includes("activeIn:windup,duration:Math.round(windup/.42)"),'online animation active frames must align with authoritative hit timing');
 assert(html.includes("a.attack=m.duration||m.windup+220"),'online clients must animate using server active-frame timing');
