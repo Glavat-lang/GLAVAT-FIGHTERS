@@ -6,32 +6,32 @@
 <style>
 *{box-sizing:border-box}html,body{margin:0;width:100%;height:100%;overflow:hidden;background:#100c25;color:#fff;font-family:Arial,sans-serif;touch-action:none}
 #wrap{height:100%;display:flex;flex-direction:column;background:linear-gradient(#1b1745,#351747 55%,#100d20)}
-header{display:flex;justify-content:space-between;align-items:center;padding:8px 12px;gap:8px}
-.logo{font-weight:1000;letter-spacing:2px;color:#ffb34e;text-shadow:3px 3px #8d234e;font-size:clamp(16px,4vw,25px)}
-#status{font-size:12px;color:#d8c9ff;text-align:right}
-#hud{display:grid;grid-template-columns:1fr 54px 1fr;gap:8px;padding:0 12px;align-items:center}
-.bar{height:16px;border:3px solid #eee;border-radius:4px;background:#382849;box-shadow:0 2px #080615;overflow:hidden}
-.fill{height:100%;width:100%;background:linear-gradient(90deg,#ffdf42,#ff9b28)}
+header{display:flex;justify-content:space-between;align-items:center;padding:10px 16px 8px;gap:8px;background:linear-gradient(90deg,#090b20,#211536 48%,#090b20);border-bottom:2px solid #b35b67;box-shadow:0 3px 0 #080817}
+.logo{font-weight:1000;letter-spacing:2px;color:#ffe08a;text-shadow:2px 2px #b33354,4px 4px #090817;font-size:clamp(17px,4.5vw,28px);font-style:italic}
+#status{font-size:10px;color:#f5d9b0;text-align:right;letter-spacing:1.4px;font-weight:900;text-shadow:1px 2px #080817}
+#hud{display:grid;grid-template-columns:1fr 58px 1fr;gap:10px;padding:9px 16px 7px;align-items:center;background:linear-gradient(180deg,#17122d,#21152f);border-bottom:1px solid #8e5268}
+.bar{height:19px;border:3px solid #d9d5e8;border-radius:3px;background:#241d3c;box-shadow:0 2px #080615,0 0 8px #f59a4b44;overflow:hidden;transform:skewX(-8deg)}
+.fill{height:100%;width:100%;background:linear-gradient(180deg,#fff08a 0%,#ffc52f 45%,#e66c25 100%);box-shadow:inset 0 2px #fff7b5;transition:width .16s}
 #hp2{background:linear-gradient(90deg,#ffdf42,#ff9b28)}
-#timer{font-size:27px;font-weight:1000;text-align:center;color:#ffb13e;text-shadow:2px 2px #9b2b45}
-canvas{display:block;width:100%;flex:1;min-height:0;image-rendering:pixelated}
+#timer{font-size:30px;font-weight:1000;text-align:center;color:#ffe18a;text-shadow:2px 3px #9b2b45,4px 5px #080817;font-family:monospace
+canvas{display:block;width:100%;flex:1;min-height:0;image-rendering:pixelated;touch-action:none}
 #join{position:absolute;inset:0;background:#100c25ee;display:flex;align-items:center;justify-content:center;padding:20px}
-.panel{width:min(440px,100%);background:#21183c;border:3px solid #ffb34e;border-radius:12px;padding:20px;text-align:center;box-shadow:0 8px 0 #090615}
-.panel h1{margin:0 0 8px;color:#ffb34e;font-size:25px}.panel p{color:#d5c9e8;font-size:14px;line-height:1.45}
+.panel{width:min(440px,100%);background:linear-gradient(145deg,#302044,#15152e 70%);border:3px solid #ffbd58;border-radius:5px;padding:22px;text-align:center;box-shadow:0 8px 0 #090615,0 0 35px #ed744855}
+.panel h1{margin:0 0 8px;color:#ffcf70;font-size:27px;font-style:italic;text-shadow:2px 3px #a12d55,4px 4px #090615;letter-spacing:1px}.panel p{color:#d5c9e8;font-size:14px;line-height:1.45}
 input{width:100%;padding:13px;border:2px solid #78619c;border-radius:8px;background:#100c25;color:white;font-size:20px;text-align:center;text-transform:uppercase;letter-spacing:4px}
-button{border:0;border-radius:8px;background:#ffad3d;color:#27142c;font-weight:900;padding:13px 17px;font-size:15px;box-shadow:0 4px #a84c32}
+button{border:2px solid #ffe2a0;border-radius:4px;background:linear-gradient(180deg,#ffd36d,#ef8734);color:#2b1730;font-weight:1000;padding:13px 17px;font-size:15px;box-shadow:0 4px #9e3c3e;text-shadow:0 1px #fff3c7}
 button:active{transform:translateY(3px);box-shadow:0 1px #a84c32}
 #start{width:100%;margin-top:12px}select{width:100%;margin:8px 0;padding:12px;border:2px solid #78619c;border-radius:8px;background:#100c25;color:white;font-size:16px}
 #controls{display:flex;justify-content:space-between;align-items:end;padding:8px 14px 14px;gap:12px}
 .pad,.moves{display:flex;gap:8px;align-items:center}
-.ctrl{width:clamp(48px,13vw,66px);height:clamp(48px,13vw,66px);border-radius:50%;padding:0;font-size:20px;background:#d7d0ed;border:3px solid #fff;box-shadow:0 4px #62547c;touch-action:none}
+.ctrl{width:clamp(48px,13vw,66px);height:clamp(48px,13vw,66px);border-radius:7px;padding:0;font-size:20px;background:linear-gradient(145deg,#e7d9eddd,#80708eaa);border:2px solid #f4e8ff;box-shadow:0 4px #332746,0 0 10px #c4a8ff44;touch-action:none;backdrop-filter:blur(3px)}
 .moves{display:grid;grid-template-columns:repeat(2,clamp(50px,14vw,68px));gap:7px}
-.moves .ctrl{width:100%;height:clamp(43px,11vw,58px);border-radius:12px;font-size:12px;background:#ffad3d}
+.moves .ctrl{width:100%;height:clamp(43px,11vw,58px);border-radius:7px;font-size:12px;background:linear-gradient(145deg,#ffdb79,#e77b36);}
 #foot{font-size:10px;color:#9d91b6;text-align:center;padding-bottom:5px}
 @media(min-width:800px){#controls{max-width:900px;width:100%;margin:auto}.ctrl{width:64px;height:64px}}
 </style></head>
 <body><div id="wrap">
-<header><div class="logo">GLAVAT FIGHTERS</div><div id="status">АРКАДНЫЙ ПРОТОТИП · ONLINE</div></header>
+<header><div class="logo">GLAVAT FIGHTERS</div><div id="status">АРКАДНЫЙ ПРОТОТИП · ARCADE ONLINE</div></header>
 <div id="hud"><div><div style="font-size:10px;margin-bottom:3px">PLAYER 1</div><div class="bar"><div class="fill" id="hp1"></div></div></div><div id="timer">99</div><div><div style="font-size:10px;text-align:right;margin-bottom:3px">PLAYER 2</div><div class="bar"><div class="fill" id="hp2"></div></div></div></div>
 <canvas id="game"></canvas>
 <div id="controls">
