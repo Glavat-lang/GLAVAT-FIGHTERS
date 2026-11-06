@@ -2,6 +2,7 @@
 const assert = require('node:assert/strict');
 const { spawn } = require('node:child_process');
 const path = require('node:path');
+const fs = require('node:fs');
 const os = require('node:os');
 const http = require('node:http');
 const WebSocket = require('ws');
@@ -9,7 +10,8 @@ const WebSocket = require('ws');
 const port = 34000 + Math.floor(Math.random() * 10000);
 const base = 'http://127.0.0.1:' + port;
 const clients = new Set();
-const child = spawn(process.execPath, ['server.js'], { env: { ...process.env, PORT: String(port), STATS_FILE: path.join(os.tmpdir(),'gf-stats-'+process.pid+'-'+port+'.json') }, stdio: ['ignore','pipe','pipe'] });
+const statsFile=path.join(os.tmpdir(),'gf-stats-'+process.pid+'-'+port+'.json');
+const child = spawn(process.execPath, ['server.js'], { env: { ...process.env, PORT: String(port), STATS_FILE: statsFile }, stdio: ['ignore','pipe','pipe'] });
 let childOutput='',childExit=null;child.stdout.on('data',x=>childOutput+=x);child.stderr.on('data',x=>childOutput+=x);child.on('error',e=>childOutput+=' spawn error: '+e.message);child.on('exit',(code,signal)=>{childExit={code,signal}});
 const sleep = ms => new Promise(r => setTimeout(r, ms));
 async function ready() {
@@ -154,6 +156,7 @@ function waitFor(client,predicate,timeout=5000,from=0) {
     const rematchFromA=attacker.messages.length,rematchFromD=defender.messages.length;
     attacker.ws.send(JSON.stringify({type:'rematch'}));defender.ws.send(JSON.stringify({type:'rematch'}));
     await Promise.all([waitFor(attacker,m=>m.type==='match-start'&&m.round===2,5000,rematchFromA),waitFor(defender,m=>m.type==='match-start'&&m.round===2,5000,rematchFromD)]);
+    attacker.ws.send(JSON.stringify({type:'input',input:{right:true,face:1}}));defender.ws.send(JSON.stringify({type:'input',input:{left:true,face:-1}}));await sleep(300);attacker.ws.send(JSON.stringify({type:'input',input:{right:false,face:1}}));defender.ws.send(JSON.stringify({type:'input',input:{left:false,face:-1}}));
     let finalRoundEnd;
     for(let n=1;n<=5;n++){
       const from=defender.messages.length;
@@ -162,7 +165,7 @@ function waitFor(client,predicate,timeout=5000,from=0) {
       attacker.ws.send(JSON.stringify({type:'attack',attack:{kind:'heavyKick'}}));
       const d=await next;
       assert.equal(d.hp,Math.max(0,100-21*n),'heavy kick damage must be consistent across the deciding round');
-      if(n<5)await sleep(720);
+      if(n<5){attacker.ws.send(JSON.stringify({type:'input',input:{right:true,face:1}}));await sleep(230);attacker.ws.send(JSON.stringify({type:'input',input:{right:false,face:1}}));await sleep(480)}
     }
     const champion=await finalRoundEnd;
     assert.equal(champion.winner,0,'the server must award the championship after two round wins');
@@ -173,6 +176,9 @@ function waitFor(client,predicate,timeout=5000,from=0) {
     assert.equal(winnerStats.body.knockouts,1,'winner knockout count must be saved');
     assert.equal(loserStats.body.matches,1,'completed match must persist once for the loser');
     assert.equal(loserStats.body.losses,1,'loser statistics must be saved');
+    const disk=JSON.parse(fs.readFileSync(statsFile,'utf8'));
+    assert.equal(disk[ cookie1.slice('gf_player='.length) ].wins,1,'winner statistics must be durably written to the database file');
+    assert.equal(disk[ cookie2.slice('gf_player='.length) ].losses,1,'loser statistics must be durably written to the database file');
     const ranked=await getJson('/api/leaderboard',cookie1);
     assert.equal(ranked.body.players.length,2,'leaderboard must include both players after the match');
     process.stdout.write('TEST 10: best-of-three result and persisted player statistics\\n');
