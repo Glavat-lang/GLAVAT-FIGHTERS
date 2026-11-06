@@ -5,7 +5,8 @@
   "description": "Retro arcade fighting game prototype with online rooms",
   "main": "server.js",
   "scripts": {
-    "start": "node server.js"
+    "start": "node server.js",
+    "test": "node test/online.test.js"
   },
   "dependencies": {
     "ws": "^8.18.0"
