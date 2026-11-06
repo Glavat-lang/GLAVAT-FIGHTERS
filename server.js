@@ -81,8 +81,8 @@ function resetRound(room) {
   snapshotAll(room);
 }
 function saveMatch(room,winner,reason){
- if(room.statsSaved)return;room.statsSaved=true;
- dbReady.then(async ready=>{if(!ready)return;for(let i=0;i<2;i++){const slot=room.slots[i];if(!slot||!slot.playerId)continue;
+ if(room.statsSaved)return Promise.resolve();room.statsSaved=true;
+ return dbReady.then(async ready=>{if(!ready)throw new Error('stats store is not ready');for(let i=0;i<2;i++){const slot=room.slots[i];if(!slot||!slot.playerId)continue;
   const won=winner===i,draw=winner===null,ko=reason==='ko'&&won,x=statsData[slot.playerId]||emptyStats();
   x.matches++;if(won){x.wins++;x.win_streak++;x.knockouts+=ko?1:0;}else if(draw){x.draws++;x.win_streak=0;}else{x.losses++;x.win_streak=0;}
   x.best_streak=Math.max(x.best_streak,x.win_streak);
@@ -91,14 +91,14 @@ function saveMatch(room,winner,reason){
   statsData[slot.playerId]=x;
  }}).then(()=>persistStats()).catch(e=>console.error('stats save failed',e.message));
 }
-function endRound(room, winner, reason) {
+async function endRound(room, winner, reason) {
   if(room.status!=='playing') return;
   room.status='round-over';
   if(winner===0||winner===1) room.wins[winner]++;
   const champion=room.wins.some(v=>v>=2)||(winner===null&&room.round>=3);
   room.matchComplete=champion;
   room.lastResult={winner,reason,round:room.round,wins:room.wins.slice(),champion};
-  if(champion)saveMatch(room,winner,reason);
+  if(champion)await saveMatch(room,winner,reason);
   broadcast(room,{type:'round-end',...room.lastResult});
   snapshotAll(room);
 }
