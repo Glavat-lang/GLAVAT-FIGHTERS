@@ -73,8 +73,10 @@ function waitFor(client,predicate,timeout=5000) {
     p2.ws.send(JSON.stringify({type:'input',input:{block:false,face:-1}}));
     p1.ws.send(JSON.stringify({type:'input',input:{face:1}}));
     const grabHit=waitFor(p2,m=>m.type==='damage'&&m.kind==='grab');
+    const grabStart=waitFor(p1,m=>m.type==='attack-start'&&m.kind==='grab');
     await sleep(800);
     p1.ws.send(JSON.stringify({type:'attack',attack:{kind:'grab'}}));
+    await grabStart;
     const grabbed=await grabHit;
     assert.equal(grabbed.damage,20,'grab must bypass guard and deal throw damage');
     const third=await connect(code);
