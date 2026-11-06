@@ -107,18 +107,18 @@ function handle(ws,msg){
   }
   if(msg.type==='attack' && room.status==='playing' && other){
     const kind=msg.attack&&msg.attack.kind;
-    if(!['punch','kick','special'].includes(kind)) return;
+    if(!['punch','kick','special','heavyPunch','heavyKick'].includes(kind)) return;
     const nowAt=now(),a=slot.state,v=other.state;
-    const cooldown=kind==='special'?850:kind==='kick'?380:260;
+    const cooldown=kind==='special'?850:kind.startsWith('heavy')?620:kind==='kick'?380:260;
     if(nowAt-a.lastAttack<cooldown||a.stun>0) return;
     if(kind==='special'&&a.power<100) return;
-    const dx=v.x-a.x,dy=Math.abs(v.y-a.y),range=kind==='special'?170:kind==='kick'?128:104;
+    const dx=v.x-a.x,dy=Math.abs(v.y-a.y),range=kind==='special'?170:kind==='heavyKick'?155:kind==='heavyPunch'?132:kind==='kick'?128:104;
     if(Math.sign(dx)!==a.dir||Math.abs(dx)>range+35||dy>75) return;
     a.lastAttack=nowAt;
     if(kind==='special')a.power=0;
     const token=crypto.randomUUID();
     a.attackToken=token;
-    const windup=kind==='special'?260:kind==='kick'?165:115;
+    const windup=kind==='special'?260:kind.startsWith('heavy')?235:kind==='kick'?165:115;
     broadcast(room,{type:'attack-start',playerNo:idx+1,kind,windup});
     setTimeout(()=>{
       if(room.status!=='playing'||room.round!==roundAtAttack||a.attackToken!==token||!room.slots[idx]||!room.slots[1-idx])return;
@@ -126,10 +126,10 @@ function handle(ws,msg){
       const hitDx=currentV.x-currentA.x,hitDy=Math.abs(currentV.y-currentA.y);
       if(Math.sign(hitDx)!==currentA.dir||Math.abs(hitDx)>range||hitDy>58||currentV.invuln>now())return;
       const blocked=currentV.block&&Math.sign(hitDx)===-currentV.dir;
-      const damage=blocked?Math.max(1,Math.round((kind==='special'?22:kind==='kick'?13:9)*.18)):(kind==='special'?24:kind==='kick'?15:10);
+      const baseDamage=kind==='special'?24:kind==='heavyKick'?21:kind==='heavyPunch'?17:kind==='kick'?15:10;\n      const damage=blocked?Math.max(1,Math.round(baseDamage*.18)):baseDamage;
       currentV.hp=clamp(currentV.hp-damage,0,100);currentV.stun=blocked?5:kind==='special'?25:kind==='kick'?16:11;currentV.invuln=now()+(blocked?120:280);
       currentV.x=clamp(currentV.x+currentA.dir*(blocked?8:kind==='special'?34:kind==='kick'?20:12),20,980);
-      currentA.power=clamp(currentA.power+(kind==='special'?0:kind==='kick'?17:12),0,100);
+      currentA.power=clamp(currentA.power+(kind==='special'?0:kind==='heavyKick'?23:kind==='heavyPunch'?20:kind==='kick'?17:12),0,100);
       broadcast(room,{type:'damage',playerNo:2-idx,hp:currentV.hp,damage,kind,attackerNo:idx+1,blocked,power:currentA.power});
       snapshotAll(room);
       if(currentV.hp<=0)endRound(room,idx,'ko');
