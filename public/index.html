@@ -157,4 +157,5 @@ function connect(){
 document.getElementById('start').onclick=()=>{document.getElementById('joinmsg').textContent='Подключаемся…';connect();};
 
 updateHud();
+document.getElementById('room').value=Math.random().toString(36).slice(2,6).toUpperCase();
 </script></body></html>
