@@ -59,16 +59,41 @@ function background(){
   rect(w*.18,floorY*.18,3,floorY*.55,'#29213f');rect(w*.18-5,floorY*.2,13,3,'#e56b53');rect(w*.18-2,floorY*.15,7,8,'#ff7954');
   // tree line at left
   for(let i=0;i<10;i++){let x=i*w*.027,y=floorY*.68-(i%3)*5;rect(x,y,5,floorY-y,'#171a2e');for(let j=0;j<5;j++){let xx=x-14+j*7,yy=y-18-(j%2)*9;rect(xx,yy,22,25,'#18202e');rect(xx+4,yy+4,13,13,'#20263a')}}
-  // rooftop restaurant pavilion, right half
-  const px=w*.51,py=h*.22,pw=w*.49,ph=floorY*.55;
-  polygon([[px,py+20],[px+pw*.18,py-8],[px+pw,py+2],[px+pw,py+24]],'#201b32');
-  polygon([[px-12,py+23],[px+pw*.18,py-17],[px+pw+8,py-5],[px+pw+8,py+12],[px+pw*.18,py-1],[px-12,py+39]],'#39304c');
-  rect(px+pw*.13,py+20,pw*.87,ph,'#211c31');
-  rect(px+pw*.16,py+30,pw*.84,ph*.66,'#5b3545');
-  for(let i=0;i<5;i++){let x=px+pw*(.2+i*.16);rect(x,py+35,3,ph*.62,'#211b30');rect(x+5,py+44,pw*.1,ph*.42,i%2?'#8c514c':'#a35a4b');rect(x+8,py+51,pw*.075,ph*.31,'#f6a65d22')}
-  rect(px+pw*.12,py+ph*.69,pw*.88,7,'#171528');
-  // warm bulbs under eaves
-  for(let i=0;i<8;i++){let x=px+pw*(.2+i*.105),y=py+33;rect(x,y,3,8,'#3b2736');rect(x-3,y+7,9,8,'#ffc16b');rect(x-5,y+5,13,12,'#ffad5a22')}
+  // modern country home with a glass terrace and warm interior
+  const px=w*.51,py=h*.22,pw=w*.49,ph=floorY*.58;
+  polygon([[px-16,py+27],[px+pw*.22,py-16],[px+pw+12,py+1],[px+pw+12,py+22],[px+pw*.22,py+5],[px-16,py+43]],'#282037');
+  polygon([[px-8,py+23],[px+pw*.22,py-10],[px+pw+7,py+5],[px+pw+7,py+18],[px+pw*.22,py-1],[px-8,py+35]],'#554052');
+  rect(px+pw*.13,py+22,pw*.87,ph*.82,'#32283b');
+  rect(px+pw*.16,py+30,pw*.84,ph*.61,'#6e4650');
+  // floor-to-ceiling windows and sliding doors
+  for(let i=0;i<4;i++){
+   const x=px+pw*(.19+i*.19),ww=pw*.145;
+   rect(x,py+34,ww,ph*.53,'#30263b');
+   rect(x+4,py+38,ww-8,ph*.48,'#d98c70');
+   rect(x+7,py+42,ww-14,ph*.43,i%2?'#f4b77a':'#f9c98b');
+   rect(x+10,py+45,ww-20,ph*.38,'#5a3d4a');
+   rect(x+ww*.48,py+39,2,ph*.49,'#34283b');
+   rect(x+ww*.12,py+52,ww*.2,ph*.3,'#ffd9a044');
+   rect(x+ww*.72,py+48,3,ph*.42,'#211b30');
+  }
+  rect(px+pw*.13,py+ph*.68,pw*.87,8,'#171528');
+  rect(px+pw*.12,py+ph*.72,pw*.9,5,'#b36f68');
+  // terrace rail, metal posts and timber deck
+  rect(px+pw*.08,py+ph*.76,pw*.93,3,'#d8a18a');
+  rect(px+pw*.08,py+ph*.84,pw*.93,3,'#d8a18a');
+  for(let i=0;i<10;i++){let x=px+pw*(.1+i*.09);rect(x,py+ph*.75,3,ph*.1,'#443044')}
+  rect(px+pw*.08,py+ph*.88,pw*.94,6,'#6a4550');
+  for(let i=0;i<12;i++){let x=px+pw*(.09+i*.08);rect(x,py+ph*.9,2,ph*.08,'#9a6664')}
+  // pergola beams and hanging lamps
+  rect(px+pw*.11,py+16,pw*.91,5,'#231c31');
+  for(let i=0;i<9;i++){let x=px+pw*(.15+i*.1);rect(x,py+8,4,25,'#34263b')}
+  const flicker=.82+.18*Math.sin(performance.now()/430);
+  for(let i=0;i<7;i++){let x=px+pw*(.2+i*.115),y=py+29;rect(x,y,3,9,'#302236');rect(x-3,y+8,9,8,'#ffd08a');c.globalAlpha=flicker;rect(x-7,y+4,17,18,'#ffbd6b26');c.globalAlpha=1}
+  // potted shrubs and small garden lights
+  for(let i=0;i<4;i++){let x=px+pw*(.08+i*.27),y=py+ph*.69;rect(x,y,15,11,'#443044');rect(x+3,y-15,9,17,'#283b35');rect(x-2,y-22,17,13,'#38503b');rect(x+2,y-28,10,9,'#4e6647')}
+  // drifting sunset clouds
+  const drift=(performance.now()/95)%(w+120);
+  for(let i=0;i<4;i++){let x=((i*w*.31+drift)%(w+120))-60,y=h*(.13+(i%2)*.09);rect(x,y,48,3,'#f8a18a35');rect(x+12,y-4,25,4,'#f7b29a30');rect(x+32,y+3,24,2,'#8d5a8260')}
  }else if(dojo){
   rect(0,55,w,5,'#382331');for(let x=15;x<w;x+=w/7){rect(x,58,7,175,'#5a3435');rect(x+8,92,w/14,3,'#e4a46a')}rect(w*.37,76,w*.26,55,'#61343b');rect(w*.405,85,w*.19,37,'#281a2c');
  }else if(club){
