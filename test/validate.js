@@ -30,6 +30,7 @@ assert(html.includes("clipFrame([2,1,6,15,6,3,2],phase)"),'heavy kicks must show
 assert(server.includes("FIGHTER_BALANCE"),'server must define individual fighter balance profiles');
 assert(server.includes("fighterStats(currentA.fighter).damage"),'server damage must use the attacking fighter profile');
 assert(server.includes("fighterStats(p.fighter).speed"),'server movement must use the selected fighter profile');
+assert(server.includes("if(p.y<0||p.vy<0)"),'server gravity must not make grounded fighters bounce');
 assert(server.includes("activeIn:windup,duration:Math.round(windup/.42)"),'online animation active frames must align with authoritative hit timing');
 assert(html.includes("a.attack=m.duration||m.windup+220"),'online clients must animate using server active-frame timing');
 assert(html.includes("function ai(dt){")&&html.includes("const threat=p.attack>0"),'CPU must react to the player attack state');
