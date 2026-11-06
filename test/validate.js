@@ -46,6 +46,8 @@ assert(database.includes("rating INTEGER NOT NULL DEFAULT 1000")&&database.inclu
 assert(database.includes("CREATE TABLE IF NOT EXISTS player_settings")&&database.includes("BEGIN")&&database.includes("COMMIT"),'PostgreSQL settings and transactional writes must be implemented');
 assert(migration.includes('schema_migrations')&&migration.includes('match_history'),'versioned SQL migration must be present');
 assert(server.includes("FIGHTER_BALANCE"),'server must define individual fighter balance profiles');
+assert(server.includes("Number.isSafeInteger(msg.seq)")&&server.includes("inputAck:p.lastInputSeq"),'online inputs must reject stale sequence numbers and acknowledge accepted input');
+assert(server.includes("msg.type==='ping'")&&html.includes("type:'ping'")&&html.includes("type==='pong'"),'online clients and server must measure round-trip latency');
 assert(server.includes("function attackIntersects(a,v,kind,range)"),'server combat must resolve attack hitboxes against hurtboxes');
 assert(server.includes("v.input?.crouch?66:112"),'server hurtboxes must reflect crouching posture');
 assert(server.includes("!attackIntersects(currentA,currentV,kind,range)"),'damage must be gated by active-frame hitbox overlap');
