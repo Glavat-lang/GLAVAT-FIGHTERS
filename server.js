@@ -188,7 +188,7 @@ const physicsTick=setInterval(()=>{
  for(const room of rooms.values()){
   if(room.status!=='playing'||!room.slots.every(Boolean))continue;
   for(let i=0;i<2;i++){const p=room.slots[i].state,dt=clamp(t-p.lastPhysicsAt,0,50);p.lastPhysicsAt=t;
-   p.stun=Math.max(0,p.stun-dt);p.invuln=Math.max(t,p.invuln);
+   p.stun=Math.max(0,p.stun-dt);if(p.invuln<=t)p.invuln=0;
    if(p.stun<=0){const move=(p.input.right?1:0)-(p.input.left?1:0);if(move)p.dir=move;p.vx=p.dodgeUntil>t?p.dir*.37:move*(p.input.crouch?.06:p.input.run?.282:.186);p.block=!!p.input.block;}else p.block=false;
    p.x=clamp(p.x+p.vx*dt,70,930);p.vx*=Math.pow(.78,dt/16.67);
    p.y+=p.vy*dt/16.67;p.vy+=.48*dt/16.67;if(p.y>0){p.y=0;p.vy=0;}
