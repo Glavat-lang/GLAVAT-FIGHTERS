@@ -52,6 +52,11 @@ function waitFor(client,predicate,timeout=3500) {
     const hit=await damage;
     assert.equal(hit.playerNo,2,'damage must identify player two as victim');
     assert.equal(hit.hp,90,'a regular punch must apply ten damage');
+    const heavyDamage=waitFor(p2,m=>m.type==='damage'&&m.kind==='heavyKick');
+    await sleep(700);
+    p1.ws.send(JSON.stringify({type:'attack',attack:{kind:'heavyKick'}}));
+    const heavy=await heavyDamage;
+    assert.equal(heavy.hp,69,'a heavy kick must apply twenty-one damage');
     p1.ws.close();p2.ws.close();
     process.stdout.write('Online authoritative hit test passed.\n');
   } finally {
