@@ -22,6 +22,9 @@ assert(html.includes('id="voice"'),'announcer voice must be user-toggleable');
 assert(html.includes('id="voiceVolume"'),'announcer and fighter voices must have an independent volume control');
 assert(html.includes("localStorage.getItem('gf-settings')")&&html.includes("localStorage.setItem('gf-settings'"),'audio settings must persist between visits');
 assert(html.includes("easy?210:hard?75:115"),'CPU must expose a distinct easy reaction profile');
+assert(html.includes("function saveLocalMatch(winner,reason)"),'offline championships must persist player statistics locally');
+assert(html.includes("localStorage.getItem('gf-local-stats')"),'player profile must include locally saved match history');
+
 
 assert(html.includes('u.volume=Math.max(0,Math.min(1,effectsVolume))'),'announcer voice must follow the effects volume control');
 assert(html.includes('function fighterGrunt(line,pitch=1)'),'fighters must expose their own synthetic voice reactions');
