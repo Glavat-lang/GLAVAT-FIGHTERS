@@ -21,7 +21,7 @@ canvas{display:block;width:100%;flex:1;min-height:0;image-rendering:pixelated}
 input{width:100%;padding:13px;border:2px solid #78619c;border-radius:8px;background:#100c25;color:white;font-size:20px;text-align:center;text-transform:uppercase;letter-spacing:4px}
 button{border:0;border-radius:8px;background:#ffad3d;color:#27142c;font-weight:900;padding:13px 17px;font-size:15px;box-shadow:0 4px #a84c32}
 button:active{transform:translateY(3px);box-shadow:0 1px #a84c32}
-#start{width:100%;margin-top:12px}
+#start{width:100%;margin-top:12px}select{width:100%;margin:8px 0;padding:12px;border:2px solid #78619c;border-radius:8px;background:#100c25;color:white;font-size:16px}
 #controls{display:flex;justify-content:space-between;align-items:end;padding:8px 14px 14px;gap:12px}
 .pad,.moves{display:flex;gap:8px;align-items:center}
 .ctrl{width:clamp(48px,13vw,66px);height:clamp(48px,13vw,66px);border-radius:50%;padding:0;font-size:20px;background:#d7d0ed;border:3px solid #fff;box-shadow:0 4px #62547c;touch-action:none}
@@ -39,10 +39,10 @@ button:active{transform:translateY(3px);box-shadow:0 1px #a84c32}
  <div class="moves"><button class="ctrl" data-key="punch">УДАР</button><button class="ctrl" data-key="kick">НОГА</button><button class="ctrl" data-key="block">БЛОК</button><button class="ctrl" data-key="special">СУПЕР</button></div>
 </div><div id="foot">ПОВОРОТ ЭКРАНА НЕ ОБЯЗАТЕЛЕН · ДЕРЖИ КНОПКИ ДЛЯ ДВИЖЕНИЯ</div>
 </div>
-<div id="join"><div class="panel"><h1>GLAVAT FIGHTERS</h1><p>Создай комнату и отправь код второму игроку. Оба откройте эту страницу на своих телефонах.</p><input id="room" maxlength="8" placeholder="КОД КОМНАТЫ" value="GLAVAT"><button id="start">ВОЙТИ В БОЙ</button><p id="joinmsg">Пока это ранний прототип. Для онлайн-боя нужен запущенный сервер.</p></div></div>
+<div id="join"><div class="panel"><h1>GLAVAT FIGHTERS</h1><p>Создай комнату и отправь код второму игроку. Оба откройте эту страницу на своих телефонах.</p><select id="arena"><option value="sunset">Крыша на закате</option><option value="night">Ночной город</option><option value="dojo">Зал додзё</option></select><input id="room" maxlength="8" placeholder="КОД КОМНАТЫ" value="GLAVAT"><button id="start">ВОЙТИ В БОЙ</button><p id="joinmsg">Пока это ранний прототип. Для онлайн-боя нужен запущенный сервер.</p></div></div>
 <script>
 const canvas=document.getElementById('game'),ctx=canvas.getContext('2d');
-let W=900,H=500, me=1, code='GLAVAT', socket=null, online=false, opponentConnected=false;
+let W=900,H=500, me=1, code='GLAVAT', socket=null, online=false, opponentConnected=false, arena='sunset';
 let keys={}, lastSend=0, timer=99, hp=[100,100], ended=false, timerStamp=Date.now(), matchStarted=false, reconnecting=false;
 const fighters=[
  {x:220,y:0,vx:0,vy:0,dir:1,hp:100,attack:0,flash:0,block:false,pose:0},
@@ -52,14 +52,24 @@ function resize(){const r=canvas.getBoundingClientRect();W=Math.max(320,r.width)
 addEventListener('resize',resize);resize();
 function floor(){return H*.82}
 function drawBackground(){
- const g=ctx.createLinearGradient(0,0,0,H);g.addColorStop(0,'#30205e');g.addColorStop(.55,'#d65b62');g.addColorStop(1,'#f5a34b');ctx.fillStyle=g;ctx.fillRect(0,0,W,H);
- ctx.fillStyle='#242044';for(let i=0;i<18;i++){let x=i*W/16;let h=H*(.13+((i*37)%19)/100);ctx.fillRect(x,floor()-h, W/22,h);}
- ctx.fillStyle='#ffcf68';ctx.beginPath();ctx.arc(W*.5,H*.43,H*.09,0,7);ctx.fill();
- ctx.fillStyle='#252039';ctx.fillRect(0,floor(),W,H-floor());
- ctx.strokeStyle='#f58c55';ctx.lineWidth=2;for(let i=0;i<12;i++){ctx.beginPath();ctx.moveTo(i*W/11,floor());ctx.lineTo(W/2+(i-5.5)*W*.16,H);ctx.stroke();}
- ctx.strokeStyle='#7d4261';for(let y=floor()+22;y<H;y+=25){ctx.beginPath();ctx.moveTo(0,y);ctx.lineTo(W,y);ctx.stroke();}
- ctx.fillStyle='#17172e';ctx.fillRect(W*.72,H*.23,W*.28,H*.59);ctx.fillRect(W*.68,H*.29,W*.32,8);
- for(let i=0;i<6;i++){ctx.fillStyle='#ffc15a';ctx.fillRect(W*.75+i*W*.043,H*.34,7,12);}
+ if(arena==='night'){
+  const g=ctx.createLinearGradient(0,0,0,H);g.addColorStop(0,'#07132f');g.addColorStop(.7,'#17294a');g.addColorStop(1,'#26334a');ctx.fillStyle=g;ctx.fillRect(0,0,W,H);
+  ctx.fillStyle='#e5e7ff';ctx.beginPath();ctx.arc(W*.78,H*.18,H*.055,0,7);ctx.fill();
+  for(let i=0;i<22;i++){const x=i*W/20-10,h=H*(.2+((i*29)%40)/100);ctx.fillStyle=i%2?'#101b35':'#182542';ctx.fillRect(x,floor()-h,W/24,h);ctx.fillStyle='#ffd36b';for(let y=floor()-h+12;y<floor()-8;y+=22)for(let xx=x+8;xx<x+W/24-5;xx+=15)if((xx+y)%3>1)ctx.fillRect(xx,y,5,8);}
+  ctx.fillStyle='#11182b';ctx.fillRect(0,floor(),W,H-floor());ctx.strokeStyle='#42617e';ctx.lineWidth=2;for(let i=0;i<12;i++){ctx.beginPath();ctx.moveTo(i*W/11,floor());ctx.lineTo(W/2+(i-5.5)*W*.16,H);ctx.stroke();}
+ } else if(arena==='dojo'){
+  const g=ctx.createLinearGradient(0,0,0,H);g.addColorStop(0,'#51352c');g.addColorStop(.55,'#a66a42');g.addColorStop(1,'#30201d');ctx.fillStyle=g;ctx.fillRect(0,0,W,H);
+  ctx.fillStyle='#38231f';ctx.fillRect(0,H*.18,W,H*.47);ctx.fillStyle='#d29a59';for(let x=0;x<W;x+=W/8){ctx.fillRect(x,H*.2,7,H*.43);ctx.fillRect(x+8,H*.26,W/16,H*.025);}
+  ctx.fillStyle='#ffce76';for(let x=W*.12;x<W;x+=W*.25){ctx.beginPath();ctx.arc(x,H*.34,8,0,7);ctx.fill();}
+  ctx.fillStyle='#70472f';ctx.fillRect(0,floor(),W,H-floor());ctx.strokeStyle='#c18a57';ctx.lineWidth=3;for(let y=floor()+18;y<H;y+=35){ctx.beginPath();ctx.moveTo(0,y);ctx.lineTo(W,y);ctx.stroke();}
+ } else {
+  const g=ctx.createLinearGradient(0,0,0,H);g.addColorStop(0,'#30205e');g.addColorStop(.55,'#d65b62');g.addColorStop(1,'#f5a34b');ctx.fillStyle=g;ctx.fillRect(0,0,W,H);
+  ctx.fillStyle='#242044';for(let i=0;i<18;i++){let x=i*W/16;let h=H*(.13+((i*37)%19)/100);ctx.fillRect(x,floor()-h,W/22,h);}
+  ctx.fillStyle='#ffcf68';ctx.beginPath();ctx.arc(W*.5,H*.43,H*.09,0,7);ctx.fill();
+  ctx.fillStyle='#252039';ctx.fillRect(0,floor(),W,H-floor());ctx.strokeStyle='#f58c55';ctx.lineWidth=2;for(let i=0;i<12;i++){ctx.beginPath();ctx.moveTo(i*W/11,floor());ctx.lineTo(W/2+(i-5.5)*W*.16,H);ctx.stroke();}
+  ctx.strokeStyle='#7d4261';for(let y=floor()+22;y<H;y+=25){ctx.beginPath();ctx.moveTo(0,y);ctx.lineTo(W,y);ctx.stroke();}
+  ctx.fillStyle='#17172e';ctx.fillRect(W*.72,H*.23,W*.28,H*.59);ctx.fillRect(W*.68,H*.29,W*.32,8);for(let i=0;i<6;i++){ctx.fillStyle='#ffc15a';ctx.fillRect(W*.75+i*W*.043,H*.34,7,12);}
+ }
 }
 function pixelRect(x,y,w,h,c){ctx.fillStyle=c;ctx.fillRect(Math.round(x),Math.round(y),w,h)}
 function drawFighter(f,index){
@@ -140,11 +150,11 @@ function connect(){
  code=document.getElementById('room').value.trim().toUpperCase()||'GLAVAT';
  const proto=location.protocol==='https:'?'wss':'ws';
  try{socket=new WebSocket(proto+'://'+location.host);}catch(e){return;}
- socket.onopen=()=>socket.send(JSON.stringify({type:'join',code}));
+ socket.onopen=()=>socket.send(JSON.stringify({type:'join',code,arena:document.getElementById('arena').value}));
  socket.onmessage=e=>{
   const m=JSON.parse(e.data);
   if(m.type==='joined'){me=m.playerNo;online=true;document.getElementById('join').style.display='none';document.getElementById('joinmsg').textContent='Комната '+m.code+'. Ты игрок '+me+'.';document.getElementById('status').textContent='ЖДЁМ СОПЕРНИКА · '+m.code;}
-  if(m.type==='match-start'){opponentConnected=true;matchStarted=true;ended=false;timer=99;timerStamp=Date.now();fighters[0].x=W*.25;fighters[1].x=W*.75;fighters.forEach(p=>{p.hp=100;p.flash=0;p.attack=0;p.y=0;p.vx=0;p.vy=0;});updateHud();document.getElementById('timer').textContent='99';document.getElementById('status').textContent='БОЙ НАЧАЛСЯ · '+code;}
+  if(m.type==='match-start'){arena=m.arena||'sunset';opponentConnected=true;matchStarted=true;ended=false;timer=99;timerStamp=Date.now();fighters[0].x=W*.25;fighters[1].x=W*.75;fighters.forEach(p=>{p.hp=100;p.flash=0;p.attack=0;p.y=0;p.vx=0;p.vy=0;});updateHud();document.getElementById('timer').textContent='99';document.getElementById('status').textContent='БОЙ НАЧАЛСЯ · '+code;}
   if(m.type==='opponent-state'){const o=fighters[2-me];Object.assign(o,m.state);updateHud();}
   if(m.type==='damage'){const own=fighters[me-1];own.hp=clamp(m.hp,0,100);own.flash=8;updateHud();if(own.hp<=0){ended=true;document.getElementById('status').textContent='НОКАУТ!';}}
   if(m.type==='room-full'){document.getElementById('joinmsg').textContent='Комната уже заполнена. Попробуй другой код.';document.getElementById('join').style.display='flex';}
