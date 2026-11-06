@@ -6,7 +6,7 @@ const crypto = require('crypto');
 let pool = null;
 let filePath = null;
 let writeQueue = Promise.resolve();
-const emptyStats = () => ({matches:0,wins:0,losses:0,draws:0,knockouts:0,win_streak:0,best_streak:0,favorite_fighter:0,fighter_0_count:0,fighter_1_count:0});
+const emptyStats = () => ({matches:0,wins:0,losses:0,draws:0,knockouts:0,win_streak:0,best_streak:0,favorite_fighter:0,fighter_0_count:0,fighter_1_count:0,rating:1000});
 
 async function init(statsFile) {
   filePath = statsFile;
@@ -53,6 +53,7 @@ async function init(statsFile) {
     favorite_fighter SMALLINT NOT NULL DEFAULT 0 CHECK (favorite_fighter IN (0,1)),
     fighter_0_count INTEGER NOT NULL DEFAULT 0 CHECK (fighter_0_count >= 0),
     fighter_1_count INTEGER NOT NULL DEFAULT 0 CHECK (fighter_1_count >= 0),
+    rating INTEGER NOT NULL DEFAULT 1000 CHECK (rating >= 0),
     updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
   )`);
   await pool.query(`CREATE TABLE IF NOT EXISTS player_settings (
@@ -72,6 +73,8 @@ async function init(statsFile) {
     player_two_fighter SMALLINT NOT NULL CHECK (player_two_fighter IN (0,1)),
     completed_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
   )`);
+  await pool.query('ALTER TABLE player_stats ADD COLUMN IF NOT EXISTS rating INTEGER NOT NULL DEFAULT 1000 CHECK (rating >= 0)');
+  await pool.query('INSERT INTO schema_migrations(version) VALUES (2) ON CONFLICT (version) DO NOTHING');
   await pool.query('CREATE INDEX IF NOT EXISTS match_history_player_one_idx ON match_history(player_one_id, completed_at DESC)');
   await pool.query('CREATE INDEX IF NOT EXISTS match_history_player_two_idx ON match_history(player_two_id, completed_at DESC)');
   await pool.query('INSERT INTO schema_migrations(version) VALUES (1) ON CONFLICT (version) DO NOTHING');
@@ -86,12 +89,12 @@ async function init(statsFile) {
     }
   }
   const result = await pool.query(`SELECT player_id, matches, wins, losses, draws, knockouts,
-    win_streak, best_streak, favorite_fighter, fighter_0_count, fighter_1_count FROM player_stats`);
+    win_streak, best_streak, favorite_fighter, fighter_0_count, fighter_1_count, rating FROM player_stats`);
   const data = {};
   for (const row of result.rows) data[row.player_id] = {
     matches:row.matches,wins:row.wins,losses:row.losses,draws:row.draws,knockouts:row.knockouts,
     win_streak:row.win_streak,best_streak:row.best_streak,favorite_fighter:row.favorite_fighter,
-    fighter_0_count:row.fighter_0_count,fighter_1_count:row.fighter_1_count
+    fighter_0_count:row.fighter_0_count,fighter_1_count:row.fighter_1_count,rating:row.rating
   };
   return data;
 }
@@ -100,14 +103,14 @@ async function upsertStats(data, client=pool) {
   for (const [id, value] of Object.entries(data)) {
     if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(id)) continue;
     await client.query('INSERT INTO players(player_id) VALUES($1) ON CONFLICT(player_id) DO UPDATE SET last_seen_at=NOW()', [id]);
-    await client.query(`INSERT INTO player_stats(player_id,matches,wins,losses,draws,knockouts,win_streak,best_streak,favorite_fighter,fighter_0_count,fighter_1_count)
-      VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11)
+    await client.query(`INSERT INTO player_stats(player_id,matches,wins,losses,draws,knockouts,win_streak,best_streak,favorite_fighter,fighter_0_count,fighter_1_count,rating)
+      VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12)
       ON CONFLICT(player_id) DO UPDATE SET matches=EXCLUDED.matches,wins=EXCLUDED.wins,losses=EXCLUDED.losses,
       draws=EXCLUDED.draws,knockouts=EXCLUDED.knockouts,win_streak=EXCLUDED.win_streak,best_streak=EXCLUDED.best_streak,
       favorite_fighter=EXCLUDED.favorite_fighter,fighter_0_count=EXCLUDED.fighter_0_count,
-      fighter_1_count=EXCLUDED.fighter_1_count,updated_at=NOW()`,
+      fighter_1_count=EXCLUDED.fighter_1_count,rating=EXCLUDED.rating,updated_at=NOW()`,
     [id,value.matches||0,value.wins||0,value.losses||0,value.draws||0,value.knockouts||0,value.win_streak||0,
-      value.best_streak||0,value.favorite_fighter||0,value.fighter_0_count||0,value.fighter_1_count||0]);
+      value.best_streak||0,value.favorite_fighter||0,value.fighter_0_count||0,value.fighter_1_count||0,Number.isInteger(value.rating)?value.rating:1000]);
   }
 }
 
