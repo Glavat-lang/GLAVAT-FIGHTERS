@@ -54,7 +54,7 @@ function waitFor(client,predicate,timeout=5000) {
     assert.equal(initial.players[1].x,710,'round reset must spawn player two at 710');
     attacker.ws.send(JSON.stringify({type:'input',input:{right:true,face:1}}));
     defender.ws.send(JSON.stringify({type:'input',input:{left:true,face:-1}}));
-    await sleep(420);
+    await sleep(500);
     attacker.ws.send(JSON.stringify({type:'input',input:{right:false,face:1}}));
     defender.ws.send(JSON.stringify({type:'input',input:{left:false,face:-1}}));
     const airborne=waitFor(attacker,m=>m.type==='snapshot'&&m.players?.[0]?.y< -10);
