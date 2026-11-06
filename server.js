@@ -116,7 +116,7 @@ wss.on("connection", ws => {
       const dx = Math.abs(victim.x - a.attackerX);
       const dy = Math.abs(victim.y - attacker.y);
       if (dx > 118 || dy > 58 || victim.block) return;
-      const kind = ["punch","kick","special"].includes(a.kind) ? a.kind : "punch";
+      const kind = a.kind;
       const damage = kind === "special" ? 22 : kind === "kick" ? 13 : 9;
       room.attacks[index] = now;
       const victimHp = Math.max(0, (other.hp == null ? 100 : other.hp) - damage);
