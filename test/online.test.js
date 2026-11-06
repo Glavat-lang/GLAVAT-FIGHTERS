@@ -210,6 +210,8 @@ function waitFor(client,predicate,timeout=5000,from=0) {
     assert.equal(winnerStats.body.matches,1,'completed match must persist once for the winner');
     assert.equal(winnerStats.body.wins,1,'winner statistics must be saved');
     assert.equal(winnerStats.body.knockouts,1,'winner knockout count must be saved');
+    assert.equal(winnerStats.body.rating,1016,'winner must gain Elo rating after a decisive match');
+    assert.equal(loserStats.body.rating,984,'loser must lose Elo rating after a decisive match');
     assert.equal(loserStats.body.matches,1,'completed match must persist once for the loser');
     assert.equal(loserStats.body.losses,1,'loser statistics must be saved');
     const disk=JSON.parse(fs.readFileSync(statsFile,'utf8'));
