@@ -132,6 +132,8 @@ function handle(ws,msg){
     const nowAt=now(),a=slot.state,v=other.state;
     const cooldown=kind==='special'?1000:kind==='grab'?700:kind==='counter'?720:kind.startsWith('heavy')?680:kind==='kick'||kind==='airKick'?420:300;
     if(nowAt-a.lastAttack<cooldown||a.stun>0) return;
+    if((kind==='airPunch'||kind==='airKick')&&a.y>-10)return;
+    if(kind==='grab'&&a.y<-10)return;
     if(kind==='special'&&a.power<100) return;
     if(kind==='counter'&&a.counterReadyUntil<nowAt) return;
     const dx=v.x-a.x,dy=Math.abs(v.y-a.y),range=kind==='special'?430:kind==='grab'?340:kind==='counter'?300:kind==='heavyKick'?360:kind==='heavyPunch'?320:kind==='kick'||kind==='airKick'?310:kind==='airPunch'?280:260;
@@ -140,13 +142,13 @@ function handle(ws,msg){
     if(kind==='special')a.power=0;
     const token=crypto.randomUUID();
     a.attackToken=token;
-    const windup=kind==='special'?300:kind==='grab'?180:kind==='counter'?85:kind.startsWith('heavy')?250:kind==='kick'||kind==='airKick'?175:130;
+    const windup=kind==='special'?300:kind==='grab'?180:kind==='counter'?85:kind==='airPunch'||kind==='airKick'?110:kind.startsWith('heavy')?250:kind==='kick'?175:130;
     broadcast(room,{type:'attack-start',playerNo:idx+1,kind,windup});
     setTimeout(()=>{
       if(room.status!=='playing'||room.round!==roundAtAttack||a.attackToken!==token||!room.slots[idx]||!room.slots[1-idx])return;
       const currentA=room.slots[idx].state,currentV=room.slots[1-idx].state;
       const hitDx=currentV.x-currentA.x,hitDy=Math.abs(currentV.y-currentA.y);
-      if(Math.sign(hitDx)!==currentA.dir||Math.abs(hitDx)>range||hitDy>58||currentV.invuln>now())return;
+      if(Math.sign(hitDx)!==currentA.dir||Math.abs(hitDx)>range||hitDy>((kind==='airPunch'||kind==='airKick')?115:58)||currentV.invuln>now())return;
       const blocked=kind!=='grab'&&currentV.block&&Math.sign(hitDx)===-currentV.dir;
       const baseDamage=kind==='special'?25:kind==='grab'?20:kind==='counter'?18:kind==='heavyKick'?21:kind==='heavyPunch'?17:kind==='kick'||kind==='airKick'?15:kind==='airPunch'?12:10;
       const damage=blocked?Math.max(1,Math.round(baseDamage*.18)):baseDamage;
