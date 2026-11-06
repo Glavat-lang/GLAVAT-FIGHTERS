@@ -73,7 +73,7 @@ function background(){
  const sunset=arena==='sunset',night=arena==='night',dojo=arena==='dojo',club=arena==='underground',neon=arena==='neon',harbor=arena==='harbor';
  const sky=gradient(0,floorY,night?[[0,'#171b49'],[.5,'#6d477e'],[1,'#f17b83']]:dojo?[[0,'#49303d'],[.62,'#bd765e'],[1,'#f2b77b']]:club?[[0,'#11152e'],[.55,'#53334f'],[1,'#bb6958']]:harbor?[[0,'#071b30'],[.42,'#123d55'],[.78,'#e47c54'],[1,'#f5b16c']]:neon?[[0,'#10163a'],[.5,'#344b87'],[1,'#d64d91']]:[[0,'#29204e'],[.35,'#a43f68'],[.72,'#ff783f'],[1,'#ffbd67']]);
  c.fillStyle=sky;c.fillRect(0,0,w,h);
- if(!dojo&&!club&&!neon&&!harbor){
+ if(sunset){
   const sx=w*.43,sy=h*.46,rad=h*.105;
   c.fillStyle='#ffdc91';c.beginPath();c.arc(sx,sy,rad,0,Math.PI*2);c.fill();
   for(let k=0;k<5;k++){let yy=sy-rad*.55+k*rad*.27;rect(sx-rad,yy,rad*2,Math.max(2,rad*.07),'#e96b50')}
@@ -117,10 +117,23 @@ function background(){
   // drifting sunset clouds
   const drift=(performance.now()/95)%(w+120);
   for(let i=0;i<4;i++){let x=((i*w*.31+drift)%(w+120))-60,y=h*(.13+(i%2)*.09);rect(x,y,48,3,'#f8a18a35');rect(x+12,y-4,25,4,'#f7b29a30');rect(x+32,y+3,24,2,'#8d5a8260')}
+ }else if(night){
+  const t=performance.now()/1000;
+  c.fillStyle='#e2d9ef';c.beginPath();c.arc(w*.78,h*.16,h*.045,0,Math.PI*2);c.fill();
+  for(let i=0;i<32;i++){const x=(i*97)%w,y=(i*43)%(floorY*.58);rect(x,y,2,2,'#f9e8cb88')}
+  for(let i=0;i<12;i++){
+   const bw=w*(.045+(i%3)*.018),bh=floorY*(.25+(i*17%30)/100),x=i*w/11,y=floorY*.8-bh;
+   rect(x,y,bw,bh,i%2?'#171b35':'#20203d');
+   rect(x+2,y+3,bw-4,2,'#64708a66');
+   for(let wy=y+10;wy<floorY*.8;wy+=12)for(let wx=x+4;wx<x+bw-3;wx+=7)rect(wx,wy,3,4,(Math.floor(wx+wy)%3)?'#ffbd7766':'#6fd9ef66');
+  }
+  rect(w*.12,floorY*.32,3,floorY*.44,'#0e162e');rect(w*.12-5,floorY*.32,13,4,'#f35b8d');
+  const sweep=(t*.28)%1;polygon([[w*.48,0],[w*(.48+sweep*.7),floorY*.64],[w*(.48+sweep*.7)+12,floorY*.64]],'#a3c9ff0b');
+  rect(w*.35,floorY*.35,w*.27,7,'#29304d');rect(w*.37,floorY*.37,w*.23,3,'#ff6a9a');
  }else if(dojo){
-  rect(0,55,w,5,'#382331');for(let x=15;x<w;x+=w/7){rect(x,58,7,175,'#5a3435');rect(x+8,92,w/14,3,'#e4a46a')}rect(w*.37,76,w*.26,55,'#61343b');rect(w*.405,85,w*.19,37,'#281a2c');
+  rect(0,55,5,5,'#382331');for(let x=15;x<w;x+=w/7){rect(x,58,7,175,'#5a3435');rect(x+8,92,w/14,3,'#e4a46a')}rect(w*.37,76,w*.26,55,'#61343b');rect(w*.405,85,w*.19,37,'#281a2c');
  }else if(club){
-  rect(0,80,w,145,'#171323');for(let x=20;x<w;x+=w/8){rect(x,70,5,155,'#312239');rect(x+5,82,w/9,3,'#e18b64')}rect(w*.18,104,w/9,3,'#e18b64');rect(w*.18,104,w*.64,7,'#a54b58');rect(w*.2,113,w*.6,3,'#f6bd7a');
+  rect(0,80,w,145,'#171323');for(let x=20;x<w;x+=w/8){rect(x,70,5,155,'#312239');rect(x+5,82,w/9,3,'#e18b64')}rect(w*.18,104,w*.64,7,'#a54b58');rect(w*.2,113,w*.6,3,'#f6bd7a');
  }else if(harbor){
   const t=performance.now()/1000,waterY=floorY*.52;
   rect(0,waterY,w,floorY-waterY,'#0b3048');
@@ -149,7 +162,7 @@ function background(){
  const wallY=floorY*.76,wallH=floorY*.12;
  for(const side of [0,1]){let x=side? w*.72:0,ww=w*.15;rect(x,wallY,ww,wallH,'#493044');rect(x,wallY,ww,5,'#b56a62');for(let yy=wallY+9;yy<wallY+wallH;yy+=10){rect(x,yy,ww,1,'#241b31');for(let xx=x+(yy%2?0:12);xx<x+ww;xx+=24)rect(xx,yy-5,1,10,'#9a5b57')}rect(x+ww*.35,wallY+12,ww*.3,wallH*.62,'#ffb44e');rect(x+ww*.35+4,wallY+16,ww*.3-8,wallH*.62-8,'#ffe09a');rect(x+ww*.35-5,wallY+8,ww*.3+10,wallH*.62+8,'#ffc15b33')}
  // reflective tiled fighting floor
- rect(0,floorY,w,h-floorY,dojo?'#9b684f':club?'#39283f':harbor?'#173449':'#493348');
+ rect(0,floorY,w,h-floorY,dojo?'#9b684f':club?'#39283f':harbor?'#173449':night?'#2b2846':'#493348');
  for(let i=0;i<=14;i++){let x=i*w/14;c.strokeStyle=i%2?'#b87879':'#d18a79';c.globalAlpha=.48;c.lineWidth=1;c.beginPath();c.moveTo(x,floorY);c.lineTo(w/2+(i-7)*w*.19,h);c.stroke()}
  c.globalAlpha=1;
  for(let y=floorY+12;y<h;y+=13+(y-floorY)*.07){c.strokeStyle='#d18a80';c.globalAlpha=.35;c.beginPath();c.moveTo(0,y);c.lineTo(w,y);c.stroke();c.globalAlpha=.18;for(let x=0;x<w;x+=Math.max(35,w/12))rect(x+((Math.floor(y/13)%2)*12),y+2,Math.max(8,w/50),1,'#ffd39a')}
