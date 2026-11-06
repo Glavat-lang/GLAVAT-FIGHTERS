@@ -126,7 +126,8 @@ function handle(ws,msg){
       const hitDx=currentV.x-currentA.x,hitDy=Math.abs(currentV.y-currentA.y);
       if(Math.sign(hitDx)!==currentA.dir||Math.abs(hitDx)>range||hitDy>58||currentV.invuln>now())return;
       const blocked=currentV.block&&Math.sign(hitDx)===-currentV.dir;
-      const baseDamage=kind==='special'?24:kind==='heavyKick'?21:kind==='heavyPunch'?17:kind==='kick'?15:10;\n      const damage=blocked?Math.max(1,Math.round(baseDamage*.18)):baseDamage;
+      const baseDamage=kind==='special'?24:kind==='heavyKick'?21:kind==='heavyPunch'?17:kind==='kick'?15:10;
+      const damage=blocked?Math.max(1,Math.round(baseDamage*.18)):baseDamage;
       currentV.hp=clamp(currentV.hp-damage,0,100);currentV.stun=blocked?5:kind==='special'?25:kind==='kick'?16:11;currentV.invuln=now()+(blocked?120:280);
       currentV.x=clamp(currentV.x+currentA.dir*(blocked?8:kind==='special'?34:kind==='kick'?20:12),20,980);
       currentA.power=clamp(currentA.power+(kind==='special'?0:kind==='heavyKick'?23:kind==='heavyPunch'?20:kind==='kick'?17:12),0,100);
