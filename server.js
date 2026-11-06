@@ -56,7 +56,7 @@ function roomFor(code) { return rooms.get(code); }
 function closeRoomIfEmpty(room) { if (room.slots.every(s => !s)) { room.gcAt=now()+ROOM_TTL; room.status='empty'; } }
 function resetRound(room) {
   room.timer=99; room.roundStarted=now(); room.status='playing';
-  room.slots.forEach((s,i)=>{ if(s) s.state=playerState(i===0?0.29:0.71, i===0?1:-1); });
+  room.slots.forEach((s,i)=>{ if(s) s.state=playerState(i===0?290:710, i===0?1:-1); });
   broadcast(room,{type:'round-start',round:room.round,wins:room.wins.slice(),timer:99});
   snapshotAll(room);
 }
