@@ -118,6 +118,7 @@ function leave(ws) {
 }
 function valid(n,lo,hi){return typeof n==='number'&&Number.isFinite(n)&&n>=lo&&n<=hi;}
 function join(ws,msg) {
+  leave(ws);
   const code=String(msg.code||'').toUpperCase().replace(/[^A-Z0-9]/g,'').slice(0,8);
   if(code.length<3) return send(ws,{type:'join-error',message:'Код комнаты — минимум 3 символа.'});
   let room=roomFor(code);
