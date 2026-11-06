@@ -19,9 +19,11 @@ async function ready() {
   }
   throw new Error('server did not start; exit: '+JSON.stringify(childExit)+'; child output: '+childOutput);
 }
-function connect(code) {
+function identity(){return new Promise((resolve,reject)=>http.get(base+'/',res=>{res.resume();res.on('end',()=>resolve(res.headers['set-cookie']?.[0]?.split(';')[0]||''))}).on('error',reject))}
+function getJson(route,cookie){return new Promise((resolve,reject)=>http.get(base+route,{headers:cookie?{Cookie:cookie}:{}},res=>{let data='';res.setEncoding('utf8');res.on('data',x=>data+=x);res.on('end',()=>resolve({status:res.statusCode,body:JSON.parse(data)}))}).on('error',reject))}
+function connect(code,cookie='') {
   return new Promise((resolve,reject)=>{
-    const ws=new WebSocket('ws://127.0.0.1:'+port);
+    const ws=new WebSocket('ws://127.0.0.1:'+port,cookie?{headers:{Cookie:cookie}}:{});
     clients.add(ws);
     const messages=[];
     ws.on('message',raw=>{try{messages.push(JSON.parse(raw.toString()))}catch{}});
@@ -42,14 +44,17 @@ function waitFor(client,predicate,timeout=5000,from=0) {
 (async()=>{
   try {
     await ready();
-    const profile=await new Promise((resolve,reject)=>http.get(base+'/api/profile',res=>{let data='';res.setEncoding('utf8');res.on('data',x=>data+=x);res.on('end',()=>resolve({status:res.statusCode,headers:res.headers,body:JSON.parse(data)}))}).on('error',reject));
+    const cookie1=await identity(),cookie2=await identity();
+    assert.match(cookie1,/^gf_player=/,'server must issue a persistent player identity');
+    assert.match(cookie2,/^gf_player=/,'second player must receive an independent identity');
+    assert.notEqual(cookie1,cookie2,'each player must have a unique identity');
+    const profile=await getJson('/api/profile',cookie1);
     assert.equal(profile.status,200,'profile endpoint must work with persistent stats storage');
     assert.equal(profile.body.matches,0,'new player must start with empty statistics');
-    assert.match(profile.headers['set-cookie'][0],/gf_player=/,'server must issue a persistent player identity');
-    const board=await new Promise((resolve,reject)=>http.get(base+'/api/leaderboard',res=>{let data='';res.setEncoding('utf8');res.on('data',x=>data+=x);res.on('end',()=>resolve({status:res.statusCode,body:JSON.parse(data)}))}).on('error',reject));
+    const board=await getJson('/api/leaderboard',cookie1);
     assert.equal(board.status,200,'leaderboard endpoint must be backed by the stats store');
     assert.deepEqual(board.body.players,[],'empty stats store must have an empty leaderboard');
-    process.stdout.write('TEST 1: HTTP server, persistent profile and leaderboard\\n');
+    process.stdout.write('TEST 1: HTTP server, persistent player identity, profile and leaderboard\\n');
     const atlas=await new Promise((resolve,reject)=>http.get(base+'/fighters.svg',res=>{let data='';res.setEncoding('utf8');res.on('data',chunk=>data+=chunk);res.on('end',()=>resolve({status:res.statusCode,type:res.headers['content-type'],data}))}).on('error',reject));
     assert.equal(atlas.status,200,'sprite atlas must be served');
     assert.match(atlas.type,/image\/svg\+xml/);
@@ -57,7 +62,7 @@ function waitFor(client,predicate,timeout=5000,from=0) {
     assert.equal((atlas.data.match(/id="p1f\d+"/g)||[]).length,17,'fighter one must have 17 distinct poses');
     assert.equal((atlas.data.match(/id="p2f\d+"/g)||[]).length,17,'fighter two must have 17 distinct poses');
     const code='T'+Math.random().toString(36).slice(2,7).toUpperCase();
-    const p1=await connect(code),p2=await connect(code);
+    const p1=await connect(code,cookie1),p2=await connect(code,cookie2);
     await Promise.all([waitFor(p1,m=>m.type==='match-start'),waitFor(p2,m=>m.type==='match-start')]);
     process.stdout.write('TEST 2: private room and two slots\\n');
     const no=c=>c.messages.find(m=>m.type==='joined')?.playerNo;
@@ -146,6 +151,31 @@ function waitFor(client,predicate,timeout=5000,from=0) {
     assert.equal(roundEnd.wins[0],1,'round win must be reflected in the series score');
     assert.equal(roundEnd.champion,false,'one round must not prematurely finish best-of-three');
     process.stdout.write('TEST 9: KO and round result\\n');
+    const rematchFromA=attacker.messages.length,rematchFromD=defender.messages.length;
+    attacker.ws.send(JSON.stringify({type:'rematch'}));defender.ws.send(JSON.stringify({type:'rematch'}));
+    await Promise.all([waitFor(attacker,m=>m.type==='match-start'&&m.round===2,5000,rematchFromA),waitFor(defender,m=>m.type==='match-start'&&m.round===2,5000,rematchFromD)]);
+    let finalRoundEnd;
+    for(let n=1;n<=5;n++){
+      const from=defender.messages.length;
+      const next=waitFor(defender,m=>m.type==='damage'&&m.kind==='heavyKick',5000,from);
+      if(n===5)finalRoundEnd=waitFor(attacker,m=>m.type==='round-end'&&m.champion===true,6000);
+      attacker.ws.send(JSON.stringify({type:'attack',attack:{kind:'heavyKick'}}));
+      const d=await next;
+      assert.equal(d.hp,Math.max(0,100-21*n),'heavy kick damage must be consistent across the deciding round');
+      if(n<5)await sleep(720);
+    }
+    const champion=await finalRoundEnd;
+    assert.equal(champion.winner,0,'the server must award the championship after two round wins');
+    await sleep(200);
+    const winnerStats=await getJson('/api/profile',cookie1),loserStats=await getJson('/api/profile',cookie2);
+    assert.equal(winnerStats.body.matches,1,'completed match must persist once for the winner');
+    assert.equal(winnerStats.body.wins,1,'winner statistics must be saved');
+    assert.equal(winnerStats.body.knockouts,1,'winner knockout count must be saved');
+    assert.equal(loserStats.body.matches,1,'completed match must persist once for the loser');
+    assert.equal(loserStats.body.losses,1,'loser statistics must be saved');
+    const ranked=await getJson('/api/leaderboard',cookie1);
+    assert.equal(ranked.body.players.length,2,'leaderboard must include both players after the match');
+    process.stdout.write('TEST 10: best-of-three result and persisted player statistics\\n');
     const third=await connect(code);
     await waitFor(third,m=>m.type==='room-full');
     const otherCode='X'+Math.random().toString(36).slice(2,7).toUpperCase();
@@ -155,7 +185,7 @@ function waitFor(client,predicate,timeout=5000,from=0) {
     await waitFor(attacker,m=>m.type==='opponent-left');
     const rejoin=await connect(code);
     await Promise.all([waitFor(attacker,m=>m.type==='match-start'),waitFor(rejoin,m=>m.type==='match-start')]);
-    process.stdout.write('TEST 10: reconnect and isolated rooms\\n');
+    process.stdout.write('TEST 11: reconnect and isolated rooms\\n');
     attacker.ws.close();rejoin.ws.close();third.ws.close();p3.ws.close();p4.ws.close();
     process.stdout.write('Online combat, jump, air attack, dodge, guard, counter, grab, KO, round result, room capacity, isolation, reconnect and persistent stats API tests passed.\\n');
   } finally {
