@@ -156,7 +156,7 @@ function waitFor(client,predicate,timeout=5000,from=0) {
     const rematchFromA=attacker.messages.length,rematchFromD=defender.messages.length;
     attacker.ws.send(JSON.stringify({type:'rematch'}));defender.ws.send(JSON.stringify({type:'rematch'}));
     await Promise.all([waitFor(attacker,m=>m.type==='match-start'&&m.round===2,5000,rematchFromA),waitFor(defender,m=>m.type==='match-start'&&m.round===2,5000,rematchFromD)]);
-    attacker.ws.send(JSON.stringify({type:'input',input:{right:true,face:1}}));defender.ws.send(JSON.stringify({type:'input',input:{left:true,face:-1}}));await sleep(300);attacker.ws.send(JSON.stringify({type:'input',input:{right:false,face:1}}));defender.ws.send(JSON.stringify({type:'input',input:{left:false,face:-1}}));
+    attacker.ws.send(JSON.stringify({type:'input',input:{right:true,face:1}}));defender.ws.send(JSON.stringify({type:'input',input:{left:true,face:-1}}));await sleep(300);attacker.ws.send(JSON.stringify({type:'input',input:{right:false,face:1}}));defender.ws.send(JSON.stringify({type:'input',input:{left:false,face:-1}}));await sleep(25);
     let finalRoundEnd;
     for(let n=1;n<=5;n++){
       const from=defender.messages.length;
