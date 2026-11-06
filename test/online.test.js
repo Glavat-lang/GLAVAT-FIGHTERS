@@ -93,14 +93,24 @@ function waitFor(client,predicate,timeout=5000,from=0) {
     const airborne=waitFor(attacker,m=>m.type==='snapshot'&&m.players?.[0]?.y< -10);
     attacker.ws.send(JSON.stringify({type:'input',input:{jump:true,right:false,face:1}}));
     await airborne;
-    const airHit=waitFor(defender,m=>m.type==='damage'&&m.kind==='airKick');
-    attacker.ws.send(JSON.stringify({type:'attack',attack:{kind:'airKick'}}));
-    const air=await airHit;
-    process.stdout.write('TEST 3: jump and air kick\\n');
-    assert.equal(air.damage,15,'air kick must apply its own damage');
+    const airPunchHit=waitFor(defender,m=>m.type==='damage'&&m.kind==='airPunch');
+    attacker.ws.send(JSON.stringify({type:'attack',attack:{kind:'airPunch'}}));
+    const airPunch=await airPunchHit;
+    assert.equal(airPunch.damage,12,'air punch must apply its own damage');
     const landFrom=attacker.messages.length;
     attacker.ws.send(JSON.stringify({type:'input',input:{jump:false,face:1}}));
     await waitFor(attacker,m=>m.type==='snapshot'&&m.players?.[0]?.y===0,2500,landFrom);
+    const airborne2=waitFor(attacker,m=>m.type==='snapshot'&&m.players?.[0]?.y< -10);
+    attacker.ws.send(JSON.stringify({type:'input',input:{jump:true,right:false,face:1}}));
+    await airborne2;
+    const airHit=waitFor(defender,m=>m.type==='damage'&&m.kind==='airKick');
+    attacker.ws.send(JSON.stringify({type:'attack',attack:{kind:'airKick'}}));
+    const air=await airHit;
+    process.stdout.write('TEST 3: jump, air punch and air kick\\n');
+    assert.equal(air.damage,15,'air kick must apply its own damage');
+    const landFrom2=attacker.messages.length;
+    attacker.ws.send(JSON.stringify({type:'input',input:{jump:false,face:1}}));
+    await waitFor(attacker,m=>m.type==='snapshot'&&m.players?.[0]?.y===0,2500,landFrom2);
     const dodgeFrom=defender.messages.length,attackFrom=attacker.messages.length;
     defender.ws.send(JSON.stringify({type:'input',input:{dodge:true,face:-1}}));
     await sleep(25);
@@ -115,13 +125,13 @@ function waitFor(client,predicate,timeout=5000,from=0) {
     attacker.ws.send(JSON.stringify({type:'attack',attack:{kind:'punch'}}));
     const hit=await damage;
     assert.equal(hit.playerNo,2,'damage must identify the second slot as victim');
-    assert.equal(hit.hp,75,'air kick plus a regular punch must apply twenty-five total damage');
+    assert.equal(hit.hp,63,'air punch, air kick and regular punch must apply thirty-seven total damage');
     process.stdout.write('TEST 5: normal attack damage\\n');
     const heavyDamage=waitFor(defender,m=>m.type==='damage'&&m.kind==='heavyKick');
     await sleep(700);
     attacker.ws.send(JSON.stringify({type:'attack',attack:{kind:'heavyKick'}}));
     const heavy=await heavyDamage;
-    assert.equal(heavy.hp,54,'a heavy kick must apply twenty-one additional damage');
+    assert.equal(heavy.hp,42,'a heavy kick must apply twenty-one additional damage');
     const blockHit=waitFor(defender,m=>m.type==='damage'&&m.blocked===true);
     defender.ws.send(JSON.stringify({type:'input',input:{block:true,face:-1}}));
     await sleep(700);
@@ -152,14 +162,17 @@ function waitFor(client,predicate,timeout=5000,from=0) {
     const grabbed=await grabHit;
     assert.equal(grabbed.damage,20,'grab must bypass guard and deal throw damage');
     process.stdout.write('TEST 8: throw\\n');
-    const koHit=waitFor(defender,m=>m.type==='damage'&&m.kind==='heavyKick'&&m.hp===11);
+    const heavyPunchHit=waitFor(defender,m=>m.type==='damage'&&m.kind==='heavyPunch');
     await sleep(800);
-    attacker.ws.send(JSON.stringify({type:'attack',attack:{kind:'heavyKick'}}));
-    await koHit;
-    await sleep(700);
+    attacker.ws.send(JSON.stringify({type:'attack',attack:{kind:'heavyPunch'}}));
+    const heavyPunch=await heavyPunchHit;
+    assert.equal(heavyPunch.hp,3,'heavy punch must apply seventeen damage');
+    const koHit=waitFor(defender,m=>m.type==='damage'&&m.kind==='heavyKick'&&m.hp===0);
     const roundEndA=waitFor(attacker,m=>m.type==='round-end');
     const roundEndD=waitFor(defender,m=>m.type==='round-end');
+    await sleep(700);
     attacker.ws.send(JSON.stringify({type:'attack',attack:{kind:'heavyKick'}}));
+    await koHit;
     const [roundEnd]=await Promise.all([roundEndA,roundEndD]);
     assert.equal(roundEnd.winner,0,'server must award the KO round to the attacker');
     assert.equal(roundEnd.wins[0],1,'round win must be reflected in the series score');
@@ -204,7 +217,19 @@ function waitFor(client,predicate,timeout=5000,from=0) {
     const cookie3=await identity(),cookie4=await identity();
     const p3=await connect(otherCode,cookie3),p4=await connect(otherCode,cookie4);
     await Promise.all([waitFor(p3,m=>m.type==='match-start'),waitFor(p4,m=>m.type==='match-start')]);
-    p3.ws.send(JSON.stringify({type:'input',input:{right:true,face:1}}));await sleep(200);p3.ws.send(JSON.stringify({type:'input',input:{right:false,face:1}}));await sleep(25);
+    p3.ws.send(JSON.stringify({type:'input',input:{right:true,face:1}}));p4.ws.send(JSON.stringify({type:'input',input:{left:true,face:-1}}));await sleep(300);p3.ws.send(JSON.stringify({type:'input',input:{right:false,face:1}}));p4.ws.send(JSON.stringify({type:'input',input:{left:false,face:-1}}));await sleep(25);
+    p4.ws.send(JSON.stringify({type:'input',input:{block:true,face:-1}}));await sleep(25);
+    for(let n=0;n<5;n++){
+      const from=p4.messages.length,blockedKick=waitFor(p4,m=>m.type==='damage'&&m.kind==='heavyKick'&&m.blocked===true,5000,from);
+      p3.ws.send(JSON.stringify({type:'attack',attack:{kind:'heavyKick'}}));
+      const d=await blockedKick;assert.equal(d.blocked,true,'guarded heavy kicks must be blocked');
+      if(n<4)await sleep(700);
+    }
+    assert.equal(p3.messages.filter(m=>m.type==='damage'&&m.kind==='heavyKick').at(-1)?.power,100,'blocked attacks must charge the special meter');
+    p4.ws.send(JSON.stringify({type:'input',input:{block:false,face:-1}}));await sleep(25);
+    const specialHit=waitFor(p4,m=>m.type==='damage'&&m.kind==='special');
+    await sleep(800);p3.ws.send(JSON.stringify({type:'attack',attack:{kind:'special'}}));
+    const special=await specialHit;assert.equal(special.damage,25,'full meter must unlock the server-validated special attack');
     const beforeDrop=p3.messages.filter(m=>m.type==='snapshot').at(-1)?.players?.[0]?.x;
     assert.ok(beforeDrop>290,'active room movement must be present before disconnect');
     p4.ws.close();await waitFor(p3,m=>m.type==='opponent-left');
@@ -223,7 +248,7 @@ function waitFor(client,predicate,timeout=5000,from=0) {
     assert.equal(roundResumeD.round,2,'completed round number must survive reconnect');
     process.stdout.write('TEST 11: reconnect and isolated rooms\\n');
     attacker.ws.close();rejoin.ws.close();third.ws.close();p3.ws.close();p4.ws.close();p4Again.ws.close();intruder.ws.close();
-    process.stdout.write('Online combat, jump, air attack, dodge, guard, counter, grab, KO, round result, room capacity, isolation, same-player reconnect, reserved slots, persistent stats and room isolation tests passed.\\n');
+    process.stdout.write('Online combat, jump, air punch/kick, special, heavy punch/kick, dodge, guard, counter, grab, KO, round result, room capacity, isolation, same-player reconnect, reserved slots, persistent stats and room isolation tests passed.\\n');
   } finally {
     for(const ws of clients){try{ws.terminate()}catch{}}
     child.kill('SIGTERM');
