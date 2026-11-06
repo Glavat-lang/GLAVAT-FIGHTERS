@@ -93,12 +93,13 @@ function saveMatch(room,winner,reason){
 }
 async function endRound(room, winner, reason) {
   if(room.status!=='playing') return;
-  room.status='round-over';
+  room.status='saving';
   if(winner===0||winner===1) room.wins[winner]++;
   const champion=room.wins.some(v=>v>=2)||(winner===null&&room.round>=3);
   room.matchComplete=champion;
   room.lastResult={winner,reason,round:room.round,wins:room.wins.slice(),champion};
   if(champion)await saveMatch(room,winner,reason);
+  room.status='round-over';
   broadcast(room,{type:'round-end',...room.lastResult});
   snapshotAll(room);
 }
@@ -110,7 +111,7 @@ function leave(ws) {
   if(idx<0) return;
   const slot=room.slots[idx];
   slot.ws=null;slot.disconnectedAt=now();
-  if(room.status!=='waiting')room.resumeStatus=room.status;
+  if(room.status!=='waiting')room.resumeStatus=room.status==='saving'?'round-over':room.status;
   room.status='waiting';
   room.rematchVotes.clear();
   broadcast(room,{type:'opponent-left',playerNo:idx+1});
@@ -208,7 +209,7 @@ function handle(ws,msg){
     const roundAtAttack=room.round;
     return;
   }
-  if(msg.type==='rematch'){
+  if(msg.type==='rematch'&&room.status==='round-over'){
     room.rematchVotes.add(idx);
     if(room.rematchVotes.size===2){
       room.rematchVotes.clear();
