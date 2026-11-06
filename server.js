@@ -47,6 +47,7 @@ const server = http.createServer((req, res) => {
   let pathname;
   try { pathname = decodeURIComponent((req.url || '/').split('?')[0]); }
   catch { res.writeHead(400); return res.end('Bad request'); }
+  if(pathname==='/health'&&req.method==='GET')return dbReady.then(ready=>json(res,ready?200:503,{ok:ready,statsReady:ready}));
   if(pathname==='/api/profile'&&req.method==='GET')return profile(playerId,res);
   if(pathname==='/api/leaderboard'&&req.method==='GET')return leaderboard(res);
   const relative = pathname === '/' ? 'index.html' : pathname.replace(/^\/+/, '');
