@@ -31,4 +31,8 @@ assert(s.includes("fighterStats(a.fighter).damage"),'server damage must use the 
 assert(s.includes("fighterStats(p.fighter).speed"),'server movement must use the selected fighter profile');
 assert(s.includes("activeIn:windup,duration:Math.round(windup/.42)"),'online animation active frames must align with authoritative hit timing');
 assert(h.includes("a.attack=m.duration||m.windup+220"),'online clients must animate using server active-frame timing');
+assert(h.includes("function ai(dt){")&&h.includes("const threat=p.attack>0"),'CPU must react to the player attack state');
+assert(h.includes("doAttack(1,'special')")&&h.includes("doAttack(1,'counter')")&&h.includes("doAttack(1,'grab')"),'CPU must use supers, counters and throws when appropriate');
+assert(h.includes("p.fighter===1?.92:1"),'local movement must reflect individual fighter speed');
+assert(h.includes("a.fighter===1?1.12:1"),'local damage must reflect individual fighter power');
 process.stdout.write('Server, browser script, 17 sprite poses and animation state mappings validated.\\n');
