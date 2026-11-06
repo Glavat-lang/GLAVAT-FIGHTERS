@@ -65,7 +65,7 @@ const server = http.createServer((req, res) => {
 const wss = new WebSocket.Server({ server, maxPayload: 2048, perMessageDeflate:false });
 function send(ws, data) { if (ws && ws.readyState === WebSocket.OPEN) ws.send(JSON.stringify(data)); }
 function playerState(x, dir) { return { x, y:0, vx:0, vy:0, dir, hp:100, power:0, block:false, input:{left:false,right:false,jump:false,dodge:false},jumpLatch:false,dodgeUntil:0,lastDodge:0,counterReadyUntil:0,attack:0,stun:0,invuln:0,lastAttack:0,lastStateAt:now(),lastPhysicsAt:now(),attackToken:null }; }
-function publicPlayer(p) { return { x:p.x, y:p.y, dir:p.dir, hp:p.hp, power:p.power, block:p.block, attack:p.attack, stun:p.stun, invuln:p.invuln, run:p.input.run, crouch:p.input.crouch }; }
+function publicPlayer(p) { return { x:p.x, y:p.y, vx:p.vx, vy:p.vy, dir:p.dir, hp:p.hp, power:p.power, block:p.block, attack:p.attack, stun:p.stun, invuln:p.invuln, run:p.input.run, crouch:p.input.crouch }; }
 function snapshot(room) {
   return { type:'snapshot', room:room.code, status:room.status, round:room.round, wins:room.wins.slice(), timer:room.timer,
     players:room.slots.map(s => s ? publicPlayer(s.state) : null) };
