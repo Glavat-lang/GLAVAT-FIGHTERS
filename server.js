@@ -130,7 +130,7 @@ function handle(ws,msg){
       currentV.hp=clamp(currentV.hp-damage,0,100);currentV.stun=blocked?5:kind==='special'?25:kind==='kick'?16:11;currentV.invuln=now()+(blocked?120:280);
       currentV.x=clamp(currentV.x+currentA.dir*(blocked?8:kind==='special'?34:kind==='kick'?20:12),20,980);
       currentA.power=clamp(currentA.power+(kind==='special'?0:kind==='kick'?17:12),0,100);
-      broadcast(room,{type:'damage',playerNo:1-idx,hp:currentV.hp,damage,kind,attackerNo:idx+1,blocked,power:currentA.power});
+      broadcast(room,{type:'damage',playerNo:2-idx,hp:currentV.hp,damage,kind,attackerNo:idx+1,blocked,power:currentA.power});
       snapshotAll(room);
       if(currentV.hp<=0)endRound(room,idx,'ko');
     },windup);
