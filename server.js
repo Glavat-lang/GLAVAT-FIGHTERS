@@ -72,7 +72,8 @@ function endRound(room, winner, reason) {
   if(room.status!=='playing') return;
   room.status='round-over';
   if(winner===0||winner===1) room.wins[winner]++;
-  const champion=room.wins.some(v=>v>=2);
+  const champion=room.wins.some(v=>v>=2)||(winner===null&&room.round>=3);
+  room.matchComplete=champion;
   if(champion)saveMatch(room,winner,reason);
   broadcast(room,{type:'round-end',winner,reason,round:room.round,wins:room.wins.slice(),champion});
   snapshotAll(room);
@@ -97,7 +98,7 @@ function join(ws,msg) {
   let room=roomFor(code);
   if(!room){
     if(rooms.size>=MAX_ROOMS) return send(ws,{type:'server-full',message:'Сервер комнат временно заполнен.'});
-    room={code,slots:[null,null],status:'waiting',round:1,wins:[0,0],timer:99,statsSaved:false,arena:['sunset','night','dojo','underground','neon'].includes(msg.arena)?msg.arena:'sunset',rematchVotes:new Set(),gcAt:0};
+    room={code,slots:[null,null],status:'waiting',round:1,wins:[0,0],timer:99,statsSaved:false,matchComplete:false,arena:['sunset','night','dojo','underground','neon'].includes(msg.arena)?msg.arena:'sunset',rematchVotes:new Set(),gcAt:0};
     rooms.set(code,room);
   }
   if(room.slots.every(Boolean)) return send(ws,{type:'room-full',message:'В комнате уже два игрока.'});
@@ -106,7 +107,7 @@ function join(ws,msg) {
   ws.room=room; ws.playerNo=idx+1; ws.lastMsg=0;
   send(ws,{type:'joined',code,playerNo:idx+1,count:room.slots.filter(Boolean).length,arena:room.arena});
   if(room.slots.every(Boolean)){
-    room.wins=[0,0];room.round=1;room.rematchVotes.clear();resetRound(room);
+    room.wins=[0,0];room.round=1;room.matchComplete=false;room.rematchVotes.clear();resetRound(room);
     broadcast(room,{type:'match-start',arena:room.arena,round:1,wins:[0,0],fighters:room.slots.map(s=>s.fighter)});
   }
 }
@@ -166,7 +167,7 @@ function handle(ws,msg){
     room.rematchVotes.add(idx);
     if(room.rematchVotes.size===2){
       room.rematchVotes.clear();
-      if(room.wins.some(v=>v>=2)){room.wins=[0,0];room.round=1;room.statsSaved=false;}
+      if(room.matchComplete||room.wins.some(v=>v>=2)){room.wins=[0,0];room.round=1;room.statsSaved=false;room.matchComplete=false;}
       else room.round++;
       resetRound(room);broadcast(room,{type:'match-start',arena:room.arena,round:room.round,wins:room.wins.slice(),fighters:room.slots.map(s=>s.fighter)});
     }else send(ws,{type:'rematch-wait'});
