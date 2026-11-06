@@ -5,15 +5,15 @@ const path = require('node:path');
 const fs = require('node:fs');
 const os = require('node:os');
 const http = require('node:http');
+const net = require('node:net');
 const WebSocket = require('ws');
 
-const port = 34000 + Math.floor(Math.random() * 10000);
-const base = 'http://127.0.0.1:' + port;
+let port=0,base='',statsFile='',child;
 const clients = new Set();
-const statsFile=path.join(os.tmpdir(),'gf-stats-'+process.pid+'-'+port+'.json');
-const child = spawn(process.execPath, ['server.js'], { env: { ...process.env, PORT: String(port), STATS_FILE: statsFile }, stdio: ['ignore','pipe','pipe'] });
-let childOutput='',childExit=null,restartChild=null,restartOutput='';child.stdout.on('data',x=>childOutput+=x);child.stderr.on('data',x=>childOutput+=x);child.on('error',e=>childOutput+=' spawn error: '+e.message);child.on('exit',(code,signal)=>{childExit={code,signal}});
+let childOutput='',childExit=null,restartChild=null,restartOutput='';
 const sleep = ms => new Promise(r => setTimeout(r, ms));
+async function reservePort(){return new Promise((resolve,reject)=>{const probe=net.createServer();probe.once('error',reject);probe.listen(0,'127.0.0.1',()=>{const selected=probe.address().port;probe.close(err=>err?reject(err):resolve(selected))})})}
+function startServer(selectedPort,statsPath,onOutput,onExit){const processChild=spawn(process.execPath,['server.js'],{env:{...process.env,PORT:String(selectedPort),STATS_FILE:statsPath},stdio:['ignore','pipe','pipe']});processChild.stdout.on('data',x=>onOutput(x));processChild.stderr.on('data',x=>onOutput(x));processChild.on('exit',(code,signal)=>onExit?.({code,signal}));return processChild}
 async function ready() {
   for (let i=0;i<80;i++) {
     try { await new Promise((resolve,reject)=>{const req=http.get(base,res=>{res.resume();resolve()});req.on('error',reject);req.setTimeout(300,reject)}); return; }
@@ -47,6 +47,7 @@ function waitFor(client,predicate,timeout=5000,from=0) {
 }
 (async()=>{
   try {
+    port=await reservePort();base='http://127.0.0.1:'+port;statsFile=path.join(os.tmpdir(),'gf-stats-'+process.pid+'-'+port+'.json');child=startServer(port,statsFile,x=>childOutput+=x,x=>childExit=x);
     await ready();
     const health=await getJson('/health');assert.equal(health.status,200,'health endpoint must verify persistent storage readiness');assert.equal(health.body.statsReady,true,'persistent stats storage must be writable');
     const cookie1=await identity(),cookie2=await identity();
@@ -206,7 +207,7 @@ function waitFor(client,predicate,timeout=5000,from=0) {
     const disk=JSON.parse(fs.readFileSync(statsFile,'utf8'));
     assert.equal(disk[ cookie1.slice('gf_player='.length) ].wins,1,'winner statistics must be durably written to the database file');
     assert.equal(disk[ cookie2.slice('gf_player='.length) ].losses,1,'loser statistics must be durably written to the database file');
-    const restartPort=port+10000;restartChild=spawn(process.execPath,['server.js'],{env:{...process.env,PORT:String(restartPort),STATS_FILE:statsFile},stdio:['ignore','pipe','pipe']});restartChild.stdout.on('data',x=>restartOutput+=x);restartChild.stderr.on('data',x=>restartOutput+=x);await readyAt(restartPort);
+    const restartPort=await reservePort();restartChild=startServer(restartPort,statsFile,x=>restartOutput+=x);await readyAt(restartPort);
     const reloaded=await getJsonAt('http://127.0.0.1:'+restartPort,'/api/profile',cookie1);
     assert.equal(reloaded.status,200,'profile API must be available after process restart');
     assert.equal(reloaded.body.wins,1,'statistics must reload from persistent storage after restart');
