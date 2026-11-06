@@ -8,6 +8,7 @@ const html=fs.readFileSync('public/index.html','utf8');
 const server=fs.readFileSync('server.js','utf8');
 const database=fs.readFileSync('database.js','utf8');
 const migration=fs.readFileSync('migrations/001_initial_schema.sql','utf8');
+const migration2=fs.readFileSync('migrations/002_player_rating.sql','utf8');
 const start=html.indexOf('<script>');
 const end=html.lastIndexOf('</script>');
 assert(start>=0&&end>start,'inline browser game script must exist');
@@ -45,6 +46,9 @@ assert(database.includes("CREATE TABLE IF NOT EXISTS players")&&database.include
 assert(database.includes("rating INTEGER NOT NULL DEFAULT 1000")&&database.includes("rating=EXCLUDED.rating"),"PostgreSQL player ratings must be durable");
 assert(database.includes("CREATE TABLE IF NOT EXISTS player_settings")&&database.includes("BEGIN")&&database.includes("COMMIT"),'PostgreSQL settings and transactional writes must be implemented');
 assert(migration.includes('schema_migrations')&&migration.includes('match_history'),'versioned SQL migration must be present');
+assert(migration2.includes('ADD COLUMN IF NOT EXISTS rating')&&migration2.includes('VALUES (2)'),'Elo rating migration must be versioned');
+assert(server.includes("pathname==='/api/history'")&&server.includes("pathname==='/api/settings'"),'match history and persisted player settings APIs must be present');
+assert(server.includes('room.statsPrepared')&&server.includes('matchId:room.matchId'),'match persistence retries must be idempotent');
 assert(server.includes("FIGHTER_BALANCE"),'server must define individual fighter balance profiles');
 assert(server.includes("Number.isSafeInteger(msg.seq)")&&server.includes("inputAck:p.lastInputSeq"),'online inputs must reject stale sequence numbers and acknowledge accepted input');
 assert(server.includes("msg.type==='ping'")&&html.includes("type:'ping'")&&html.includes("type==='pong'"),'online clients and server must measure round-trip latency');
