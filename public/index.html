@@ -45,7 +45,7 @@ function background(){
  c.fillStyle=gradient(0,h,arena==='night'?[[0,'#101a3c'],[.48,'#633d78'],[1,'#e76e79']]:arena==='dojo'?[[0,'#3b2635'],[.6,'#aa614e'],[1,'#edb078']]:[[0,'#211944'],[.5,'#99486e'],[1,'#ffad61']]);c.fillRect(0,0,w,h);
  if(arena!=='dojo'){
   let sunX=w*.52,sunY=h*(arena==='night'?.34:.47);c.fillStyle=arena==='night'?'#f0d5e4':'#ffe0a0';c.beginPath();c.arc(sunX,sunY,h*.105,0,Math.PI*2);c.fill();
-  for(let i=0;i<7;i++){let x=((i*153+30)%w),y=35+(i%3)*25;rect(x,y,68,3,'#ffffff20');rect(x+13,y-5,35,4,'#ffffff20')}
+  for(let i=0;i<7;i++){let x=((i*153+30+performance.now()*.008*(i%2?1:-1))%(w+100))-45,y=35+(i%3)*25;rect(x,y,68,3,'#ffffff20');rect(x+13,y-5,35,4,'#ffffff20')}
  }
  // skyline silhouette
  for(let layer=0;layer<2;layer++)for(let i=0;i<Math.ceil(w/25);i++){let bw=17+(i*13%20),bh=(.12+((i*17+layer*9)%28)/100)*h,x=i*25-(layer?11:0),y=floorY-bh+(layer?8:0);rect(x,y,bw,bh,layer?'#1a1830':'#29203d');if(layer)for(let yy=y+8;yy<floorY-5;yy+=12)for(let xx=x+4;xx<x+bw-3;xx+=8)if((xx+yy)%3)rect(xx,yy,3,4,'#f7bd7755')}
@@ -61,12 +61,12 @@ function background(){
 function polygon(points,color){c.fillStyle=color;c.beginPath();c.moveTo(points[0][0],points[0][1]);for(let i=1;i<points.length;i++)c.lineTo(points[i][0],points[i][1]);c.closePath();c.fill()}
 function fighter(p,i){
  const x=p.x,y=floorY+p.y,s=Math.max(.78,Math.min(1.18,h/360)),face=p.dir,beard=i===0;
- c.save();c.translate(x,y);c.scale(face*s,s);
+ c.save();c.translate(x,y);c.scale(face*s,s);c.rotate(p.stun>0?-p.dir*.12:p.attack>0&&p.kind!=='kick'?.035:0);
  c.fillStyle='#09081580';c.beginPath();c.ellipse(0,2,33,7,0,0,Math.PI*2);c.fill();
  let step=Math.sin(p.walk)*5,skin=beard?'#c98b70':'#dba17f',skinShadow=beard?'#995f51':'#ad705b',shirt=beard?'#e5e6e7':'#eee9dd',shorts=beard?'#273e69':'#39323c',trim=beard?'#16294d':'#b9a77e';
  // rear leg and sneaker
  c.save();c.translate(-8,0);c.rotate(step*.012);polygon([[-10,-61],[-1,-62],[4,-25],[0,-12],[-17,-13],[-18,-25]],skinShadow);rect(-18,-16,25,7,'#e8e8e8');rect(-20,-10,29,5,'#a7a8b4');rect(-17,-21,8,4,'#fff');c.restore();
- c.save();c.translate(10,0);c.rotate(-step*.012);polygon([[-8,-61],[5,-61],[14,-25],[14,-13],[-5,-13],[-9,-25]],skin);rect(-5,-16,25,7,'#e9e9e8');rect(-7,-10,29,5,'#9b9bab');rect(7,-21,8,4,'#fff');c.restore();
+ c.save();c.translate(10,0);let kicking=p.attack>0&&p.kind==='kick';c.rotate(kicking?1.02:-step*.012);polygon([[-8,-61],[5,-61],[14,-25],[14,-13],[-5,-13],[-9,-25]],skin);rect(-5,-16,25,7,'#e9e9e8');rect(-7,-10,29,5,'#9b9bab');rect(7,-21,8,4,'#fff');c.restore();
  // shorts, belt, torso
  polygon([[-22,-104],[22,-104],[25,-62],[5,-58],[0,-68],[-7,-58],[-26,-62]],shorts);rect(-23,-101,46,5,trim);rect(-4,-101,9,5,'#d9b66e');rect(-24,-70,18,7,beard?'#182b4b':'#211d2b');rect(7,-70,18,7,beard?'#182b4b':'#211d2b');
  polygon([[-25,-154],[-14,-164],[13,-164],[26,-151],[23,-103],[0,-98],[-25,-105],[-29,-146]],shirt);
@@ -93,7 +93,7 @@ function fighter(p,i){
  c.restore();
 }
 function burst(x,y,color,n=12){for(let i=0;i<n;i++){let a=Math.random()*Math.PI*2,v=1+Math.random()*4;particles.push({x,y,vx:Math.cos(a)*v,vy:Math.sin(a)*v-1,life:18+Math.random()*15,max:32,color,size:2+Math.random()*4})}}
-function render(dt){c.clearRect(0,0,w,h);c.save();if(shake>0){c.translate((Math.random()-.5)*shake,(Math.random()-.5)*shake);shake*=.82}background();let order=[0,1].sort((a,b)=>f[a].x-f[b].x);order.forEach(i=>fighter(f[i],i));
+function render(dt){c.clearRect(0,0,w,h);c.save();if(shake>0){c.translate((Math.random()-.5)*shake,(Math.random()-.5)*shake);shake*=.82}background();let order=[0,1].sort((a,b)=>f[a].x-f[b].x);order.forEach(i=>{c.save();c.globalAlpha=.13;c.translate(0,floorY*1.25);c.scale(1,-.25);fighter(f[i],i);c.restore();fighter(f[i],i)});
  // floor sparks
  for(let p of particles){c.globalAlpha=Math.max(0,p.life/p.max);rect(p.x,p.y,p.size,p.size,p.color);p.x+=p.vx;p.y+=p.vy;p.vy+=.17;p.life--}c.globalAlpha=1;particles=particles.filter(p=>p.life>0);
  c.restore();c.fillStyle='#08061318';for(let yy=0;yy<h;yy+=4)rect(0,yy,w,1,'#08061322');let vignette=c.createRadialGradient(w/2,h*.48,h*.2,w/2,h*.48,h*.78);vignette.addColorStop(0,'#00000000');vignette.addColorStop(1,'#07051466');c.fillStyle=vignette;c.fillRect(0,0,w,h);if(announceTimer>0){announceTimer-=dt;if(announceTimer<=0)$('announcer').style.opacity=0}
