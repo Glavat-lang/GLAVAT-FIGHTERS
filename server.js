@@ -94,8 +94,8 @@ const server = http.createServer((req, res) => {
 
 const wss = new WebSocket.Server({ server, maxPayload: 2048, perMessageDeflate:false });
 function send(ws, data) { if (ws && ws.readyState === WebSocket.OPEN) ws.send(JSON.stringify(data)); }
-function playerState(x, dir, fighter=0) { return { x, y:0, vx:0, vy:0, dir, fighter:fighter===1?1:0, hp:100, power:0, block:false, input:{left:false,right:false,jump:false,dodge:false},jumpLatch:false,dodgeUntil:0,lastDodge:0,counterReadyUntil:0,attack:0,stun:0,invuln:0,lastAttack:0,lastStateAt:now(),lastPhysicsAt:now(),attackToken:null }; }
-function publicPlayer(p) { return { x:p.x, y:p.y, vx:p.vx, vy:p.vy, dir:p.dir, fighter:p.fighter, hp:p.hp, power:p.power, block:p.block, attack:p.attack, stun:p.stun, invuln:p.invuln, run:p.input.run, crouch:p.input.crouch }; }
+function playerState(x, dir, fighter=0) { return { x, y:0, vx:0, vy:0, dir, fighter:fighter===1?1:0, hp:100, power:0, block:false, input:{left:false,right:false,jump:false,dodge:false},jumpLatch:false,dodgeUntil:0,lastDodge:0,counterReadyUntil:0,attack:0,stun:0,invuln:0,lastAttack:0,lastStateAt:now(),lastPhysicsAt:now(),attackToken:null,lastInputSeq:0 }; }
+function publicPlayer(p) { return { x:p.x, y:p.y, vx:p.vx, vy:p.vy, dir:p.dir, fighter:p.fighter, hp:p.hp, power:p.power, block:p.block, attack:p.attack, stun:p.stun, invuln:p.invuln, run:p.input.run, crouch:p.input.crouch,inputAck:p.lastInputSeq||0 }; }
 function snapshot(room) {
   return { type:'snapshot', room:room.code, status:room.status, round:room.round, wins:room.wins.slice(), timer:room.timer,
     players:room.slots.map(s => s ? publicPlayer(s.state) : null) };
@@ -187,7 +187,7 @@ function join(ws,msg) {
     room.slots[idx].ws=ws;room.slots[idx].disconnectedAt=0;
   }
   room.gcAt=0;
-  ws.room=room;ws.playerNo=idx+1;ws.lastMsg=0;
+  ws.room=room;ws.playerNo=idx+1;ws.lastMsg=0;ws.lastInputSeq=0;
   send(ws,{type:'joined',code,playerNo:idx+1,count:room.slots.filter(s=>s&&s.ws).length,arena:room.arena,reconnected:reconnect});
   if(room.slots.every(s=>s&&s.ws)){
     if(reconnect&&room.resumeStatus==='playing'&&!room.matchComplete){
@@ -206,6 +206,7 @@ function join(ws,msg) {
 }
 function handle(ws,msg){
   if(!msg||typeof msg!=='object') return;
+  if(msg.type==='ping'){send(ws,{type:'pong',sentAt:msg.sentAt,serverTime:now()});return;}
   if(msg.type==='join') return join(ws,msg);
   const room=ws.room;
   if(!room) return;
@@ -213,6 +214,7 @@ function handle(ws,msg){
   if(!slot||slot.ws!==ws) return;
   if(msg.type==='input' && room.status==='playing'){
     const v=msg.input||{},p=slot.state;
+    if(Number.isSafeInteger(msg.seq)){if(msg.seq<=ws.lastInputSeq)return;ws.lastInputSeq=msg.seq;p.lastInputSeq=msg.seq;}
     p.input={left:!!v.left,right:!!v.right,jump:!!v.jump,dodge:!!v.dodge,run:!!v.run,crouch:!!v.crouch,block:!!v.block};if(v.face===-1||v.face===1)p.dir=v.face;
     if(p.stun<=0)p.block=p.input.block;
     if(p.input.jump&&!p.jumpLatch&&p.y===0&&p.stun<=0)p.vy=-9.5;
