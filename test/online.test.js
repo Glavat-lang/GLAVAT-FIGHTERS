@@ -49,11 +49,23 @@ function waitFor(client,predicate,timeout=5000) {
     await Promise.all([waitFor(p1,m=>m.type==='match-start'),waitFor(p2,m=>m.type==='match-start')]);
     const no=c=>c.messages.find(m=>m.type==='joined')?.playerNo;
     const attacker=no(p1)===1?p1:p2,defender=attacker===p1?p2:p1;
+    const initial=await waitFor(attacker,m=>m.type==='snapshot'&&m.players?.every(Boolean));
+    assert.equal(initial.players[0].x,290,'round reset must spawn player one at 290');
+    assert.equal(initial.players[1].x,710,'round reset must spawn player two at 710');
     attacker.ws.send(JSON.stringify({type:'input',input:{right:true,face:1}}));
     defender.ws.send(JSON.stringify({type:'input',input:{left:true,face:-1}}));
     await sleep(420);
     attacker.ws.send(JSON.stringify({type:'input',input:{right:false,face:1}}));
     defender.ws.send(JSON.stringify({type:'input',input:{left:false,face:-1}}));
+    const airborne=waitFor(attacker,m=>m.type==='snapshot'&&m.players?.[0]?.y< -10);
+    attacker.ws.send(JSON.stringify({type:'input',input:{jump:true,right:false,face:1}}));
+    await airborne;
+    const airHit=waitFor(defender,m=>m.type==='damage'&&m.kind==='airKick');
+    attacker.ws.send(JSON.stringify({type:'attack',attack:{kind:'airKick'}}));
+    const air=await airHit;
+    assert.equal(air.damage,15,'air kick must apply its own damage');
+    attacker.ws.send(JSON.stringify({type:'input',input:{jump:false,face:1}}));
+    await waitFor(attacker,m=>m.type==='snapshot'&&m.players?.[0]?.y===0,2500);
     const damage=waitFor(defender,m=>m.type==='damage'&&m.kind==='punch');
     await sleep(80);
     attacker.ws.send(JSON.stringify({type:'attack',attack:{kind:'punch'}}));
@@ -73,6 +85,10 @@ function waitFor(client,predicate,timeout=5000) {
     assert.equal(blocked.blocked,true,'holding block must reduce incoming damage');
     assert.equal(blocked.damage,2,'blocked punch must deal chip damage only');
     defender.ws.send(JSON.stringify({type:'input',input:{block:false,face:-1}}));
+    const counterHit=waitFor(attacker,m=>m.type==='damage'&&m.kind==='counter');
+    defender.ws.send(JSON.stringify({type:'attack',attack:{kind:'counter'}}));
+    const counter=await counterHit;
+    assert.equal(counter.damage,18,'a successful block must enable a counterattack');
     const grabHit=waitFor(defender,m=>m.type==='damage'&&m.kind==='grab');
     const grabStart=waitFor(attacker,m=>m.type==='attack-start'&&m.kind==='grab');
     await sleep(800);
@@ -90,7 +106,7 @@ function waitFor(client,predicate,timeout=5000) {
     const rejoin=await connect(code);
     await Promise.all([waitFor(attacker,m=>m.type==='match-start'),waitFor(rejoin,m=>m.type==='match-start')]);
     attacker.ws.close();rejoin.ws.close();third.ws.close();p3.ws.close();p4.ws.close();
-    process.stdout.write('Online combat, guard, grab, room capacity, isolation and reconnect tests passed.\\n');
+    process.stdout.write('Online combat, jump, air attack, guard, counter, grab, room capacity, isolation and reconnect tests passed.\\n');
   } finally {
     child.kill('SIGTERM');
   }
