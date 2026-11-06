@@ -132,7 +132,8 @@ function handle(ws,msg){
     const nowAt=now(),a=slot.state,v=other.state;
     const cooldown=kind==='special'?1000:kind==='grab'?700:kind==='counter'?720:kind.startsWith('heavy')?680:kind==='kick'||kind==='airKick'?420:300;
     if(nowAt-a.lastAttack<cooldown||a.stun>0) return;
-    if(kind==='special'&&a.power<100) return;\n    if(kind==='counter'&&a.counterReadyUntil<nowAt) return;
+    if(kind==='special'&&a.power<100) return;
+    if(kind==='counter'&&a.counterReadyUntil<nowAt) return;
     const dx=v.x-a.x,dy=Math.abs(v.y-a.y),range=kind==='special'?430:kind==='grab'?340:kind==='counter'?300:kind==='heavyKick'?360:kind==='heavyPunch'?320:kind==='kick'||kind==='airKick'?310:kind==='airPunch'?280:260;
     if(Math.sign(dx)!==a.dir||Math.abs(dx)>range+35||dy>75) return;
     a.lastAttack=nowAt;
