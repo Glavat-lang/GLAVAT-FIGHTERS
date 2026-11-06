@@ -25,11 +25,11 @@ function connect(code) {
     ws.once('error',reject);
   });
 }
-function waitFor(client,predicate,timeout=5000) {
+function waitFor(client,predicate,timeout=5000,from=0) {
   return new Promise((resolve,reject)=>{
     const start=Date.now();
     const poll=setInterval(()=>{
-      const found=client.messages.find(predicate);
+      const found=client.messages.slice(from).find(predicate);
       if(found){clearInterval(poll);resolve(found)}
       else if(Date.now()-start>timeout){clearInterval(poll);reject(new Error('timed out waiting for server event; received: '+client.messages.map(m=>m.type+(m.kind?':'+m.kind:'')).join(', ')+'; last players='+JSON.stringify(client.messages.filter(m=>m.type==='snapshot').at(-1)?.players)))}
     },15);
@@ -65,8 +65,9 @@ function waitFor(client,predicate,timeout=5000) {
     attacker.ws.send(JSON.stringify({type:'attack',attack:{kind:'airKick'}}));
     const air=await airHit;
     assert.equal(air.damage,15,'air kick must apply its own damage');
+    const landFrom=attacker.messages.length;
     attacker.ws.send(JSON.stringify({type:'input',input:{jump:false,face:1}}));
-    await waitFor(attacker,m=>m.type==='snapshot'&&m.players?.[0]?.y===0,2500);
+    await waitFor(attacker,m=>m.type==='snapshot'&&m.players?.[0]?.y===0,2500,landFrom);
     const damage=waitFor(defender,m=>m.type==='damage'&&m.kind==='punch');
     await sleep(80);
     attacker.ws.send(JSON.stringify({type:'attack',attack:{kind:'punch'}}));
