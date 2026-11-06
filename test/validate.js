@@ -20,7 +20,7 @@ for(const state of ["p.kind==='grab'","p.kind==='counter'","p.kind==='special'",
 }
 assert(html.includes('id="voice"'),'announcer voice must be user-toggleable');
 assert(html.includes('id="voiceVolume"'),'announcer and fighter voices must have an independent volume control');
-assert(html.includes("localStorage.getItem('gf-settings')")&&html.includes("localStorage.setItem('gf-settings'"),'audio settings must persist between visits');
+assert(html.includes('localStorage.getItem("gf-settings")')&&html.includes("localStorage.setItem('gf-settings'"),'audio settings must persist between visits');
 assert(html.includes("easy?210:hard?75:115"),'CPU must expose a distinct easy reaction profile');
 assert(html.includes("function saveLocalMatch(winner,reason)"),'offline championships must persist player statistics locally');
 assert(html.includes("localStorage.getItem('gf-local-stats')"),'player profile must include locally saved match history');
