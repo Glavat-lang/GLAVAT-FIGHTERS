@@ -124,6 +124,19 @@ function waitFor(client,predicate,timeout=5000,from=0) {
     const grabbed=await grabHit;
     assert.equal(grabbed.damage,20,'grab must bypass guard and deal throw damage');
     process.stdout.write('TEST 8: throw\\n');
+    const koHit=waitFor(defender,m=>m.type==='damage'&&m.kind==='heavyKick'&&m.hp===11);
+    await sleep(800);
+    attacker.ws.send(JSON.stringify({type:'attack',attack:{kind:'heavyKick'}}));
+    await koHit;
+    await sleep(700);
+    const roundEndA=waitFor(attacker,m=>m.type==='round-end');
+    const roundEndD=waitFor(defender,m=>m.type==='round-end');
+    attacker.ws.send(JSON.stringify({type:'attack',attack:{kind:'heavyKick'}}));
+    const [roundEnd]=await Promise.all([roundEndA,roundEndD]);
+    assert.equal(roundEnd.winner,0,'server must award the KO round to the attacker');
+    assert.equal(roundEnd.wins[0],1,'round win must be reflected in the series score');
+    assert.equal(roundEnd.champion,false,'one round must not prematurely finish best-of-three');
+    process.stdout.write('TEST 9: KO and round result\\n');
     const third=await connect(code);
     await waitFor(third,m=>m.type==='room-full');
     const otherCode='X'+Math.random().toString(36).slice(2,7).toUpperCase();
@@ -133,9 +146,9 @@ function waitFor(client,predicate,timeout=5000,from=0) {
     await waitFor(attacker,m=>m.type==='opponent-left');
     const rejoin=await connect(code);
     await Promise.all([waitFor(attacker,m=>m.type==='match-start'),waitFor(rejoin,m=>m.type==='match-start')]);
-    process.stdout.write('TEST 9: reconnect and isolated rooms\\n');
+    process.stdout.write('TEST 10: reconnect and isolated rooms\\n');
     attacker.ws.close();rejoin.ws.close();third.ws.close();p3.ws.close();p4.ws.close();
-    process.stdout.write('Online combat, jump, air attack, dodge, guard, counter, grab, room capacity, isolation and reconnect tests passed.\\n');
+    process.stdout.write('Online combat, jump, air attack, dodge, guard, counter, grab, KO, round result, room capacity, isolation and reconnect tests passed.\\n');
   } finally {
     for(const ws of clients){try{ws.terminate()}catch{}}
     child.kill('SIGTERM');
