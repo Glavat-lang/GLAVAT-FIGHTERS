@@ -4,6 +4,15 @@ const fs = require('fs');
 const path = require('path');
 const crypto = require('crypto');
 const WebSocket = require('ws');
+const { Pool } = require('pg');
+const pool = process.env.DATABASE_URL ? new Pool({connectionString:process.env.DATABASE_URL,ssl:{rejectUnauthorized:false},max:8}) : null;
+let dbReady=Promise.resolve(false);
+if(pool) dbReady=pool.query(`CREATE TABLE IF NOT EXISTS fighter_stats(player_id UUID PRIMARY KEY,matches INTEGER NOT NULL DEFAULT 0,wins INTEGER NOT NULL DEFAULT 0,losses INTEGER NOT NULL DEFAULT 0,draws INTEGER NOT NULL DEFAULT 0,knockouts INTEGER NOT NULL DEFAULT 0,win_streak INTEGER NOT NULL DEFAULT 0,best_streak INTEGER NOT NULL DEFAULT 0,favorite_fighter SMALLINT NOT NULL DEFAULT 0,updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW())`).then(()=>true).catch(e=>{console.error('stats database init failed',e.message);return false;});
+function readPlayerId(cookie=''){const m=String(cookie).match(/(?:^|;\s*)gf_player=([0-9a-f-]{36})(?:;|$)/i);return m?m[1]:null;}
+function json(res,status,data){res.writeHead(status,{'Content-Type':'application/json; charset=utf-8','Cache-Control':'no-store'});res.end(JSON.stringify(data));}
+async function profile(id,res){if(!pool||!await dbReady)return json(res,503,{error:'Statistics database unavailable'});try{const r=await pool.query('SELECT matches,wins,losses,draws,knockouts,win_streak,best_streak,favorite_fighter FROM fighter_stats WHERE player_id=$1',[id]);const x=r.rows[0]||{matches:0,wins:0,losses:0,draws:0,knockouts:0,win_streak:0,best_streak:0,favorite_fighter:0};json(res,200,{...x,winRate:x.matches?Math.round(x.wins/x.matches*100):0});}catch(e){json(res,503,{error:'Statistics temporarily unavailable'});}}
+async function leaderboard(res){if(!pool||!await dbReady)return json(res,503,{error:'Statistics database unavailable'});try{const r=await pool.query('SELECT player_id,matches,wins,losses,draws,knockouts,best_streak,favorite_fighter,ROUND(100.0*wins/NULLIF(matches,0)) AS win_rate FROM fighter_stats WHERE matches>0 ORDER BY wins DESC,best_streak DESC,matches DESC LIMIT 50');json(res,200,{players:r.rows});}catch(e){json(res,503,{error:'Leaderboard temporarily unavailable'});}}
+
 
 const PORT = Number(process.env.PORT) || 3000;
 const PUBLIC = path.join(__dirname, 'public');
@@ -13,10 +22,14 @@ const clamp = (n, lo, hi) => Math.max(lo, Math.min(hi, n));
 const now = () => Date.now();
 
 const server = http.createServer((req, res) => {
+  let playerId=readPlayerId(req.headers.cookie||'');
+  if(!playerId){playerId=crypto.randomUUID();res.setHeader('Set-Cookie',`gf_player=${playerId}; Path=/; HttpOnly; SameSite=Lax; Secure; Max-Age=31536000`);}
   if (req.method !== 'GET' && req.method !== 'HEAD') { res.writeHead(405); return res.end(); }
   let pathname;
   try { pathname = decodeURIComponent((req.url || '/').split('?')[0]); }
   catch { res.writeHead(400); return res.end('Bad request'); }
+  if(pathname==='/api/profile'&&req.method==='GET')return profile(playerId,res);
+  if(pathname==='/api/leaderboard'&&req.method==='GET')return leaderboard(res);
   const relative = pathname === '/' ? 'index.html' : pathname.replace(/^\/+/, '');
   const full = path.resolve(PUBLIC, relative);
   if (full !== PUBLIC && !full.startsWith(PUBLIC + path.sep)) { res.writeHead(403); return res.end('Forbidden'); }
