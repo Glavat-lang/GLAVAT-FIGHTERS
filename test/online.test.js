@@ -60,8 +60,30 @@ function waitFor(client,predicate,timeout=3500) {
     p1.ws.send(JSON.stringify({type:'attack',attack:{kind:'heavyKick'}}));
     const heavy=await heavyDamage;
     assert.equal(heavy.hp,69,'a heavy kick must apply twenty-one damage');
-    p1.ws.close();p2.ws.close();
-    process.stdout.write('Online authoritative hit test passed.\n');
+    const blockHit=waitFor(p2,m=>m.type==='damage'&&m.blocked===true);
+    p2.ws.send(JSON.stringify({type:'input',input:{block:true}}));
+    await sleep(700);
+    p1.ws.send(JSON.stringify({type:'attack',attack:{kind:'punch'}}));
+    const blocked=await blockHit;
+    assert.equal(blocked.blocked,true,'holding block must reduce incoming damage');
+    assert.equal(blocked.damage,2,'blocked punch must deal chip damage only');
+    p2.ws.send(JSON.stringify({type:'input',input:{block:false}}));
+    const grabHit=waitFor(p2,m=>m.type==='damage'&&m.kind==='grab');
+    await sleep(700);
+    p1.ws.send(JSON.stringify({type:'attack',attack:{kind:'grab'}}));
+    const grabbed=await grabHit;
+    assert.equal(grabbed.damage,20,'grab must bypass guard and deal throw damage');
+    const third=await connect(code);
+    await waitFor(third,m=>m.type==='room-full');
+    const otherCode='X'+Math.random().toString(36).slice(2,7).toUpperCase();
+    const p3=await connect(otherCode),p4=await connect(otherCode);
+    await Promise.all([waitFor(p3,m=>m.type==='match-start'),waitFor(p4,m=>m.type==='match-start')]);
+    p2.ws.close();
+    await waitFor(p1,m=>m.type==='opponent-left');
+    const rejoin=await connect(code);
+    await Promise.all([waitFor(p1,m=>m.type==='match-start'),waitFor(rejoin,m=>m.type==='match-start')]);
+    p1.ws.close();rejoin.ws.close();third.ws.close();p3.ws.close();p4.ws.close();
+    process.stdout.write('Online combat, guard, grab, room capacity, isolation and reconnect tests passed.\\n');
   } finally {
     child.kill('SIGTERM');
   }
