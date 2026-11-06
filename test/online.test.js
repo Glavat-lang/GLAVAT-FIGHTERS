@@ -12,7 +12,7 @@ const base = 'http://127.0.0.1:' + port;
 const clients = new Set();
 const statsFile=path.join(os.tmpdir(),'gf-stats-'+process.pid+'-'+port+'.json');
 const child = spawn(process.execPath, ['server.js'], { env: { ...process.env, PORT: String(port), STATS_FILE: statsFile }, stdio: ['ignore','pipe','pipe'] });
-let childOutput='',childExit=null;child.stdout.on('data',x=>childOutput+=x);child.stderr.on('data',x=>childOutput+=x);child.on('error',e=>childOutput+=' spawn error: '+e.message);child.on('exit',(code,signal)=>{childExit={code,signal}});
+let childOutput='',childExit=null,restartChild=null,restartOutput='';child.stdout.on('data',x=>childOutput+=x);child.stderr.on('data',x=>childOutput+=x);child.on('error',e=>childOutput+=' spawn error: '+e.message);child.on('exit',(code,signal)=>{childExit={code,signal}});
 const sleep = ms => new Promise(r => setTimeout(r, ms));
 async function ready() {
   for (let i=0;i<80;i++) {
@@ -22,7 +22,9 @@ async function ready() {
   throw new Error('server did not start; exit: '+JSON.stringify(childExit)+'; child output: '+childOutput);
 }
 function identity(){return new Promise((resolve,reject)=>{const req=http.get(base+'/',res=>{res.on('end',()=>resolve(res.headers['set-cookie']?.[0]?.split(';')[0]||''));res.on('error',reject);res.resume()});req.on('error',e=>reject(new Error(e.message+'; child='+childOutput+'; exit='+JSON.stringify(childExit))))})}
-function getJson(route,cookie){return new Promise((resolve,reject)=>http.get(base+route,{headers:cookie?{Cookie:cookie}:{}},res=>{let data='';res.setEncoding('utf8');res.on('data',x=>data+=x);res.on('end',()=>resolve({status:res.statusCode,body:JSON.parse(data)}))}).on('error',reject))}
+function getJson(route,cookie){return getJsonAt(base,route,cookie)}
+function getJsonAt(host,route,cookie){return new Promise((resolve,reject)=>http.get(host+route,{headers:cookie?{Cookie:cookie}:{}},res=>{let data='';res.setEncoding('utf8');res.on('data',x=>data+=x);res.on('end',()=>resolve({status:res.statusCode,body:JSON.parse(data)}))}).on('error',reject))}
+async function readyAt(p){for(let i=0;i<80;i++){try{await new Promise((resolve,reject)=>{const req=http.get('http://127.0.0.1:'+p,res=>{res.resume();resolve()});req.on('error',reject);req.setTimeout(300,reject)});return}catch{await sleep(50)}}throw new Error('restarted server failed: '+restartOutput)}
 function connect(code,cookie='') {
   return new Promise((resolve,reject)=>{
     const ws=new WebSocket('ws://127.0.0.1:'+port,cookie?{headers:{Cookie:cookie}}:{});
@@ -179,9 +181,13 @@ function waitFor(client,predicate,timeout=5000,from=0) {
     const disk=JSON.parse(fs.readFileSync(statsFile,'utf8'));
     assert.equal(disk[ cookie1.slice('gf_player='.length) ].wins,1,'winner statistics must be durably written to the database file');
     assert.equal(disk[ cookie2.slice('gf_player='.length) ].losses,1,'loser statistics must be durably written to the database file');
+    const restartPort=port+10000;restartChild=spawn(process.execPath,['server.js'],{env:{...process.env,PORT:String(restartPort),STATS_FILE:statsFile},stdio:['ignore','pipe','pipe']});restartChild.stdout.on('data',x=>restartOutput+=x);restartChild.stderr.on('data',x=>restartOutput+=x);await readyAt(restartPort);
+    const reloaded=await getJsonAt('http://127.0.0.1:'+restartPort,'/api/profile',cookie1);
+    assert.equal(reloaded.status,200,'profile API must be available after process restart');
+    assert.equal(reloaded.body.wins,1,'statistics must reload from persistent storage after restart');
     const ranked=await getJson('/api/leaderboard',cookie1);
     assert.equal(ranked.body.players.length,2,'leaderboard must include both players after the match');
-    process.stdout.write('TEST 10: best-of-three result and persisted player statistics\\n');
+    process.stdout.write('TEST 10: best-of-three result, durable stats and process restart\\n');
     const third=await connect(code);
     await waitFor(third,m=>m.type==='room-full');
     const otherCode='X'+Math.random().toString(36).slice(2,7).toUpperCase();
@@ -197,5 +203,6 @@ function waitFor(client,predicate,timeout=5000,from=0) {
   } finally {
     for(const ws of clients){try{ws.terminate()}catch{}}
     child.kill('SIGTERM');
+    if(restartChild)restartChild.kill('SIGTERM');
   }
 })().catch(err=>{console.error(err);process.exitCode=1});
