@@ -6,7 +6,8 @@
   "main": "server.js",
   "scripts": {
     "start": "node server.js",
-    "test": "node test/online.test.js"
+    "test": "node test/online.test.js",
+    "validate": "node test/validate.js"
   },
   "dependencies": {
     "ws": "^8.18.0",
