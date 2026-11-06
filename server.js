@@ -99,7 +99,8 @@ wss.on("connection", ws => {
         x:s.x, y:s.y,
         dir:s.dir === -1 ? -1 : 1,
         attack:validNumber(s.attack,0,30) ? s.attack : 0,
-        block:!!s.block
+        block:!!s.block,
+        hp:ws.hp
       };
       room.states[index] = state;
       send(other, { type:"opponent-state", state });
