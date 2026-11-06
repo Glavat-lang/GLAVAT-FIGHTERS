@@ -65,7 +65,7 @@ function polygon(points,color){c.fillStyle=color;c.beginPath();c.moveTo(points[0
 function fighter(p,i){
  const x=p.x,y=floorY+p.y,s=Math.max(.78,Math.min(1.18,h/360)),face=p.dir,beard=i===0;
  c.save();c.translate(x,y);c.scale(face*s,s);c.rotate(p.stun>0?-p.dir*.12:p.attack>0&&p.kind!=='kick'?.035:0);
- if(spriteAtlas.complete&&spriteAtlas.naturalWidth){let frame=0;if(over&&p.hp>0)frame=11;else if(p.hp<=0)frame=10;else if(p.stun>0)frame=9;else if(p.block)frame=8;else if(p.y<0)frame=7;else if(p.attack>0)frame=p.kind==='kick'?6:p.kind==='special'?5:4;else if(Math.abs(p.vx)>.55)frame=(Math.floor(p.walk/5)%2?2:3);else frame=Math.floor(p.frame/650)%2;c.drawImage(spriteAtlas,frame*96,i*128,96,128,-48,-160,96,160);c.restore();return;}
+ if(spriteAtlas.complete&&spriteAtlas.naturalWidth){let frame=0;if(over&&p.hp>0)frame=11;else if(p.hp<=0)frame=10;else if(p.stun>0)frame=9;else if(p.block)frame=8;else if(p.y<0)frame=7;else if(p.attack>0)frame=p.kind==='kick'?6:p.kind==='special'?5:4;else if(Math.abs(p.vx)>.55)frame=(Math.floor(p.walk/5)%2?2:3);else frame=Math.floor(p.frame/650)%2;c.imageSmoothingEnabled=false;c.drawImage(spriteAtlas,frame*96,i*128,96,128,-55,-185,110,185);c.restore();return;}
  c.fillStyle='#09081580';c.beginPath();c.ellipse(0,2,33,7,0,0,Math.PI*2);c.fill();
  let step=Math.sin(p.walk)*5,skin=beard?'#c98b70':'#dba17f',skinShadow=beard?'#995f51':'#ad705b',shirt=beard?'#e5e6e7':'#eee9dd',shorts=beard?'#273e69':'#39323c',trim=beard?'#16294d':'#b9a77e';
  // rear leg and sneaker
