@@ -25,13 +25,13 @@ function identity(){return new Promise((resolve,reject)=>{const req=http.get(bas
 function getJson(route,cookie){return getJsonAt(base,route,cookie)}
 function getJsonAt(host,route,cookie){return new Promise((resolve,reject)=>http.get(host+route,{headers:cookie?{Cookie:cookie}:{}},res=>{let data='';res.setEncoding('utf8');res.on('data',x=>data+=x);res.on('end',()=>resolve({status:res.statusCode,body:JSON.parse(data)}))}).on('error',reject))}
 async function readyAt(p){for(let i=0;i<80;i++){try{await new Promise((resolve,reject)=>{const req=http.get('http://127.0.0.1:'+p,res=>{res.resume();resolve()});req.on('error',reject);req.setTimeout(300,reject)});return}catch{await sleep(50)}}throw new Error('restarted server failed: '+restartOutput)}
-function connect(code,cookie='') {
+function connect(code,cookie='',fighter=0) {
   return new Promise((resolve,reject)=>{
     const ws=new WebSocket('ws://127.0.0.1:'+port,cookie?{headers:{Cookie:cookie}}:{});
     clients.add(ws);
     const messages=[];
     ws.on('message',raw=>{try{messages.push(JSON.parse(raw.toString()))}catch{}});
-    ws.once('open',()=>{ws.send(JSON.stringify({type:'join',code,arena:'sunset'}));resolve({ws,messages})});
+    ws.once('open',()=>{ws.send(JSON.stringify({type:'join',code,arena:'sunset',fighter}));resolve({ws,messages})});
     ws.once('error',reject);
   });
 }
@@ -248,6 +248,29 @@ function waitFor(client,predicate,timeout=5000,from=0) {
     assert.equal(roundResumeD.round,2,'completed round number must survive reconnect');
     process.stdout.write('TEST 11: reconnect and isolated rooms\\n');
     attacker.ws.close();rejoin.ws.close();third.ws.close();p3.ws.close();p4.ws.close();p4Again.ws.close();intruder.ws.close();
+    const balanceCode='B'+Math.random().toString(36).slice(2,7).toUpperCase();
+    const dojo=await connect(balanceCode,await identity(),1),glavat=await connect(balanceCode,await identity(),0);
+    await Promise.all([waitFor(dojo,m=>m.type==='match-start'),waitFor(glavat,m=>m.type==='match-start')]);
+    const dojoNo=dojo.messages.find(m=>m.type==='joined')?.playerNo;
+    const dojoSlot=dojoNo-1,glavatSlot=1-dojoSlot;
+    const firstSnapshot=await waitFor(dojo,m=>m.type==='snapshot'&&m.players?.every(Boolean));
+    assert.equal(firstSnapshot.players[dojoSlot].fighter,1,'DOJO fighter identity must be present in authoritative snapshots');
+    assert.equal(firstSnapshot.players[glavatSlot].fighter,0,'GLAVAT fighter identity must be present in authoritative snapshots');
+    dojo.ws.send(JSON.stringify({type:'input',input:{right:true,run:true,face:1}}));
+    glavat.ws.send(JSON.stringify({type:'input',input:{left:true,run:true,face:-1}}));
+    await sleep(420);
+    dojo.ws.send(JSON.stringify({type:'input',input:{right:false,run:false,face:1}}));
+    glavat.ws.send(JSON.stringify({type:'input',input:{left:false,run:false,face:-1}}));
+    const heavyFrom=glavat.messages.length;
+    const dojoAttack=waitFor(glavat,m=>m.type==='attack-start'&&m.kind==='heavyPunch',5000,heavyFrom);
+    const dojoDamage=waitFor(glavat,m=>m.type==='damage'&&m.kind==='heavyPunch',5000,heavyFrom);
+    dojo.ws.send(JSON.stringify({type:'attack',attack:{kind:'heavyPunch'}}));
+    const [attackStart,profileHit]=await Promise.all([dojoAttack,dojoDamage]);
+    assert.equal(profileHit.damage,19,'DOJO heavy punch must apply its 12% fighter-specific damage bonus');
+    assert.equal(attackStart.duration,Math.round(attackStart.windup/.42),'online attack animation duration must align its active frame with server hit time');
+    assert.equal(attackStart.activeIn,attackStart.windup,'server must publish the authoritative active-frame timing');
+    dojo.ws.close();glavat.ws.close();
+    process.stdout.write('TEST 12: distinct fighter profiles and online active-frame timing\\n');
     process.stdout.write('Online combat, jump, air punch/kick, special, heavy punch/kick, dodge, guard, counter, grab, KO, round result, room capacity, isolation, same-player reconnect, reserved slots, persistent stats and room isolation tests passed.\\n');
   } finally {
     for(const ws of clients){try{ws.terminate()}catch{}}
