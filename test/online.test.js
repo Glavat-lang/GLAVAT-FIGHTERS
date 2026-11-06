@@ -40,7 +40,9 @@ function waitFor(client,predicate,timeout=5000) {
     const atlas=await new Promise((resolve,reject)=>http.get(base+'/fighters.svg',res=>{let data='';res.setEncoding('utf8');res.on('data',chunk=>data+=chunk);res.on('end',()=>resolve({status:res.statusCode,type:res.headers['content-type'],data}))}).on('error',reject));
     assert.equal(atlas.status,200,'sprite atlas must be served');
     assert.match(atlas.type,/image\/svg\+xml/);
-    assert.match(atlas.data,/<svg/);\n    assert.equal((atlas.data.match(/id=\"p1f\\d+\"/g)||[]).length,17,'fighter one must have 17 distinct poses');\n    assert.equal((atlas.data.match(/id=\"p2f\\d+\"/g)||[]).length,17,'fighter two must have 17 distinct poses');
+    assert.match(atlas.data,/<svg/);
+    assert.equal((atlas.data.match(/id="p1f\d+"/g)||[]).length,17,'fighter one must have 17 distinct poses');
+    assert.equal((atlas.data.match(/id="p2f\d+"/g)||[]).length,17,'fighter two must have 17 distinct poses');
     const code='T'+Math.random().toString(36).slice(2,7).toUpperCase();
     const p1=await connect(code),p2=await connect(code);
     await Promise.all([waitFor(p1,m=>m.type==='match-start'),waitFor(p2,m=>m.type==='match-start')]);
