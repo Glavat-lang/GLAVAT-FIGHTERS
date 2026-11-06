@@ -142,7 +142,7 @@ async function recordMatch(data, match) {
       match.playerIds.every(id=>typeof id==='string' && /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(id));
     if(validPlayerIds) await client.query(`INSERT INTO match_history(match_id,room_code,player_one_id,player_two_id,winner_player_id,result_reason,round_number,player_one_fighter,player_two_fighter)
       VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9) ON CONFLICT(match_id) DO NOTHING`,
-    [crypto.randomUUID(),match.roomCode,match.playerIds[0],match.playerIds[1],
+    [match.matchId||crypto.randomUUID(),match.roomCode,match.playerIds[0],match.playerIds[1],
       match.winner===null?null:match.playerIds[match.winner],match.reason,match.round,
       match.fighters[0],match.fighters[1]]);
     await client.query('COMMIT');
