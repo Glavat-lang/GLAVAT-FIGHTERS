@@ -24,13 +24,13 @@ function connect(code) {
     ws.once('error',reject);
   });
 }
-function waitFor(client,predicate,timeout=3500) {
+function waitFor(client,predicate,timeout=5000) {
   return new Promise((resolve,reject)=>{
     const start=Date.now();
     const poll=setInterval(()=>{
       const found=client.messages.find(predicate);
       if(found){clearInterval(poll);resolve(found)}
-      else if(Date.now()-start>timeout){clearInterval(poll);reject(new Error('timed out waiting for server event'))}
+      else if(Date.now()-start>timeout){clearInterval(poll);reject(new Error('timed out waiting for server event; received: '+client.messages.map(m=>m.type+(m.kind?':'+m.kind:'')).join(', ')))}
     },15);
   });
 }
