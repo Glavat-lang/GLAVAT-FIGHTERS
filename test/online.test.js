@@ -6,6 +6,7 @@ const WebSocket = require('ws');
 
 const port = 34000 + Math.floor(Math.random() * 10000);
 const base = 'http://127.0.0.1:' + port;
+const clients = new Set();
 const child = spawn(process.execPath, ['server.js'], { env: { ...process.env, PORT: String(port) }, stdio: ['ignore','pipe','pipe'] });
 let childOutput='',childExit=null;child.stdout.on('data',x=>childOutput+=x);child.stderr.on('data',x=>childOutput+=x);child.on('error',e=>childOutput+=' spawn error: '+e.message);child.on('exit',(code,signal)=>{childExit={code,signal}});
 const sleep = ms => new Promise(r => setTimeout(r, ms));
@@ -19,6 +20,7 @@ async function ready() {
 function connect(code) {
   return new Promise((resolve,reject)=>{
     const ws=new WebSocket('ws://127.0.0.1:'+port);
+    clients.add(ws);
     const messages=[];
     ws.on('message',raw=>{try{messages.push(JSON.parse(raw.toString()))}catch{}});
     ws.once('open',()=>{ws.send(JSON.stringify({type:'join',code,arena:'sunset'}));resolve({ws,messages})});
@@ -118,6 +120,7 @@ function waitFor(client,predicate,timeout=5000,from=0) {
     attacker.ws.close();rejoin.ws.close();third.ws.close();p3.ws.close();p4.ws.close();
     process.stdout.write('Online combat, jump, air attack, guard, counter, grab, room capacity, isolation and reconnect tests passed.\\n');
   } finally {
+    for(const ws of clients){try{ws.terminate()}catch{}}
     child.kill('SIGTERM');
   }
 })().catch(err=>{console.error(err);process.exitCode=1});
