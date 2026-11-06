@@ -6,7 +6,8 @@ const WebSocket = require('ws');
 
 const port = 34000 + Math.floor(Math.random() * 10000);
 const base = 'http://127.0.0.1:' + port;
-const child = spawn(process.execPath, ['server.js'], { env: { ...process.env, PORT: String(port) }, stdio: ['ignore','pipe','pipe'] });\nlet childOutput='';child.stdout.on('data',x=>childOutput+=x);child.stderr.on('data',x=>childOutput+=x);
+const child = spawn(process.execPath, ['server.js'], { env: { ...process.env, PORT: String(port) }, stdio: ['ignore','pipe','pipe'] });
+let childOutput='';child.stdout.on('data',x=>childOutput+=x);child.stderr.on('data',x=>childOutput+=x);
 const sleep = ms => new Promise(r => setTimeout(r, ms));
 async function ready() {
   for (let i=0;i<80;i++) {
