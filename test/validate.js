@@ -24,6 +24,7 @@ assert(html.includes('localStorage.getItem("gf-settings")')&&html.includes("loca
 assert(html.includes("easy?210:hard?75:115"),'CPU must expose a distinct easy reaction profile');
 assert(html.includes("function saveLocalMatch(winner,reason)"),'offline championships must persist player statistics locally');
 assert(html.includes('function generateRoomCode()')&&html.includes('crypto.getRandomValues(bytes)'),'new online rooms must start with a unique random invite code');
+assert(html.includes('modern country home with a glass terrace')&&html.includes('drifting sunset clouds'),'sunset arena must include the house terrace and animated atmosphere');
 assert(html.includes("localStorage.getItem('gf-local-stats')"),'player profile must include locally saved match history');
 
 
