@@ -48,6 +48,7 @@ function waitFor(client,predicate,timeout=5000,from=0) {
 (async()=>{
   try {
     await ready();
+    const health=await getJson('/health');assert.equal(health.status,200,'health endpoint must verify persistent storage readiness');assert.equal(health.body.statsReady,true,'persistent stats storage must be writable');
     const cookie1=await identity(),cookie2=await identity();
     assert.match(cookie1,/^gf_player=/,'server must issue a persistent player identity');
     assert.match(cookie2,/^gf_player=/,'second player must receive an independent identity');
