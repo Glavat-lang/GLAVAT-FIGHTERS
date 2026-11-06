@@ -192,15 +192,29 @@ function waitFor(client,predicate,timeout=5000,from=0) {
     const third=await connect(code);
     await waitFor(third,m=>m.type==='room-full');
     const otherCode='X'+Math.random().toString(36).slice(2,7).toUpperCase();
-    const p3=await connect(otherCode),p4=await connect(otherCode);
+    const cookie3=await identity(),cookie4=await identity();
+    const p3=await connect(otherCode,cookie3),p4=await connect(otherCode,cookie4);
     await Promise.all([waitFor(p3,m=>m.type==='match-start'),waitFor(p4,m=>m.type==='match-start')]);
-    defender.ws.close();
-    await waitFor(attacker,m=>m.type==='opponent-left');
-    const rejoin=await connect(code);
-    await Promise.all([waitFor(attacker,m=>m.type==='match-start'),waitFor(rejoin,m=>m.type==='match-start')]);
+    p3.ws.send(JSON.stringify({type:'input',input:{right:true,face:1}}));await sleep(200);p3.ws.send(JSON.stringify({type:'input',input:{right:false,face:1}}));await sleep(25);
+    const beforeDrop=p3.messages.filter(m=>m.type==='snapshot').at(-1)?.players?.[0]?.x;
+    assert.ok(beforeDrop>290,'active room movement must be present before disconnect');
+    p4.ws.close();await waitFor(p3,m=>m.type==='opponent-left');
+    const intruder=await connect(otherCode,await identity());
+    await waitFor(intruder,m=>m.type==='room-reserved');
+    const p4Again=await connect(otherCode,cookie4);
+    const [resume3,resume4]=await Promise.all([waitFor(p3,m=>m.type==='match-resumed'&&m.status==='playing'),waitFor(p4Again,m=>m.type==='match-resumed'&&m.status==='playing')]);
+    assert.equal(resume3.round,1,'reconnected match must keep its current round');
+    await sleep(60);
+    const afterResume=p3.messages.filter(m=>m.type==='snapshot').at(-1)?.players?.[0]?.x;
+    assert.ok(afterResume>290,'server must preserve the active player position across reconnect');
+    defender.ws.close();await waitFor(attacker,m=>m.type==='opponent-left');
+    const rejoin=await connect(code,cookie2);
+    const [roundResumeA,roundResumeD]=await Promise.all([waitFor(attacker,m=>m.type==='match-resumed'&&m.status==='round-over'),waitFor(rejoin,m=>m.type==='match-resumed'&&m.status==='round-over')]);
+    assert.equal(roundResumeA.wins[0],2,'completed championship score must survive reconnect');
+    assert.equal(roundResumeD.round,2,'completed round number must survive reconnect');
     process.stdout.write('TEST 11: reconnect and isolated rooms\\n');
-    attacker.ws.close();rejoin.ws.close();third.ws.close();p3.ws.close();p4.ws.close();
-    process.stdout.write('Online combat, jump, air attack, dodge, guard, counter, grab, KO, round result, room capacity, isolation, reconnect and persistent stats API tests passed.\\n');
+    attacker.ws.close();rejoin.ws.close();third.ws.close();p3.ws.close();p4.ws.close();p4Again.ws.close();intruder.ws.close();
+    process.stdout.write('Online combat, jump, air attack, dodge, guard, counter, grab, KO, round result, room capacity, isolation, same-player reconnect, reserved slots, persistent stats and room isolation tests passed.\\n');
   } finally {
     for(const ws of clients){try{ws.terminate()}catch{}}
     child.kill('SIGTERM');
