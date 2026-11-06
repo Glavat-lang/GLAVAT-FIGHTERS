@@ -24,6 +24,7 @@ async function ready() {
 function identity(){return new Promise((resolve,reject)=>{const req=http.get(base+'/',res=>{res.on('end',()=>resolve(res.headers['set-cookie']?.[0]?.split(';')[0]||''));res.on('error',reject);res.resume()});req.on('error',e=>reject(new Error(e.message+'; child='+childOutput+'; exit='+JSON.stringify(childExit))))})}
 function getJson(route,cookie){return getJsonAt(base,route,cookie)}
 function getJsonAt(host,route,cookie){return new Promise((resolve,reject)=>http.get(host+route,{headers:cookie?{Cookie:cookie}:{}},res=>{let data='';res.setEncoding('utf8');res.on('data',x=>data+=x);res.on('end',()=>resolve({status:res.statusCode,body:JSON.parse(data)}))}).on('error',reject))}
+function sendJson(route,cookie,body){return new Promise((resolve,reject)=>{const data=JSON.stringify(body),req=http.request(base+route,{method:'PUT',headers:{'Content-Type':'application/json','Content-Length':Buffer.byteLength(data),...(cookie?{Cookie:cookie}:{})}},res=>{let text='';res.setEncoding('utf8');res.on('data',x=>text+=x);res.on('end',()=>resolve({status:res.statusCode,body:JSON.parse(text)}))});req.on('error',reject);req.end(data);})}
 async function readyAt(p){for(let i=0;i<80;i++){try{await new Promise((resolve,reject)=>{const req=http.get('http://127.0.0.1:'+p,res=>{res.resume();resolve()});req.on('error',reject);req.setTimeout(300,reject)});return}catch{await sleep(50)}}throw new Error('restarted server failed: '+restartOutput)}
 function connect(code,cookie='',fighter=0) {
   return new Promise((resolve,reject)=>{
@@ -60,6 +61,13 @@ function waitFor(client,predicate,timeout=5000,from=0) {
     const board=await getJson('/api/leaderboard',cookie1);
     assert.equal(board.status,200,'leaderboard endpoint must be backed by the stats store');
     assert.deepEqual(board.body.players,[],'empty stats store must have an empty leaderboard');
+    const settings=await getJson('/api/settings',cookie1);
+    assert.equal(settings.status,200,'player settings endpoint must be available');
+    const savedSettings=await sendJson('/api/settings',cookie1,{musicVolume:.4,effectsVolume:.6,voiceVolume:.2,soundOn:false,voiceOn:true,unexpected:'discard'});
+    assert.equal(savedSettings.status,200,'player settings must accept validated updates');
+    const history=await getJson('/api/history',cookie1);
+    assert.equal(history.status,200,'match history endpoint must be available');
+    assert.deepEqual(history.body.matches,[],'new player must have an empty match history');
     process.stdout.write('TEST 1: HTTP server, persistent player identity, profile and leaderboard\\n');
     const atlas=await new Promise((resolve,reject)=>http.get(base+'/fighters.svg',res=>{let data='';res.setEncoding('utf8');res.on('data',chunk=>data+=chunk);res.on('end',()=>resolve({status:res.statusCode,type:res.headers['content-type'],data}))}).on('error',reject));
     assert.equal(atlas.status,200,'sprite atlas must be served');
