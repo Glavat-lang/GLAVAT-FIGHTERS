@@ -60,11 +60,21 @@ function resetRound(room) {
   broadcast(room,{type:'round-start',round:room.round,wins:room.wins.slice(),timer:99});
   snapshotAll(room);
 }
+function saveMatch(room,winner,reason){
+ if(!pool||room.statsSaved)return;room.statsSaved=true;
+ dbReady.then(async ready=>{if(!ready)return;for(let i=0;i<2;i++){const slot=room.slots[i];if(!slot||!slot.playerId)continue;
+ const won=winner===i,draw=winner===null,ko=reason==='ko'&&!draw&&!won;
+ await pool.query(`INSERT INTO fighter_stats(player_id,matches,wins,losses,draws,knockouts,win_streak,best_streak,favorite_fighter) VALUES($1,1,$2,$3,$4,$5,$2,$2,$6)
+ ON CONFLICT(player_id) DO UPDATE SET matches=fighter_stats.matches+1,wins=fighter_stats.wins+$2,losses=fighter_stats.losses+$3,draws=fighter_stats.draws+$4,knockouts=fighter_stats.knockouts+$5,win_streak=CASE WHEN $2=1 THEN fighter_stats.win_streak+1 ELSE 0 END,best_streak=GREATEST(fighter_stats.best_streak,CASE WHEN $2=1 THEN fighter_stats.win_streak+1 ELSE 0 END),favorite_fighter=$6,updated_at=NOW()`,[slot.playerId,won?1:0,(!won&&!draw)?1:0,draw?1:0,ko?1:0,slot.fighter]);
+ }}).catch(e=>console.error('stats save failed',e.message));
+}
 function endRound(room, winner, reason) {
   if(room.status!=='playing') return;
   room.status='round-over';
   if(winner===0||winner===1) room.wins[winner]++;
-  const champion=room.wins.some(v=>v>=2);\n  if(champion)saveMatch(room,winner,reason);\n  broadcast(room,{type:'round-end',winner,reason,round:room.round,wins:room.wins.slice(),champion});
+  const champion=room.wins.some(v=>v>=2);
+  if(champion)saveMatch(room,winner,reason);
+  broadcast(room,{type:'round-end',winner,reason,round:room.round,wins:room.wins.slice(),champion});
   snapshotAll(room);
 }
 function leave(ws) {
