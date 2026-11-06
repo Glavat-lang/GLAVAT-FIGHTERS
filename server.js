@@ -119,8 +119,8 @@ function handle(ws,msg){
   if(!slot||slot.ws!==ws) return;
   if(msg.type==='input' && room.status==='playing'){
     const v=msg.input||{},p=slot.state;
-    p.input={left:!!v.left,right:!!v.right,jump:!!v.jump,dodge:!!v.dodge,run:!!v.run,crouch:!!v.crouch};if(v.face===-1||v.face===1)p.dir=v.face;
-    p.block=!!v.block&&p.stun<=0;
+    p.input={left:!!v.left,right:!!v.right,jump:!!v.jump,dodge:!!v.dodge,run:!!v.run,crouch:!!v.crouch,block:!!v.block};if(v.face===-1||v.face===1)p.dir=v.face;
+    if(p.stun<=0)p.block=p.input.block;
     if(p.input.jump&&!p.jumpLatch&&p.y===0&&p.stun<=0)p.vy=-9.5;
     p.jumpLatch=p.input.jump;
     if(p.input.dodge&&p.lastDodge+850<=now()&&p.stun<=0){p.lastDodge=now();p.dodgeUntil=now()+230;p.invuln=now()+190;}
@@ -187,7 +187,7 @@ const physicsTick=setInterval(()=>{
   if(room.status!=='playing'||!room.slots.every(Boolean))continue;
   for(let i=0;i<2;i++){const p=room.slots[i].state,dt=clamp(t-p.lastPhysicsAt,0,50);p.lastPhysicsAt=t;
    p.stun=Math.max(0,p.stun-dt);p.invuln=Math.max(t,p.invuln);
-   if(p.stun<=0){const move=(p.input.right?1:0)-(p.input.left?1:0);if(move)p.dir=move;p.vx=p.dodgeUntil>t?p.dir*.82:move*(p.input.crouch?.14:p.input.run?.68:.46);p.block=!!p.block;}
+   if(p.stun<=0){const move=(p.input.right?1:0)-(p.input.left?1:0);if(move)p.dir=move;p.vx=p.dodgeUntil>t?p.dir*.82:move*(p.input.crouch?.14:p.input.run?.68:.46);p.block=!!p.input.block;}else p.block=false;
    p.x=clamp(p.x+p.vx*dt,70,930);p.vx*=Math.pow(.78,dt/16.67);
    p.y+=p.vy*dt/16.67;p.vy+=.48*dt/16.67;if(p.y>0){p.y=0;p.vy=0;}
   }
