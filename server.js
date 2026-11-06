@@ -39,6 +39,12 @@ const rooms = new Map();
 const MAX_ROOMS = 2000, MAX_CLIENTS = 4000, ROOM_TTL = 90_000;
 const clamp = (n, lo, hi) => Math.max(lo, Math.min(hi, n));
 const now = () => Date.now();
+// GLAVAT is agile; DOJO trades speed for reach, guard and impact.
+const FIGHTER_BALANCE = Object.freeze([
+  Object.freeze({speed:1,damage:1,reach:1,recovery:1,guard:.18}),
+  Object.freeze({speed:.92,damage:1.12,reach:1.08,recovery:1.12,guard:.14})
+]);
+const fighterStats = id => FIGHTER_BALANCE[id===1?1:0];
 
 const server = http.createServer((req, res) => {
   let playerId=readPlayerId(req.headers.cookie||'');
@@ -64,8 +70,8 @@ const server = http.createServer((req, res) => {
 
 const wss = new WebSocket.Server({ server, maxPayload: 2048, perMessageDeflate:false });
 function send(ws, data) { if (ws && ws.readyState === WebSocket.OPEN) ws.send(JSON.stringify(data)); }
-function playerState(x, dir) { return { x, y:0, vx:0, vy:0, dir, hp:100, power:0, block:false, input:{left:false,right:false,jump:false,dodge:false},jumpLatch:false,dodgeUntil:0,lastDodge:0,counterReadyUntil:0,attack:0,stun:0,invuln:0,lastAttack:0,lastStateAt:now(),lastPhysicsAt:now(),attackToken:null }; }
-function publicPlayer(p) { return { x:p.x, y:p.y, vx:p.vx, vy:p.vy, dir:p.dir, hp:p.hp, power:p.power, block:p.block, attack:p.attack, stun:p.stun, invuln:p.invuln, run:p.input.run, crouch:p.input.crouch }; }
+function playerState(x, dir, fighter=0) { return { x, y:0, vx:0, vy:0, dir, fighter:fighter===1?1:0, hp:100, power:0, block:false, input:{left:false,right:false,jump:false,dodge:false},jumpLatch:false,dodgeUntil:0,lastDodge:0,counterReadyUntil:0,attack:0,stun:0,invuln:0,lastAttack:0,lastStateAt:now(),lastPhysicsAt:now(),attackToken:null }; }
+function publicPlayer(p) { return { x:p.x, y:p.y, vx:p.vx, vy:p.vy, dir:p.dir, fighter:p.fighter, hp:p.hp, power:p.power, block:p.block, attack:p.attack, stun:p.stun, invuln:p.invuln, run:p.input.run, crouch:p.input.crouch }; }
 function snapshot(room) {
   return { type:'snapshot', room:room.code, status:room.status, round:room.round, wins:room.wins.slice(), timer:room.timer,
     players:room.slots.map(s => s ? publicPlayer(s.state) : null) };
@@ -76,7 +82,7 @@ function roomFor(code) { return rooms.get(code); }
 function closeRoomIfEmpty(room) { if (room.slots.every(s => !s)) { room.gcAt=now()+ROOM_TTL; room.status='empty'; } }
 function resetRound(room) {
   room.timer=99; room.roundStarted=now(); room.status='playing'; room.lastResult=null;
-  room.slots.forEach((s,i)=>{ if(s) s.state=playerState(i===0?290:710, i===0?1:-1); });
+  room.slots.forEach((s,i)=>{ if(s) s.state=playerState(i===0?290:710, i===0?1:-1,s.fighter); });
   broadcast(room,{type:'round-start',round:room.round,wins:room.wins.slice(),timer:99});
   snapshotAll(room);
 }
@@ -135,7 +141,7 @@ function join(ws,msg) {
     if(reserved)return send(ws,{type:'room-reserved',message:'Место временно зарезервировано за отключившимся игроком.'});
     idx=room.slots.findIndex(s=>!s);
     if(idx<0)return send(ws,{type:'room-full',message:'В комнате уже два игрока.'});
-    room.slots[idx]={ws,playerId,state:playerState(idx===0?290:710,idx===0?1:-1),fighter:msg.fighter===1?1:0,disconnectedAt:0};
+    room.slots[idx]={ws,playerId,state:playerState(idx===0?290:710,idx===0?1:-1,msg.fighter===1?1:0),fighter:msg.fighter===1?1:0,disconnectedAt:0};
   }else{
     room.slots[idx].ws=ws;room.slots[idx].disconnectedAt=0;
   }
@@ -177,20 +183,20 @@ function handle(ws,msg){
     const kind=msg.attack&&msg.attack.kind;
     if(!['punch','kick','special','heavyPunch','heavyKick','grab','airPunch','airKick','counter'].includes(kind)) return;
     const nowAt=now(),a=slot.state,v=other.state;
-    const cooldown=kind==='special'?1000:kind==='grab'?700:kind==='counter'?720:kind.startsWith('heavy')?680:kind==='kick'||kind==='airKick'?420:300;
+    const cooldown=Math.round((kind==='special'?1000:kind==='grab'?700:kind==='counter'?720:kind.startsWith('heavy')?680:kind==='kick'||kind==='airKick'?420:300)*fighterStats(a.fighter).recovery);
     if(nowAt-a.lastAttack<cooldown||a.stun>0) return;
     if((kind==='airPunch'||kind==='airKick')&&a.y>-10)return;
     if(kind==='grab'&&a.y<-10)return;
     if(kind==='special'&&a.power<100) return;
     if(kind==='counter'&&a.counterReadyUntil<nowAt) return;
-    const dx=v.x-a.x,dy=Math.abs(v.y-a.y),range=kind==='special'?430:kind==='grab'?340:kind==='counter'?300:kind==='heavyKick'?360:kind==='heavyPunch'?320:kind==='kick'||kind==='airKick'?310:kind==='airPunch'?280:260;
+    const dx=v.x-a.x,dy=Math.abs(v.y-a.y),range=Math.round((kind==='special'?430:kind==='grab'?340:kind==='counter'?300:kind==='heavyKick'?360:kind==='heavyPunch'?320:kind==='kick'||kind==='airKick'?310:kind==='airPunch'?280:260)*fighterStats(a.fighter).reach);
     if(Math.sign(dx)!==a.dir||Math.abs(dx)>range+35||dy>75) return;
     a.lastAttack=nowAt;
     if(kind==='special')a.power=0;
     const token=crypto.randomUUID();
     a.attackToken=token;
     const windup=kind==='special'?300:kind==='grab'?180:kind==='counter'?85:kind==='airPunch'||kind==='airKick'?110:kind.startsWith('heavy')?250:kind==='kick'?175:130;
-    broadcast(room,{type:'attack-start',playerNo:idx+1,kind,windup});
+    broadcast(room,{type:'attack-start',playerNo:idx+1,kind,windup,activeIn:windup,duration:Math.round(windup/.42)});
     setTimeout(()=>{
       if(room.status!=='playing'||room.round!==roundAtAttack||a.attackToken!==token||!room.slots[idx]||!room.slots[1-idx])return;
       const currentA=room.slots[idx].state,currentV=room.slots[1-idx].state;
@@ -198,9 +204,10 @@ function handle(ws,msg){
       if(Math.sign(hitDx)!==currentA.dir||Math.abs(hitDx)>range||hitDy>((kind==='airPunch'||kind==='airKick')?115:58)||currentV.invuln>now())return;
       const blocked=kind!=='grab'&&currentV.block&&Math.sign(hitDx)===-currentV.dir;
       const baseDamage=kind==='special'?25:kind==='grab'?20:kind==='counter'?18:kind==='heavyKick'?21:kind==='heavyPunch'?17:kind==='kick'||kind==='airKick'?15:kind==='airPunch'?12:10;
-      const damage=blocked?Math.max(1,Math.round(baseDamage*.18)):baseDamage;
+      const scaledDamage=Math.round(baseDamage*fighterStats(currentA.fighter).damage);
+      const damage=blocked?Math.max(1,Math.round(scaledDamage*fighterStats(currentV.fighter).guard)):scaledDamage;
       currentV.hp=clamp(currentV.hp-damage,0,100);if(!blocked){currentV.attackToken=null;currentV.block=false;}else currentV.counterReadyUntil=now()+650;currentA.counterReadyUntil=kind==='counter'?0:currentA.counterReadyUntil;currentV.stun=blocked?70:kind==='grab'?440:kind==='special'||kind==='heavyKick'?350:kind==='heavyPunch'?270:kind==='kick'||kind==='airKick'?220:160;currentV.invuln=now()+(blocked?120:280);
-      currentV.x=clamp(currentV.x+currentA.dir*(blocked?8:kind==='grab'?58:kind==='special'?48:kind==='heavyKick'?38:kind==='heavyPunch'?30:kind==='kick'||kind==='airKick'?26:18),70,930);
+      currentV.x=clamp(currentV.x+currentA.dir*(blocked?8:kind==='grab'?58:kind==='special'?48:kind==='heavyKick'?38:kind==='heavyPunch'?30:kind==='kick'||kind==='airKick'?26:18)*(currentV.fighter===1?.88:1),70,930);
       currentA.power=clamp(currentA.power+(kind==='special'?0:kind==='grab'?20:kind==='heavyKick'?23:kind==='heavyPunch'?20:kind==='kick'||kind==='airKick'?17:12),0,100);
       broadcast(room,{type:'damage',playerNo:2-idx,hp:currentV.hp,damage,kind,attackerNo:idx+1,blocked,power:currentA.power});
       snapshotAll(room);
@@ -236,7 +243,7 @@ const physicsTick=setInterval(()=>{
   if(room.status!=='playing'||!room.slots.every(Boolean))continue;
   for(let i=0;i<2;i++){const p=room.slots[i].state,dt=clamp(t-p.lastPhysicsAt,0,50);p.lastPhysicsAt=t;
    p.stun=Math.max(0,p.stun-dt);if(p.invuln<=t)p.invuln=0;
-   if(p.stun<=0){const move=(p.input.right?1:0)-(p.input.left?1:0);if(move)p.dir=move;p.vx=p.dodgeUntil>t?p.dir*.37:move*(p.input.crouch?.06:p.input.run?.282:.186);p.block=!!p.input.block;}else p.block=false;
+   if(p.stun<=0){const move=(p.input.right?1:0)-(p.input.left?1:0);if(move)p.dir=move;p.vx=(p.dodgeUntil>t?p.dir*.37:move*(p.input.crouch?.06:p.input.run?.282:.186))*fighterStats(p.fighter).speed;p.block=!!p.input.block;}else p.block=false;
    p.x=clamp(p.x+p.vx*dt,70,930);p.vx*=Math.pow(.78,dt/16.67);
    p.y+=p.vy*dt/16.67;p.vy+=.48*dt/16.67;if(p.y>0){p.y=0;p.vy=0;}
   }
