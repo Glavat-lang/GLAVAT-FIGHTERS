@@ -10,7 +10,6 @@
     "validate": "node test/validate.js"
   },
   "dependencies": {
-    "ws": "^8.18.0",
-    "pg": "^8.16.3"
+    "ws": "^8.18.0"
   }
 }
