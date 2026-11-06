@@ -261,7 +261,9 @@ function waitFor(client,predicate,timeout=5000,from=0) {
     await sleep(420);
     dojo.ws.send(JSON.stringify({type:'input',input:{right:false,run:false,face:1}}));
     glavat.ws.send(JSON.stringify({type:'input',input:{left:false,run:false,face:-1}}));
-    await sleep(25);
+    await sleep(80);
+    await waitFor(dojo,m=>m.type==='snapshot'&&m.players?.every(Boolean)&&Math.abs(m.players[1].x-m.players[0].x)<340,3000);
+    await sleep(40);
     const heavyFrom=glavat.messages.length;
     const dojoAttack=waitFor(glavat,m=>m.type==='attack-start'&&m.kind==='heavyPunch',5000,heavyFrom);
     const dojoDamage=waitFor(glavat,m=>m.type==='damage'&&m.kind==='heavyPunch',5000,heavyFrom);
