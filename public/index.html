@@ -43,7 +43,7 @@ button:active{transform:translateY(3px);box-shadow:0 1px #a84c32}
 <script>
 const canvas=document.getElementById('game'),ctx=canvas.getContext('2d');
 let W=900,H=500, me=1, code='GLAVAT', socket=null, online=false, opponentConnected=false, arena='sunset';
-let keys={}, lastSend=0, timer=99, hp=[100,100], ended=false, timerStamp=Date.now(), matchStarted=false, reconnecting=false;
+let keys={}, lastSend=0, timer=99, hp=[100,100], ended=false, timerStamp=Date.now(), matchStarted=false, reconnecting=false;\nlet particles=[], shake=0, hitStop=0, roundBanner=0;
 const fighters=[
  {x:220,y:0,vx:0,vy:0,dir:1,hp:100,attack:0,flash:0,block:false,pose:0},
  {x:680,y:0,vx:0,vy:0,dir:-1,hp:100,attack:0,flash:0,block:false,pose:0}
@@ -160,7 +160,7 @@ function draw(){
  ctx.clearRect(0,0,W,H);drawBackground();
  fighters.forEach((f,i)=>drawFighter(f,i));
  ctx.font='bold 12px Arial';ctx.fillStyle='#fff';ctx.textAlign='center';
- ctx.fillText(online?(opponentConnected?'ОНЛАЙН-БОЙ':'ЖДЁМ ВТОРОГО ИГРОКА'):'ТРЕНИРОВКА / ОЖИДАНИЕ СЕРВЕРА',W/2,20);
+ ctx.fillText(online?(opponentConnected?'ОНЛАЙН-БОЙ':'ЖДЁМ ВТОРОГО ИГРОКА'):'АРКАДНЫЙ РЕЖИМ',W/2,20);\n if(roundBanner>0){ctx.save();ctx.textAlign='center';ctx.font='italic 1000 '+Math.max(28,H*.1)+'px Arial';ctx.lineWidth=5;ctx.strokeStyle='#21132d';ctx.fillStyle='#ffd05c';ctx.shadowColor='#ff613f';ctx.shadowBlur=18;ctx.strokeText('ROUND 1',W/2,H*.43);ctx.fillText('ROUND 1',W/2,H*.43);ctx.restore();roundBanner--;}
 }
 function clamp(v,a,b){return Math.max(a,Math.min(b,v))}
 function attack(attacker,kind){
@@ -214,9 +214,9 @@ function connect(){
  socket.onmessage=e=>{
   const m=JSON.parse(e.data);
   if(m.type==='joined'){me=m.playerNo;online=true;document.getElementById('join').style.display='none';document.getElementById('joinmsg').textContent='Комната '+m.code+'. Ты игрок '+me+'.';document.getElementById('status').textContent='ЖДЁМ СОПЕРНИКА · '+m.code;}
-  if(m.type==='match-start'){arena=m.arena||'sunset';opponentConnected=true;matchStarted=true;ended=false;timer=99;timerStamp=Date.now();fighters[0].x=W*.25;fighters[1].x=W*.75;fighters.forEach(p=>{p.hp=100;p.flash=0;p.attack=0;p.y=0;p.vx=0;p.vy=0;});updateHud();document.getElementById('timer').textContent='99';document.getElementById('status').textContent='БОЙ НАЧАЛСЯ · '+code;}
+  if(m.type==='match-start'){arena=m.arena||'sunset';opponentConnected=true;matchStarted=true;ended=false;roundBanner=100;particles=[];timer=99;timerStamp=Date.now();fighters[0].x=W*.25;fighters[1].x=W*.75;fighters.forEach(p=>{p.hp=100;p.flash=0;p.attack=0;p.y=0;p.vx=0;p.vy=0;});updateHud();document.getElementById('timer').textContent='99';document.getElementById('status').textContent='БОЙ НАЧАЛСЯ · '+code;}
   if(m.type==='opponent-state'){const o=fighters[2-me];Object.assign(o,m.state);updateHud();}
-  if(m.type==='damage'){const own=fighters[me-1];own.hp=clamp(m.hp,0,100);own.flash=8;updateHud();if(own.hp<=0){ended=true;document.getElementById('status').textContent='НОКАУТ!';}}
+  if(m.type==='damage'){const own=fighters[me-1];own.hp=clamp(m.hp,0,100);own.flash=8;shake=7;hitStop=3;for(let i=0;i<14;i++){const a=Math.random()*Math.PI*2,sp=2+Math.random()*4;particles.push({x:own.x,y:floor()-100,vx:Math.cos(a)*sp,vy:Math.sin(a)*sp-1,life:22,max:22,size:3,color:'#ffdf86'});}updateHud();if(own.hp<=0){ended=true;document.getElementById('status').textContent='НОКАУТ!';}}
   if(m.type==='room-full'){document.getElementById('joinmsg').textContent='Комната уже заполнена. Попробуй другой код.';document.getElementById('join').style.display='flex';}
   if(m.type==='join-error'||m.type==='server-full'){document.getElementById('joinmsg').textContent=m.message||'Сервер перегружен. Попробуй позже.';document.getElementById('join').style.display='flex';}
   if(m.type==='opponent-left'){if(m.playerNo)me=m.playerNo;opponentConnected=false;matchStarted=false;document.getElementById('status').textContent='СОПЕРНИК ВЫШЕЛ · ОЖИДАНИЕ';}
