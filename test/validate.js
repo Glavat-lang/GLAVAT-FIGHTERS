@@ -22,4 +22,8 @@ assert(html.includes('u.volume=Math.max(0,Math.min(1,effectsVolume))'),'announce
 assert(html.includes('function fighterGrunt(line,pitch=1)'),'fighters must expose their own synthetic voice reactions');
 assert(html.includes("fighterGrunt(kind==='special'?'Hyaa!':kind==='grab'?'Ugh!':'Ah!'"),'attack and special moves must trigger character voice reactions');
 assert(html.includes("function clipFrame(frames,phase)"),'sprite animation clips must advance through timed frames');
+assert(html.includes("oldPhase<.42&&phase>=.42"),'local hit detection must occur during the active animation phase');
+assert(html.includes("a.attackHit=false;if(mode==='online')"),'attacks must reset hit state and keep online damage server-authoritative');
+assert(html.includes("clipFrame([0,1,4,5,4,1,0],phase)"),'basic punches must show anticipation, extension, and recovery frames');
+assert(html.includes("clipFrame([2,1,6,15,6,3,2],phase)"),'heavy kicks must show a multi-stage attack sequence');
 process.stdout.write('Server, browser script, 17 sprite poses and animation state mappings validated.\\n');
