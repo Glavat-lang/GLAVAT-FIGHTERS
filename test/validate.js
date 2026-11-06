@@ -35,6 +35,10 @@ assert(html.includes("a.attackHit=false;if(mode==='online')"),'attacks must rese
 assert(html.includes("clipFrame([0,1,4,5,4,1,0],phase)"),'basic punches must show anticipation, extension, and recovery frames');
 assert(html.includes("clipFrame([2,1,6,15,6,3,2],phase)"),'heavy kicks must show a multi-stage attack sequence');
 assert(server.includes("FIGHTER_BALANCE"),'server must define individual fighter balance profiles');
+assert(server.includes("function attackIntersects(a,v,kind,range)"),'server combat must resolve attack hitboxes against hurtboxes');
+assert(server.includes("v.input?.crouch?66:112"),'server hurtboxes must reflect crouching posture');
+assert(server.includes("!attackIntersects(currentA,currentV,kind,range)"),'damage must be gated by active-frame hitbox overlap');
+
 assert(server.includes("fighterStats(currentA.fighter).damage"),'server damage must use the attacking fighter profile');
 assert(server.includes("fighterStats(p.fighter).speed"),'server movement must use the selected fighter profile');
 assert(server.includes("if(p.y<0||p.vy<0)"),'server gravity must not make grounded fighters bounce');
