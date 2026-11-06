@@ -12,6 +12,8 @@ jobs:
           node-version: 20
       - run: npm install
       - run: node --check server.js
+      - name: Validate sprite atlas XML
+        run: python3 -c "import xml.etree.ElementTree as ET; ET.parse('public/fighters.svg'); print('Sprite atlas XML OK')"
       - name: Check browser game JavaScript
         run: node -e "const fs=require('fs');const h=fs.readFileSync('public/index.html','utf8');const m=h.match(/<script>([\\s\\S]*?)<\\/script>/);if(!m)throw Error('inline game script missing');new Function(m[1]);console.log('Browser script syntax OK')"
       - run: npm test
