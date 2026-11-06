@@ -70,8 +70,16 @@ function waitFor(client,predicate,timeout=5000,from=0) {
     const landFrom=attacker.messages.length;
     attacker.ws.send(JSON.stringify({type:'input',input:{jump:false,face:1}}));
     await waitFor(attacker,m=>m.type==='snapshot'&&m.players?.[0]?.y===0,2500,landFrom);
+    const dodgeFrom=defender.messages.length,attackFrom=attacker.messages.length;
+    defender.ws.send(JSON.stringify({type:'input',input:{dodge:true,face:-1}}));
+    await sleep(25);
+    const dodgeAttack=waitFor(attacker,m=>m.type==='attack-start'&&m.kind==='punch',5000,attackFrom);
+    attacker.ws.send(JSON.stringify({type:'attack',attack:{kind:'punch'}}));
+    await dodgeAttack;
+    await sleep(220);
+    assert.equal(defender.messages.slice(dodgeFrom).some(m=>m.type==='damage'&&m.kind==='punch'),false,'dodge invulnerability must avoid the incoming punch');
+    await sleep(120);
     const damage=waitFor(defender,m=>m.type==='damage'&&m.kind==='punch');
-    await sleep(80);
     attacker.ws.send(JSON.stringify({type:'attack',attack:{kind:'punch'}}));
     const hit=await damage;
     assert.equal(hit.playerNo,2,'damage must identify the second slot as victim');
@@ -118,7 +126,7 @@ function waitFor(client,predicate,timeout=5000,from=0) {
     const rejoin=await connect(code);
     await Promise.all([waitFor(attacker,m=>m.type==='match-start'),waitFor(rejoin,m=>m.type==='match-start')]);
     attacker.ws.close();rejoin.ws.close();third.ws.close();p3.ws.close();p4.ws.close();
-    process.stdout.write('Online combat, jump, air attack, guard, counter, grab, room capacity, isolation and reconnect tests passed.\\n');
+    process.stdout.write('Online combat, jump, air attack, dodge, guard, counter, grab, room capacity, isolation and reconnect tests passed.\\n');
   } finally {
     for(const ws of clients){try{ws.terminate()}catch{}}
     child.kill('SIGTERM');
