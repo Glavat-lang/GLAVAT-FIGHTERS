@@ -26,4 +26,9 @@ assert(html.includes("oldPhase<.42&&phase>=.42"),'local hit detection must occur
 assert(html.includes("a.attackHit=false;if(mode==='online')"),'attacks must reset hit state and keep online damage server-authoritative');
 assert(html.includes("clipFrame([0,1,4,5,4,1,0],phase)"),'basic punches must show anticipation, extension, and recovery frames');
 assert(html.includes("clipFrame([2,1,6,15,6,3,2],phase)"),'heavy kicks must show a multi-stage attack sequence');
+assert(s.includes("FIGHTER_BALANCE"),'server must define individual fighter balance profiles');
+assert(s.includes("fighterStats(a.fighter).damage"),'server damage must use the attacking fighter profile');
+assert(s.includes("fighterStats(p.fighter).speed"),'server movement must use the selected fighter profile');
+assert(s.includes("activeIn:windup,duration:Math.round(windup/.42)"),'online animation active frames must align with authoritative hit timing');
+assert(h.includes("a.attack=m.duration||m.windup+220"),'online clients must animate using server active-frame timing');
 process.stdout.write('Server, browser script, 17 sprite poses and animation state mappings validated.\\n');
