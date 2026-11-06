@@ -33,10 +33,6 @@ async function leaderboard(res){
 
 function readPlayerId(cookie=''){const m=String(cookie).match(/(?:^|;\s*)gf_player=([0-9a-f-]{36})(?:;|$)/i);return m?m[1]:null;}
 function json(res,status,data){res.writeHead(status,{'Content-Type':'application/json; charset=utf-8','Cache-Control':'no-store'});res.end(JSON.stringify(data));}
-async function profile(id,res){if(!pool||!await dbReady)return json(res,503,{error:'Statistics database unavailable'});try{const r=await pool.query('SELECT matches,wins,losses,draws,knockouts,win_streak,best_streak,favorite_fighter,fighter_0_count,fighter_1_count FROM fighter_stats WHERE player_id=$1',[id]);const x=r.rows[0]||{matches:0,wins:0,losses:0,draws:0,knockouts:0,win_streak:0,best_streak:0,favorite_fighter:0,fighter_0_count:0,fighter_1_count:0};json(res,200,{...x,winRate:x.matches?Math.round(x.wins/x.matches*100):0});}catch(e){json(res,503,{error:'Statistics temporarily unavailable'});}}
-async function leaderboard(res){if(!pool||!await dbReady)return json(res,503,{error:'Statistics database unavailable'});try{const r=await pool.query('SELECT player_id,matches,wins,losses,draws,knockouts,best_streak,favorite_fighter,fighter_0_count,fighter_1_count,ROUND(100.0*wins/NULLIF(matches,0)) AS win_rate FROM fighter_stats WHERE matches>0 ORDER BY wins DESC,best_streak DESC,matches DESC LIMIT 50');json(res,200,{players:r.rows});}catch(e){json(res,503,{error:'Leaderboard temporarily unavailable'});}}
-
-
 const PORT = Number(process.env.PORT) || 3000;
 const PUBLIC = path.join(__dirname, 'public');
 const rooms = new Map();
