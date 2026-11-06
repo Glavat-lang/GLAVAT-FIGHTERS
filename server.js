@@ -67,7 +67,7 @@ wss.on("connection", ws => {
       let room = rooms.get(code);
       if (!room) {
         if (rooms.size >= MAX_ROOMS) return send(ws, { type:"server-full" });
-        room = { players:[], started:false, states:[null,null], attacks:[0,0] };
+        room = { players:[], started:false, states:[null,null], attacks:[0,0], arena:["sunset","night","dojo"].includes(msg.arena) ? msg.arena : "sunset" };
         rooms.set(code, room);
       }
       if (room.players.length >= 2) return send(ws, { type:"room-full", code });
@@ -81,7 +81,7 @@ wss.on("connection", ws => {
         room.started = true;
         room.states = [null,null];
         room.attacks = [0,0];
-        room.players.forEach(p => { p.hp = 100; send(p, { type:"match-start" }); });
+        room.players.forEach(p => { p.hp = 100; send(p, { type:"match-start", arena:room.arena }); });
       }
       return;
     }
