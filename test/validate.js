@@ -23,6 +23,8 @@ const html=fs.readFileSync('public/index.html','utf8');
 const server=fs.readFileSync('server.js','utf8');
 const database=fs.readFileSync('database.js','utf8');
 assert(server.includes('/api/auth/register')&&server.includes('/api/auth/login')&&server.includes('/api/auth/logout')&&server.includes('/api/auth/verify-email')&&server.includes('/api/auth/forgot-password')&&server.includes('/api/auth/reset-password'),'account HTTP lifecycle routes must be registered');
+assert(html.includes('id="accountPanel"')&&html.includes('id="authRegister"')&&html.includes('id="authLogin"')&&html.includes('id="authVerify"')&&html.includes('id="authReset"'),'game menu must expose account registration, login, verification and recovery controls');
+assert(html.includes("authParams.has('verify')")&&html.includes("authParams.has('reset')"),'email verification and password-reset links must populate the account panel');
 assert(server.includes('authOriginAllowed(req)')&&server.includes('authRequestLimiter.consume')&&server.includes('trustedPlayerId(req.headers.cookie'),'account mutations must validate origin, rate limit and require signed guest identity');
 const migration=fs.readFileSync('migrations/001_initial_schema.sql','utf8');
 const migration2=fs.readFileSync('migrations/002_player_rating.sql','utf8');
