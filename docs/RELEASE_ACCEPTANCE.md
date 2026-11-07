@@ -19,7 +19,7 @@ Audited against the repository state on 2026-11-07. This ledger is deliberately 
 
 ## Explicitly verified versus not verified
 
-- GitHub Actions workflow run `42320328876` (run #423) passed on 2026-11-07 with Node 24 after strict sequencing was added to movement, attacks and rematch commands, and duplicate room joins were rejected. Dependency install, server syntax, SVG XML, browser script syntax, `npm run validate`, and the full `npm test` chain all succeeded. This includes SQLite account lifecycle, scrypt security, Resend adapter tests, account-service lifecycle, account HTTP origin/session/logout tests, strict replay tests and the existing online integration suite.
+- GitHub Actions workflow run `42320544193` (run #439) passed on 2026-11-07 with Node 24 after strict sequencing was added to movement, attacks and rematch commands, duplicate room joins were rejected, and expired account artifacts gained scheduled cleanup. Dependency install, server syntax, SVG XML, browser script syntax, `npm run validate`, and the full `npm test` chain all succeeded. This includes SQLite account lifecycle and pruning, scrypt security, Resend adapter tests, account-service lifecycle, account HTTP origin/session/logout tests, strict replay tests and the existing online integration suite.
 - Those automated tests use simulated clients. They do not prove a match between two physical devices.
 - The 17-pose SVG atlas is not a 25-state animation library.
 - Browser speech synthesis and synthesized audio are not a professionally recorded original soundtrack or character voice pack.
