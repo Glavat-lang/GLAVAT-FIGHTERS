@@ -20,12 +20,12 @@ This is the release gate for the existing project. A green automated test suite 
 
 ## Latest automated verification
 
-GitHub Actions workflow run 42322176647 (run #570) passed on Node 24 on 2026-11-07. It completed dependency installation, server syntax validation, SVG XML validation, browser-script parsing, npm run validate and the full npm test chain.
+GitHub Actions workflow run 42322401017 (run #582) passed on Node 24 on 2026-11-07. It completed dependency installation, server syntax validation, SVG XML validation, browser-script parsing, npm run validate and the full npm test chain.
 
 The passing suite includes:
 - SQLite schema migration through v4, persistence and migration compatibility.
 - Full-schema backup, integrity verification and restore with a pre-restore safety copy.
-- scrypt password security, account lifecycle, one-time email tokens and session revocation.
+- scrypt password security, account lifecycle, one-time email tokens, session revocation and authenticated guest-cookie recovery.
 - Resend adapter behavior and account HTTP origin/session/cookie/logout checks.
 - Invalid signed guest-cookie rejection and protection against claiming legacy unsigned profiles.
 - Database-backed rate-limit windows, failed-login lockout, expiry and cleanup.
