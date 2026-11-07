@@ -4,6 +4,7 @@ const fs = require('fs');
 const path = require('path');
 const crypto = require('crypto');
 const WebSocket = require('ws');
+const database=require('./database');
 const {parseCookies,sessionCookie,AttemptLimiter}=require('./auth-security');
 const {isMailReady,sendTransactionalEmail}=require('./email-provider');
 const {createAuthService}=require('./auth-service');
@@ -11,7 +12,6 @@ const PLAYER_COOKIE_SECRET=process.env.PLAYER_COOKIE_SECRET||'';
 const authService=createAuthService({database,sendEmail:sendTransactionalEmail,env:process.env});
 const authRequestLimiter=new AttemptLimiter({limit:20,windowMs:15*60*1000,maxKeys:10000});
 const STATS_FILE=process.env.STATS_FILE||path.join(__dirname,'data','fighter-stats.json');
-const database=require('./database');
 let statsData={};
 async function initStats(){statsData=await database.init(STATS_FILE);return true;}
 let dbReady=Promise.resolve().then(initStats).catch(e=>{console.error('persistent database init failed',e.message);return false;});
