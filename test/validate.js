@@ -87,5 +87,4 @@ assert(html.includes("function ai(dt){")&&html.includes("const threat=p.attack>0
 assert(html.includes("doAttack(1,'special')")&&html.includes("doAttack(1,'counter')")&&html.includes("doAttack(1,'grab')"),'CPU must use supers, counters and throws when appropriate');
 assert(html.includes("p.fighter===1?.92:1"),'local movement must reflect individual fighter speed');
 assert(html.includes("a.fighter===1?1.12:1"),'local damage must reflect individual fighter power');
-process.stdout.write('Server, browser script, 17 sprite poses and animation state mappings validated.
-');
+process.stdout.write('Server, browser script, 17 sprite poses and animation state mappings validated.\\n');
