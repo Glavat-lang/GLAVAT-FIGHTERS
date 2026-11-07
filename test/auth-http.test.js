@@ -26,7 +26,7 @@ async function freePort(){const server=net.createServer();await new Promise(reso
   assert.equal(await database.consumeAccountEmailToken({tokenHash:verifyHash,purpose:'verify_email'}),true);
   await database.close();
   const port=await freePort(),base='http://127.0.0.1:'+port;
-  child=spawn(process.execPath,['server.js'],{cwd:path.join(__dirname,'..'),env:{...process.env,PORT:String(port),STATS_FILE:statsPath,DATABASE_MODE:'sqlite',SQLITE_FILE:sqlitePath,APP_ORIGIN,PLAYER_COOKIE_SECRET},stdio:'ignore'});
+  child=spawn(process.execPath,['server.js'],{cwd:path.join(__dirname,'..'),env:{...process.env,PORT:String(port),STATS_FILE:statsPath,DATABASE_MODE:'sqlite',SQLITE_FILE:sqlitePath,APP_ORIGIN,PLAYER_COOKIE_SECRET,RESEND_API_KEY:'',MAIL_FROM:''},stdio:'ignore'});
   let healthy=false;
   for(let i=0;i<80;i++){try{const response=await fetch(base+'/health');if(response.ok){healthy=true;break;}}catch{}await sleep(100);}
   assert.equal(healthy,true,'HTTP server must become healthy');
