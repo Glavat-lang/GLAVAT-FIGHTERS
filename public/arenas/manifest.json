@@ -1,0 +1,12 @@
+{
+  "version": 1,
+  "requiredLayers": ["sky", "far_skyline", "near_skyline", "architecture", "fence", "foreground", "lighting", "reflections"],
+  "arenas": {
+    "sunset": {"title": "Rooftop sunset", "rendering": "canvas", "layers": {}},
+    "night": {"title": "Rooftop night", "rendering": "canvas", "layers": {}},
+    "dojo": {"title": "Old dojo", "rendering": "canvas", "layers": {}},
+    "underground": {"title": "Underground club", "rendering": "canvas", "layers": {}},
+    "neon": {"title": "Neon street", "rendering": "canvas", "layers": {}},
+    "harbor": {"title": "Industrial harbor", "rendering": "canvas", "layers": {}}
+  }
+}
