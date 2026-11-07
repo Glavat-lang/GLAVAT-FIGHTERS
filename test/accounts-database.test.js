@@ -38,6 +38,9 @@ process.env.DATABASE_MODE='sqlite';process.env.SQLITE_FILE=sqlite;delete process
   assert.equal(await db.getAccountBySession(session2Hash),null,'password reset must revoke all existing sessions');
   assert.equal(await verifyPassword('NewGlavatPass2026!',(await db.getAccountByLogin('arcadeuser')).password_hash),true);
   assert.equal(await db.consumeAccountEmailToken({tokenHash:resetHash,purpose:'password_reset',passwordHash:newHash}),false);
+  const expiredSession=createOpaqueToken(),expiredSessionHash=hashToken(expiredSession);await db.createAccountSession({sessionId:crypto.randomUUID(),accountId,tokenHash:expiredSessionHash,expiresAt:new Date(Date.now()-3600000).toISOString()});
+  const expiredEmail=createOpaqueToken(),expiredEmailHash=hashToken(expiredEmail);await db.createAccountEmailToken({tokenId:crypto.randomUUID(),accountId,purpose:'verify_email',tokenHash:expiredEmailHash,expiresAt:new Date(Date.now()-3600000).toISOString()});
+  assert.deepEqual(await db.pruneAuthArtifacts(),{sessions:1,emailTokens:1},'expired sessions and email tokens must be pruned');
   process.stdout.write('SQLite account creation, unique identities, login lookup, sessions, revocation, one-time email tokens and password reset passed.\\n');
  }finally{try{await db.close()}catch{};fs.rmSync(root,{recursive:true,force:true});}
 })().catch(error=>{console.error(error);process.exitCode=1});
