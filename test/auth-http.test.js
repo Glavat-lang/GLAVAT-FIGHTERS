@@ -37,7 +37,6 @@ async function freePort(){const server=net.createServer();await new Promise(reso
   const refreshedPlayer=refreshed.find(value=>value.startsWith('gf_player='));
   assert.ok(refreshedPlayer&&!refreshedPlayer.startsWith('gf_player='+forgedId+';'),'forged guest identity cookies must be replaced rather than trusted');
 
-  const forgedId=crypto.randomUUID(),forged=await fetch(base+'/health',{headers:{Cookie:'gf_player='+forgedId+'; gf_player_sig='+'0'.repeat(64)}});const forgedCookies=forged.headers.getSetCookie?forged.headers.getSetCookie():[forged.headers.get('set-cookie')||''];assert.notEqual(forgedCookies.find(value=>value.startsWith('gf_player='))?.split(';')[0],'gf_player='+forgedId,'invalid signed player IDs must be replaced');
   const legacyId=crypto.randomUUID(),legacyRegister=await fetch(base+'/api/auth/register',{method:'POST',headers:{Origin:APP_ORIGIN,'Content-Type':'application/json',Cookie:'gf_player='+legacyId},body:JSON.stringify({username:'LegacyPlayer',email:'legacy@example.test',password:'LegacyPass2026!'})});assert.equal(legacyRegister.status,409,'legacy unsigned guest profiles must not be claimed as account identities');
     const denied=await fetch(base+'/api/auth/login',{method:'POST',headers:{Origin:'https://evil.example.test','Content-Type':'application/json'},body:JSON.stringify({identifier:'HttpPlayer',password:'HttpAccountPass2026!'})});
   assert.equal(denied.status,403,'cross-origin authentication requests must be rejected');
