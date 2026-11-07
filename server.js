@@ -13,7 +13,7 @@ const authService=createAuthService({database,sendEmail:sendTransactionalEmail,e
 const authRequestLimiter=new AttemptLimiter({limit:20,windowMs:15*60*1000,maxKeys:10000});
 const STATS_FILE=process.env.STATS_FILE||path.join(__dirname,'data','fighter-stats.json');
 let statsData={};
-async function initStats(){statsData=await database.init(STATS_FILE);return true;}
+async function initStats(){statsData=await database.init(STATS_FILE);await database.pruneAuthArtifacts();return true;}
 let dbReady=Promise.resolve().then(initStats).catch(e=>{console.error('persistent database init failed',e.message);return false;});
 function persistStats(){return database.persistStats(statsData);}
 const emptyStats=database.emptyStats;
@@ -377,6 +377,7 @@ const physicsTick=setInterval(()=>{
  }
 },33);
 const heartbeat=setInterval(()=>{for(const ws of wss.clients){if(!ws.isAlive){ws.terminate();continue}ws.isAlive=false;ws.ping()}},25000);
+const authCleanupTimer=setInterval(()=>{dbReady.then(ready=>ready?database.pruneAuthArtifacts():null).catch(error=>console.error('account cleanup failed',error.message));},6*60*60*1000);authCleanupTimer.unref?.();
 const roomClock=setInterval(()=>{
   const t=now();
   for(const [code,room] of rooms){
@@ -390,5 +391,5 @@ const roomClock=setInterval(()=>{
     }
   }
 },200);
-wss.on('close',()=>{clearInterval(heartbeat);clearInterval(roomClock);clearInterval(physicsTick)});
+wss.on('close',()=>{clearInterval(heartbeat);clearInterval(roomClock);clearInterval(physicsTick);clearInterval(authCleanupTimer)});
 server.listen(PORT,'0.0.0.0',()=>console.log('GLAVAT FIGHTERS server listening on '+PORT));
