@@ -11,6 +11,13 @@ function validateIdentity(username,email){
 function createAuthService({database,sendEmail,env=process.env,clock=Date.now,limiter=new AttemptLimiter()}){
  if(!database)throw new Error('Database adapter is required');
  const origin=()=>{try{return new URL(env.APP_ORIGIN).origin;}catch{return '';}};
+ async function takeRateLimit(key,limit=8,windowMs=15*60*1000){
+  if(typeof database.consumeRateLimit==='function'){
+   const digest=crypto.createHash('sha256').update(key,'utf8').digest('hex');
+   return database.consumeRateLimit(digest,limit,windowMs,new Date(clock()));
+  }
+  return await takeRateLimit(key);
+ }
  async function issueEmailToken(account,purpose){
   if(typeof sendEmail!=='function'||!origin())throw new Error('Transactional email is not configured');
   const token=createOpaqueToken(),tokenHash=hashToken(token),expiresAt=new Date(clock()+(purpose==='verify_email'?24:1)*60*60*1000).toISOString();
@@ -22,7 +29,7 @@ function createAuthService({database,sendEmail,env=process.env,clock=Date.now,li
   return true;
  }
  async function register({playerId,username,email,password}){
-  const registrationAttempt=limiter.consume('register:'+normalize(email));if(!registrationAttempt.allowed){const error=new Error('Too many attempts');error.code='RATE_LIMITED';error.retryAfterMs=registrationAttempt.retryAfterMs;throw error;}
+  const registrationAttempt=await takeRateLimit('register:'+normalize(email));if(!registrationAttempt.allowed){const error=new Error('Too many attempts');error.code='RATE_LIMITED';error.retryAfterMs=registrationAttempt.retryAfterMs;throw error;}
   validateIdentity(username,email);
   if(typeof password!=='string')throw new Error('Invalid password');
   const passwordHash=await hashPassword(password);
@@ -31,7 +38,7 @@ function createAuthService({database,sendEmail,env=process.env,clock=Date.now,li
   return {account:{account_id:account.account_id,player_id:account.player_id,username:account.username,email:account.email},verificationSent:true};
  }
  async function resendVerification(identifier){
-  const resendAttempt=limiter.consume('resend:'+normalize(identifier));if(!resendAttempt.allowed){const error=new Error('Too many attempts');error.code='RATE_LIMITED';error.retryAfterMs=resendAttempt.retryAfterMs;throw error;}
+  const resendAttempt=await takeRateLimit('resend:'+normalize(identifier));if(!resendAttempt.allowed){const error=new Error('Too many attempts');error.code='RATE_LIMITED';error.retryAfterMs=resendAttempt.retryAfterMs;throw error;}
   const account=await database.getAccountByLogin(identifier);
   if(!account||account.email_verified_at)return false;
   await issueEmailToken(account,'verify_email');return true;
@@ -50,7 +57,7 @@ function createAuthService({database,sendEmail,env=process.env,clock=Date.now,li
   const token=createOpaqueToken(),tokenHash=hashToken(token),id=sessionId||crypto.randomUUID();
   const expiresAt=new Date(clock()+30*24*60*60*1000).toISOString();
   await database.createAccountSession({sessionId:id,accountId:account.account_id,tokenHash,expiresAt,userAgent,ipPrefix});
-  limiter.clear(key);
+  if(typeof database.consumeRateLimit!=='function')limiter.clear(key);
   return {token,expiresAt,account:{account_id:account.account_id,player_id:account.player_id,username:account.username,email:account.email}};
  }
  async function authenticate(token){
@@ -63,7 +70,7 @@ function createAuthService({database,sendEmail,env=process.env,clock=Date.now,li
   return database.revokeAccountSession(digest,new Date(clock()));
  }
  async function requestPasswordReset(identifier){
-  const resetAttempt=limiter.consume('reset:'+normalize(identifier));if(!resetAttempt.allowed){const error=new Error('Too many attempts');error.code='RATE_LIMITED';error.retryAfterMs=resetAttempt.retryAfterMs;throw error;}
+  const resetAttempt=await takeRateLimit('reset:'+normalize(identifier));if(!resetAttempt.allowed){const error=new Error('Too many attempts');error.code='RATE_LIMITED';error.retryAfterMs=resetAttempt.retryAfterMs;throw error;}
   const account=await database.getAccountByLogin(identifier);
   if(!account)return {accepted:true};
   try{await issueEmailToken(account,'password_reset');}catch(error){if(error.message==='Transactional email is not configured')throw error;console.error('password reset email delivery failed',error.message);}
