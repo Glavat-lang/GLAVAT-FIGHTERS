@@ -32,9 +32,9 @@ function connect(code,cookie='',fighter=0) {
     const ws=new WebSocket('ws://127.0.0.1:'+port,cookie?{headers:{Cookie:cookie}}:{});
     clients.add(ws);
     const messages=[];
-    const originalSend=ws.send.bind(ws);let inputSequence=0;
-    ws.send=(raw,...args)=>{try{const packet=JSON.parse(raw.toString());if(['input','attack','rematch'].includes(packet.type)){if(Number.isSafeInteger(packet.seq))inputSequence=Math.max(inputSequence,packet.seq);else packet.seq=++inputSequence;raw=JSON.stringify(packet);}}catch{}return originalSend(raw,...args);};
-    ws.on('message',raw=>{try{messages.push(JSON.parse(raw.toString()))}catch{}});
+    const originalSend=ws.send.bind(ws);let inputSequence=0,commandNonce=null;
+    ws.send=(raw,...args)=>{try{const packet=JSON.parse(raw.toString());if(['input','attack','rematch'].includes(packet.type)){if(commandNonce&&!packet.nonce)packet.nonce=commandNonce;if(Number.isSafeInteger(packet.seq))inputSequence=Math.max(inputSequence,packet.seq);else packet.seq=++inputSequence;raw=JSON.stringify(packet);}}catch{}return originalSend(raw,...args);};
+    ws.on('message',raw=>{try{const packet=JSON.parse(raw.toString());if(packet.type==='joined')commandNonce=packet.commandNonce;messages.push(packet);}catch{}});
     ws.once('open',()=>{ws.send(JSON.stringify({type:'join',code,arena:'sunset',fighter}));resolve({ws,messages,sendRaw:originalSend})});
     ws.once('error',reject);
   });
