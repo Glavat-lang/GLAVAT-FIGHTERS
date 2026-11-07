@@ -22,6 +22,8 @@ assert(authSecurity.includes('HttpOnly; Secure; SameSite=Lax')&&authSecurity.inc
 const html=fs.readFileSync('public/index.html','utf8');
 const server=fs.readFileSync('server.js','utf8');
 const database=fs.readFileSync('database.js','utf8');
+assert(server.includes('/api/auth/register')&&server.includes('/api/auth/login')&&server.includes('/api/auth/logout')&&server.includes('/api/auth/verify-email')&&server.includes('/api/auth/forgot-password')&&server.includes('/api/auth/reset-password'),'account HTTP lifecycle routes must be registered');
+assert(server.includes('authOriginAllowed(req)')&&server.includes('authRequestLimiter.consume')&&server.includes('trustedPlayerId(req.headers.cookie'),'account mutations must validate origin, rate limit and require signed guest identity');
 const migration=fs.readFileSync('migrations/001_initial_schema.sql','utf8');
 const migration2=fs.readFileSync('migrations/002_player_rating.sql','utf8');
 const sqliteMigration1=fs.readFileSync('migrations/sqlite/001_initial_schema.sql','utf8');
