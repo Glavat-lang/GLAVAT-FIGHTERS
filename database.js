@@ -40,6 +40,8 @@ async function init(statsFile) {
       CREATE INDEX IF NOT EXISTS match_history_player_one_idx ON match_history(player_one_id, completed_at DESC);
       CREATE INDEX IF NOT EXISTS match_history_player_two_idx ON match_history(player_two_id, completed_at DESC);`);
     sqlite.prepare('INSERT OR IGNORE INTO schema_migrations(version) VALUES (1)').run();
+    const playerStatsColumns=sqlite.pragma('table_info(player_stats)');
+    if(!playerStatsColumns.some(column=>column.name==='rating'))sqlite.exec('ALTER TABLE player_stats ADD COLUMN rating INTEGER NOT NULL DEFAULT 1000 CHECK(rating>=0)');
     sqlite.prepare('INSERT OR IGNORE INTO schema_migrations(version) VALUES (2)').run();
     const count = sqlite.prepare('SELECT COUNT(*) AS count FROM player_stats').get().count;
     if (count === 0) {
