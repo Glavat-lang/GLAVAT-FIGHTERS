@@ -266,8 +266,8 @@ function join(ws,msg) {
     room.slots[idx].ws=ws;room.slots[idx].disconnectedAt=0;
   }
   room.gcAt=0;
-  ws.room=room;ws.playerNo=idx+1;ws.lastMsg=0;ws.lastInputSeq=0;
-  send(ws,{type:'joined',code,playerNo:idx+1,count:room.slots.filter(s=>s&&s.ws).length,arena:room.arena,reconnected:reconnect});
+  ws.room=room;ws.playerNo=idx+1;ws.lastMsg=0;ws.lastInputSeq=0;ws.commandNonce=crypto.randomBytes(16).toString('hex');
+  send(ws,{type:'joined',code,playerNo:idx+1,count:room.slots.filter(s=>s&&s.ws).length,arena:room.arena,reconnected:reconnect,commandNonce:ws.commandNonce});
   if(room.slots.every(s=>s&&s.ws)){
     if(reconnect&&room.resumeStatus==='playing'&&!room.matchComplete){
       room.status='playing';room.roundStarted=now()-(99-room.timer)*1000;room.lastSnapshot=0;
@@ -292,6 +292,7 @@ function handle(ws,msg){
   const idx=ws.playerNo-1, slot=room.slots[idx], other=room.slots[1-idx];
   if(!slot||slot.ws!==ws) return;
   if(msg.type==='input' && room.status==='playing'){
+    if(msg.nonce!==ws.commandNonce)return;
     const v=msg.input||{},p=slot.state;
     if(!Number.isSafeInteger(msg.seq)||msg.seq<=ws.lastInputSeq)return;ws.lastInputSeq=msg.seq;p.lastInputSeq=msg.seq;
     p.input={left:!!v.left,right:!!v.right,jump:!!v.jump,dodge:!!v.dodge,run:!!v.run,crouch:!!v.crouch,block:!!v.block};if(v.face===-1||v.face===1)p.dir=v.face;
@@ -302,6 +303,7 @@ function handle(ws,msg){
     return;
   }
   if(msg.type==='attack' && room.status==='playing' && other){
+    if(msg.nonce!==ws.commandNonce)return;
     if(!Number.isSafeInteger(msg.seq)||msg.seq<=ws.lastInputSeq)return;ws.lastInputSeq=msg.seq;slot.state.lastInputSeq=msg.seq;
     const kind=msg.attack&&msg.attack.kind;
     if(!['punch','kick','special','heavyPunch','heavyKick','grab','airPunch','airKick','counter'].includes(kind)) return;
@@ -340,6 +342,7 @@ function handle(ws,msg){
     return;
   }
   if(msg.type==='rematch'&&room.status==='round-over'){
+    if(msg.nonce!==ws.commandNonce)return;
     if(!Number.isSafeInteger(msg.seq)||msg.seq<=ws.lastInputSeq)return;ws.lastInputSeq=msg.seq;slot.state.lastInputSeq=msg.seq;
     room.rematchVotes.add(idx);
     if(room.rematchVotes.size===2){
