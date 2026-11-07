@@ -70,7 +70,7 @@ The saved rooftop sunset/night references and the final animation/art acceptance
 
 ## Release gate
 
-Run `npm run audit:animations` to see the current sprite-atlas audit. `npm run release:verify` runs the complete automated suite and then enforces the 25-unique-frame gate; it currently fails because the atlas still uses 17 symbol-composed poses per fighter.
+Run `npm run audit:animations` and `npm run audit:arenas` to see the current art audits. `npm run release:verify` runs the complete automated suite and then enforces both strict art gates; it currently fails because the fighter atlas uses 17 symbol-composed poses and all six arenas still lack final layered pixel-art assets.
 
 ## Production
 
