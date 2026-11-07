@@ -52,6 +52,7 @@ assert(migration.includes('schema_migrations')&&migration.includes('match_histor
 assert(migration2.includes('ADD COLUMN IF NOT EXISTS rating')&&migration2.includes('VALUES (2)'),'PostgreSQL Elo rating migration must be versioned');
 assert(sqliteMigration1.includes('CREATE TABLE IF NOT EXISTS match_history')&&sqliteMigration2.includes('ADD COLUMN rating'),'SQLite schema migrations must cover match history and Elo rating');
 assert(server.includes("pathname==='/api/history'")&&server.includes("pathname==='/api/settings'"),'match history and persisted player settings APIs must be present');
+assert(server.includes("database.saveDisplayName")&&server.includes("database.getDisplayName")&&html.includes('id="displayName"'),'guest player profiles must support persistent display names');
 assert(server.includes('room.statsPrepared')&&server.includes('matchId:room.matchId'),'match persistence retries must be idempotent');
 assert(server.includes("FIGHTER_BALANCE"),'server must define individual fighter balance profiles');
 assert(server.includes("Number.isSafeInteger(msg.seq)")&&server.includes("inputAck:p.lastInputSeq"),'online inputs must reject stale sequence numbers and acknowledge accepted input');
