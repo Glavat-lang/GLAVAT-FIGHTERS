@@ -11,6 +11,8 @@ try{
   const db=new DatabaseSync(source);
   db.exec(fs.readFileSync(path.join(__dirname,'../migrations/sqlite/001_initial_schema.sql'),'utf8'));
   db.exec(fs.readFileSync(path.join(__dirname,'../migrations/sqlite/002_player_rating.sql'),'utf8'));
+  db.exec(fs.readFileSync(path.join(__dirname,'../migrations/sqlite/003_accounts.sql'),'utf8'));
+  db.exec(fs.readFileSync(path.join(__dirname,'../migrations/sqlite/004_auth_rate_limits.sql'),'utf8'));
   db.prepare('INSERT INTO players(player_id,display_name) VALUES(?,?)').run('11111111-1111-4111-8111-111111111111','Backup Test');
   db.prepare('INSERT INTO player_stats(player_id,matches,wins,rating) VALUES(?,?,?,?)').run('11111111-1111-4111-8111-111111111111',7,5,1120);
   db.close();
