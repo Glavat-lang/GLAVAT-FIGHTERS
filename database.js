@@ -221,7 +221,79 @@ async function healthCheck(){
   if(pool){const result=await pool.query('SELECT 1 AS ok');return result.rows[0]?.ok===1;}
   return true;
 }
-function isPostgres() { return !!pool; }
+
+function normalizeLogin(value){return String(value||'').trim().toLocaleLowerCase('en-US');}
+async function createAccount({accountId,playerId,username,email,passwordHash}){
+  const usernameNormalized=normalizeLogin(username),emailNormalized=normalizeLogin(email);
+  if(!accountId||!playerId||!usernameNormalized||!emailNormalized||!passwordHash)throw new Error('Missing account fields');
+  if(sqlite){return sqliteTransaction(()=>{
+    sqlite.prepare('INSERT INTO players(player_id) VALUES(?) ON CONFLICT(player_id) DO NOTHING').run(playerId);
+    sqlite.prepare('INSERT INTO accounts(account_id,player_id,username,username_normalized,email,email_normalized,password_hash) VALUES(?,?,?,?,?,?,?)')
+      .run(accountId,playerId,username,usernameNormalized,email,emailNormalized,passwordHash);
+    return sqlite.prepare('SELECT account_id,player_id,username,email,email_verified_at,created_at FROM accounts WHERE account_id=?').get(accountId);
+  });}
+  if(pool){const client=await pool.connect();try{await client.query('BEGIN');
+    await client.query('INSERT INTO players(player_id) VALUES($1) ON CONFLICT(player_id) DO NOTHING',[playerId]);
+    const result=await client.query('INSERT INTO accounts(account_id,player_id,username,username_normalized,email,email_normalized,password_hash) VALUES($1,$2,$3,$4,$5,$6,$7) RETURNING account_id,player_id,username,email,email_verified_at,created_at',[accountId,playerId,username,usernameNormalized,email,emailNormalized,passwordHash]);
+    await client.query('COMMIT');return result.rows[0];
+  }catch(error){await client.query('ROLLBACK');throw error;}finally{client.release();}}
+  throw new Error('Persistent account storage is not configured');
+}
+async function getAccountByLogin(identifier){
+  const normalized=normalizeLogin(identifier);
+  if(sqlite)return sqlite.prepare('SELECT account_id,player_id,username,email,password_hash,email_verified_at FROM accounts WHERE username_normalized=? OR email_normalized=?').get(normalized,normalized)||null;
+  if(pool){const result=await pool.query('SELECT account_id,player_id,username,email,password_hash,email_verified_at FROM accounts WHERE username_normalized=$1 OR email_normalized=$1',[normalized]);return result.rows[0]||null;}
+  return null;
+}
+async function createAccountSession({sessionId,accountId,tokenHash,expiresAt,userAgent=null,ipPrefix=null}){
+  if(sqlite){sqlite.prepare('INSERT INTO account_sessions(session_id,account_id,token_hash,expires_at,user_agent,ip_prefix) VALUES(?,?,?,?,?,?)').run(sessionId,accountId,tokenHash,expiresAt,userAgent,ipPrefix);return true;}
+  if(pool){await pool.query('INSERT INTO account_sessions(session_id,account_id,token_hash,expires_at,user_agent,ip_prefix) VALUES($1,$2,$3,$4,$5,$6)',[sessionId,accountId,tokenHash,expiresAt,userAgent,ipPrefix]);return true;}
+  throw new Error('Persistent account storage is not configured');
+}
+async function getAccountBySession(tokenHash,now=new Date()){
+  if(sqlite){const row=sqlite.prepare(`SELECT a.account_id,a.player_id,a.username,a.email,a.email_verified_at,s.session_id,s.expires_at
+    FROM account_sessions s JOIN accounts a ON a.account_id=s.account_id
+    WHERE s.token_hash=? AND s.revoked_at IS NULL AND s.expires_at>? `).get(tokenHash,now.toISOString());if(row)sqlite.prepare('UPDATE account_sessions SET last_seen_at=? WHERE session_id=?').run(now.toISOString(),row.session_id);return row||null;}
+  if(pool){const result=await pool.query(`UPDATE account_sessions s SET last_seen_at=$2 FROM accounts a
+    WHERE s.account_id=a.account_id AND s.token_hash=$1 AND s.revoked_at IS NULL AND s.expires_at>$2
+    RETURNING a.account_id,a.player_id,a.username,a.email,a.email_verified_at,s.session_id,s.expires_at`,[tokenHash,now]);return result.rows[0]||null;}
+  return null;
+}
+async function revokeAccountSession(tokenHash,now=new Date()){
+  if(sqlite)return sqlite.prepare('UPDATE account_sessions SET revoked_at=? WHERE token_hash=? AND revoked_at IS NULL').run(now.toISOString(),tokenHash).changes>0;
+  if(pool){const result=await pool.query('UPDATE account_sessions SET revoked_at=$2 WHERE token_hash=$1 AND revoked_at IS NULL',[tokenHash,now]);return result.rowCount>0;}
+  return false;
+}
+async function createAccountEmailToken({tokenId,accountId,purpose,tokenHash,expiresAt}){
+  if(!['verify_email','password_reset'].includes(purpose))throw new Error('Invalid email token purpose');
+  if(sqlite){sqlite.prepare('INSERT INTO account_email_tokens(token_id,account_id,purpose,token_hash,expires_at) VALUES(?,?,?,?,?)').run(tokenId,accountId,purpose,tokenHash,expiresAt);return true;}
+  if(pool){await pool.query('INSERT INTO account_email_tokens(token_id,account_id,purpose,token_hash,expires_at) VALUES($1,$2,$3,$4,$5)',[tokenId,accountId,purpose,tokenHash,expiresAt]);return true;}
+  throw new Error('Persistent account storage is not configured');
+}
+async function consumeAccountEmailToken({tokenHash,purpose,passwordHash=null,now=new Date()}){
+  if(!['verify_email','password_reset'].includes(purpose))throw new Error('Invalid email token purpose');
+  if(purpose==='password_reset'&&!passwordHash)throw new Error('New password hash is required');
+  if(sqlite)return sqliteTransaction(()=>{
+    const token=sqlite.prepare('SELECT token_id,account_id FROM account_email_tokens WHERE token_hash=? AND purpose=? AND consumed_at IS NULL AND expires_at>?').get(tokenHash,purpose,now.toISOString());
+    if(!token)return false;
+    const consumed=sqlite.prepare('UPDATE account_email_tokens SET consumed_at=? WHERE token_id=? AND consumed_at IS NULL').run(now.toISOString(),token.token_id);
+    if(!consumed.changes)return false;
+    if(purpose==='verify_email')sqlite.prepare('UPDATE accounts SET email_verified_at=?,updated_at=? WHERE account_id=?').run(now.toISOString(),now.toISOString(),token.account_id);
+    else {sqlite.prepare('UPDATE accounts SET password_hash=?,updated_at=? WHERE account_id=?').run(passwordHash,now.toISOString(),token.account_id);sqlite.prepare('UPDATE account_sessions SET revoked_at=? WHERE account_id=? AND revoked_at IS NULL').run(now.toISOString(),token.account_id);}
+    return true;
+  });
+  if(pool){const client=await pool.connect();try{await client.query('BEGIN');
+    const selected=await client.query('SELECT token_id,account_id FROM account_email_tokens WHERE token_hash=$1 AND purpose=$2 AND consumed_at IS NULL AND expires_at>$3 FOR UPDATE',[tokenHash,purpose,now]);
+    if(!selected.rows.length){await client.query('ROLLBACK');return false;}
+    const token=selected.rows[0];
+    await client.query('UPDATE account_email_tokens SET consumed_at=$1 WHERE token_id=$2',[now,token.token_id]);
+    if(purpose==='verify_email')await client.query('UPDATE accounts SET email_verified_at=$1,updated_at=$1 WHERE account_id=$2',[now,token.account_id]);
+    else {await client.query('UPDATE accounts SET password_hash=$1,updated_at=$2 WHERE account_id=$3',[passwordHash,now,token.account_id]);await client.query('UPDATE account_sessions SET revoked_at=$1 WHERE account_id=$2 AND revoked_at IS NULL',[now,token.account_id]);}
+    await client.query('COMMIT');return true;
+  }catch(error){await client.query('ROLLBACK');throw error;}finally{client.release();}}
+  return false;
+}
+\nfunction isPostgres() { return !!pool; }
 function isSqlite() { return !!sqlite; }
 function close() { if(sqlite){sqlite.close();sqlite=null;} if(pool){return pool.end().then(()=>{pool=null;});} }
-module.exports = {init,persistStats,recordMatch,ensurePlayer,getHistory,getSettings,saveSettings,getDisplayName,saveDisplayName,healthCheck,isPostgres,isSqlite,close,emptyStats};
+module.exports = {init,persistStats,recordMatch,ensurePlayer,getHistory,getSettings,saveSettings,getDisplayName,saveDisplayName,healthCheck,isPostgres,isSqlite,createAccount,getAccountByLogin,createAccountSession,getAccountBySession,revokeAccountSession,createAccountEmailToken,consumeAccountEmailToken,close,emptyStats};
