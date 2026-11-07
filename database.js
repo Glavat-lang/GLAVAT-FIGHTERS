@@ -254,9 +254,15 @@ async function getAccountBySession(tokenHash,now=new Date()){
   if(sqlite){const row=sqlite.prepare(`SELECT a.account_id,a.player_id,a.username,a.email,a.email_verified_at,s.session_id,s.expires_at
     FROM account_sessions s JOIN accounts a ON a.account_id=s.account_id
     WHERE s.token_hash=? AND s.revoked_at IS NULL AND s.expires_at>? `).get(tokenHash,now.toISOString());if(row)sqlite.prepare('UPDATE account_sessions SET last_seen_at=? WHERE session_id=?').run(now.toISOString(),row.session_id);return row||null;}
-  if(pool){const result=await pool.query(`UPDATE account_sessions s SET last_seen_at=$2 FROM accounts a
-    WHERE s.account_id=a.account_id AND s.token_hash=$1 AND s.revoked_at IS NULL AND s.expires_at>$2
-    RETURNING a.account_id,a.player_id,a.username,a.email,a.email_verified_at,s.session_id,s.expires_at`,[tokenHash,now]);return result.rows[0]||null;}
+  if(pool){const client=await pool.connect();try{
+    await client.query('BEGIN');
+    const selected=await client.query(`SELECT a.account_id,a.player_id,a.username,a.email,a.email_verified_at,s.session_id,s.expires_at
+      FROM account_sessions s JOIN accounts a ON a.account_id=s.account_id
+      WHERE s.token_hash=$1 AND s.revoked_at IS NULL AND s.expires_at>$2 FOR UPDATE OF s`,[tokenHash,now]);
+    if(!selected.rows.length){await client.query('ROLLBACK');return null;}
+    await client.query('UPDATE account_sessions SET last_seen_at=$1 WHERE session_id=$2',[now,selected.rows[0].session_id]);
+    await client.query('COMMIT');return selected.rows[0];
+  }catch(error){await client.query('ROLLBACK');throw error;}finally{client.release();}}
   return null;
 }
 async function revokeAccountSession(tokenHash,now=new Date()){
