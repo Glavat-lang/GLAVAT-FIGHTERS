@@ -1,0 +1,43 @@
+# GLAVAT FIGHTERS account API
+
+All mutation requests require JSON and an exact HTTPS `Origin` matching `APP_ORIGIN`. The browser client uses same-origin fetches. Account routes are disabled unless `PLAYER_COOKIE_SECRET` is at least 32 characters and `APP_ORIGIN` is a valid HTTPS origin.
+
+## Required production variables
+
+- `PLAYER_COOKIE_SECRET` — random secret of at least 32 characters used to sign the guest player identity cookie.
+- `APP_ORIGIN` — exact public HTTPS origin, without a path (for example `https://fighters.example.com`).
+- `RESEND_API_KEY` — Resend API key.
+- `MAIL_FROM` — verified sender address, for example `GLAVAT FIGHTERS <noreply@your-domain.example>`).
+
+Registration and recovery email delivery fail closed when the Resend configuration is incomplete. Never put secrets in source control or frontend code.
+
+## Routes
+
+| Method | Route | Purpose |
+|---|---|---|
+| POST | `/api/auth/register` | Create an account linked to the current signed guest player ID and send email verification |
+| POST | `/api/auth/login` | Verify credentials and issue a 30-day HttpOnly session cookie |
+| POST | `/api/auth/logout` | Revoke the current session and clear its cookie |
+| GET | `/api/auth/me` | Return the current authenticated account |
+| POST | `/api/auth/verify-email` | Consume a one-time email-verification token |
+| POST | `/api/auth/resend-verification` | Resend verification without confirming whether an account exists |
+| POST | `/api/auth/forgot-password` | Request a password-reset email with an enumeration-safe response |
+| POST | `/api/auth/reset-password` | Consume a one-time reset token, update the password and revoke every existing session |
+
+### Request bodies
+
+Registration: `{ "username": "ArcadePlayer", "email": "player@example.com", "password": "AtLeast12Chars1" }`
+
+Login: `{ "identifier": "ArcadePlayer", "password": "AtLeast12Chars1" }`
+
+Verification: `{ "token": "<token-from-email>" }`
+
+Resend / forgot password: `{ "identifier": "ArcadePlayer" }`
+
+Password reset: `{ "token": "<token-from-email>", "password": "NewPassword2026!" }`
+
+## Important limitations
+
+- The in-process rate limiter is suitable only for a single server instance. Use a shared atomic limiter before enabling multiple replicas.
+- New guest identities are HMAC-signed. Legacy unsigned guest cookies are preserved for gameplay but cannot be safely claimed by registration without proof of ownership; a migration/linking flow is still required.
+- Real provider delivery, verified sender DNS, mailbox UX, Windows/iPhone/Android browser QA and PostgreSQL integration testing are not yet release-accepted.
