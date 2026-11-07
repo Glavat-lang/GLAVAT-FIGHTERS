@@ -63,3 +63,10 @@ The game can be called complete only after all PARTIAL and BLOCKED rows are clos
 ### Animation audit result
 
 Workflow run 42323500299 (run #646) executed the new non-strict animation audit and reported, for each fighter: 17/25 poses, 0 standalone drawings, 0 unique standalone frames and 17 symbol-composed poses. CI remains green because this is a reporting audit; the strict release gate intentionally fails until real frame art is supplied.
+
+
+## Layered arena asset gate (2026-11-07)
+
+- Added a manifest for all six arenas with eight required layers: sky, far skyline, near skyline, architecture, fence, foreground, lighting and reflections.
+- The current manifest correctly records all six as Canvas-rendered with no final image layers yet.
+- CI now runs a non-strict audit; the strict release gate checks both fighter frames and arena layers. The new arena audit and fixture tests still require a fresh Node 24 CI run.
