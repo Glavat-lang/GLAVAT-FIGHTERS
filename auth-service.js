@@ -2,6 +2,7 @@
 const crypto=require('node:crypto');
 const {hashPassword,verifyPassword,createOpaqueToken,hashToken,AttemptLimiter}=require('./auth-security');
 const {escapeHtml}=require('./email-provider');
+const dummyPasswordHash=hashPassword('GlavatDummyAccountProbe2026!');
 function normalize(value){return String(value||'').trim().toLowerCase();}
 function validateIdentity(username,email){
  if(typeof username!=='string'||!/^[A-Za-z0-9_]{3,24}$/.test(username))throw new Error('Username must be 3–24 letters, numbers or underscores');
@@ -42,7 +43,8 @@ function createAuthService({database,sendEmail,env=process.env,clock=Date.now,li
   const key='login:'+normalize(identifier),attempt=limiter.consume(key);
   if(!attempt.allowed){const error=new Error('Too many attempts');error.code='RATE_LIMITED';error.retryAfterMs=attempt.retryAfterMs;throw error;}
   const account=await database.getAccountByLogin(identifier);
-  if(!account||!await verifyPassword(password,account.password_hash)){const error=new Error('Invalid credentials');error.code='INVALID_CREDENTIALS';throw error;}
+  const passwordHash=account?account.password_hash:await dummyPasswordHash;
+  if(!account||!await verifyPassword(password,passwordHash)){const error=new Error('Invalid credentials');error.code='INVALID_CREDENTIALS';throw error;}
   if(!account.email_verified_at){const error=new Error('Email verification required');error.code='EMAIL_NOT_VERIFIED';throw error;}
   const token=createOpaqueToken(),tokenHash=hashToken(token),id=sessionId||crypto.randomUUID();
   const expiresAt=new Date(clock()+30*24*60*60*1000).toISOString();
