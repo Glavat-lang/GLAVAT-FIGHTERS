@@ -86,6 +86,8 @@ assert(server.includes('if(!Number.isSafeInteger(msg.seq)||msg.seq<=ws.lastInput
 assert(server.includes('accountSecurityReady:authSecurityReady()')&&server.includes('accountsReady:authSecurityReady()&&isMailReady()'),'health endpoint must expose account security and email readiness independently');
 assert(server.includes("if(msg.type==='join'){if(ws.room)return send(ws,{type:'join-error'") ,'server must reject duplicate room-join commands on the same socket');
 assert(server.includes("msg.type==='attack' && room.status==='playing' && other){\n    if(!Number.isSafeInteger(msg.seq)")&&server.includes("msg.type==='rematch'&&room.status==='round-over'){\n    if(!Number.isSafeInteger(msg.seq)"),'all state-changing online commands must be sequenced');
+assert(server.includes('ws.commandNonce=crypto.randomBytes(16).toString(\'hex\')')&&server.includes('msg.nonce!==ws.commandNonce')&&html.includes('nonce:commandNonce'),'online state commands must be bound to a fresh per-connection nonce');
+assert(test.includes('previous WebSocket session'),'reconnect tests must reject stale command nonces');
 assert(html.includes("type:'attack',seq:++inputSeq")&&html.includes("type:'rematch',seq:++inputSeq"),'online client must sequence attack and rematch commands');
 assert(server.includes("msg.type==='ping'")&&html.includes("type:'ping'")&&html.includes("type==='pong'"),'online clients and server must measure round-trip latency');
 assert(server.includes("function attackIntersects(a,v,kind,range)"),'server combat must resolve attack hitboxes against hurtboxes');
