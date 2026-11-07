@@ -26,6 +26,7 @@ assert(server.includes('/api/auth/register')&&server.includes('/api/auth/login')
 assert(html.includes('id="accountPanel"')&&html.includes('id="authRegister"')&&html.includes('id="authLogin"')&&html.includes('id="authVerify"')&&html.includes('id="authReset"'),'game menu must expose account registration, login, verification and recovery controls');
 assert(html.includes("authParams.has('verify')")&&html.includes("authParams.has('reset')"),'email verification and password-reset links must populate the account panel');
 assert(server.includes('authOriginAllowed(req)')&&server.includes('database.consumeRateLimit(keyHash,20,15*60*1000)')&&server.includes('trustedPlayerId(req.headers.cookie'),'account mutations must validate origin, persist rate limits and require signed guest identity');
+assert(server.includes('function requestClientIp(req)')&&server.includes("req.headers['x-forwarded-for']")&&server.includes('net.isIP(forwarded)'),'route-level throttling must use the forwarded client address behind the Railway proxy');
 assert(database.includes('function consumeRateLimit')&&database.includes('auth_rate_limits')&&authService.includes('database.consumeRateLimit'),'authentication throttling must be atomic and database-backed');
 const migration=fs.readFileSync('migrations/001_initial_schema.sql','utf8');
 const migration2=fs.readFileSync('migrations/002_player_rating.sql','utf8');
