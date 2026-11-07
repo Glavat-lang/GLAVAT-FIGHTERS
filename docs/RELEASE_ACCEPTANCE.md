@@ -1,210 +1,60 @@
-# GLAVAT FIGHTERS — Release acceptance ledger
+# GLAVAT FIGHTERS — release acceptance
 
-Audit ref: `production-completion-audit`  
-Audited against the repository state on 2026-11-07. This ledger is deliberately conservative: code presence is not acceptance.
+**NOT RELEASE-READY**
 
-| Workstream | Exists now | Missing / required change | Verification required | Acceptance condition | Status |
-|---|---|---|---|---|---|
-| Existing combat and CPU | Server-authoritative movement, attacks, blocks, grabs, fighter balance, three CPU levels, rooms and reconnect logic | Full adversarial and gameplay QA; confirm all legacy systems survive future changes | Existing integration suite plus regression scenarios | No regressions in local, CPU and online modes | VERIFIED |
-| Persistent statistics | SQLite adapter, WAL, migrations, JSON import, match history, settings, Elo; existing Railway volume mounted at `/data`; verified SQLite backup and guarded restore utilities | Production backup schedule/retention, off-volume copy, production restore drill; production DB migration not yet deployed | Automated isolated backup/restore test passes; production evidence still required | Restore drill passes on production backup and persistence survives deploy/restart | IMPLEMENTED |
-| Online input safety | Server rejects unsequenced/replayed movement, attack and rematch commands; duplicate join on one socket is rejected; acknowledgements and ping/pong RTT | Real two-device internet match; packet-loss/jitter/reconnect soak; no rollback implementation | Two distinct physical devices on separate networks, recorded match IDs and server logs | Full match finishes on both devices and identical result persists | PARTIAL |
-| Fighter animation library | SVG atlas with 17 key poses per fighter and state mapping | 25 complete independently authored clips per fighter; frame sources, timing metadata, anchors, hitbox events, transitions and validation pipeline | Open every clip in an in-game animation viewer; inspect frame sequence and contact timing | All 25 states for every fighter are unique, frame-by-frame and visually accepted | BLOCKED |
-| Six arenas + night city | Existing Canvas arena rendering; sunset terrace and night-city scene separated; harbor scene was added | Professional original layered pixel-art backgrounds, distinct foregrounds, animated set dressing, lighting and atmosphere; visual polish | Capture every arena in game at desktop and mobile sizes; review asset layers and motion | All six arenas and separate night-city scene meet approved visual reference | BLOCKED |
-| Accounts and recovery | SQLite/PostgreSQL account persistence, scrypt password service, registration/login/logout/verify/resend/forgot/reset HTTP routes, secure session cookies, strict Origin validation, signed guest identity for new profiles, Resend email adapter and database-backed per-route/identity throttling | Cross-browser QA and UX polish, production credentials and real mailbox delivery, safe migration/linking of legacy unsigned guest profiles, PostgreSQL live integration test | Node 24 account, mail-provider and HTTP integration tests; live Resend delivery; cross-device account test | New users register, verify, login/logout and recover access; existing guest progress is safely linked; sessions work across devices | PARTIAL |
-| Audio | Browser-generated synth music/SFX and speech synthesis; separate volume controls | Original cleared tracks per arena/menu, authored SFX library, character voice assets, audio mixing and browser/device QA | Play every event in-game, inspect channel routing and volume controls on target browsers | Complete licensed/original audio mix is audible and controllable on each supported device | BLOCKED |
-| UI / UX | Main menu, character and arena selection, CPU/local/online flows, HUD and mobile controls | Complete account screens, profile/history/statistics screens, pause/results/settings flow audit; button and accessibility review | Browser-driven interaction tests and visual review at target viewport sizes | Every requested screen and control is complete, responsive and functional | IN PROGRESS |
-| Windows / iPhone / Android | Responsive browser client and keyboard/touch controls | Physical-device verification and performance profiling on all three platforms | Windows desktop browser, iPhone Safari, Android browser; record versions, viewport, FPS, audio and input checks | All requested screens and a full match pass on each platform | BLOCKED |
-| CI / build validation | Node 24 workflow, syntax checks, SVG parse, browser script parse, project validator, persistence/security/account HTTP/email/online test suite; manual workflow trigger added | Fresh full CI after migration 004 and version-4 backup/restore validation; add animation asset integrity checks and browser/device automation | Latest release-candidate commit must have green validator and full npm test run | All required checks green on exact release commit | PARTIAL |
-| Production release | Existing Railway production deployment and persistent volume; a non-destructive staged configuration patch exists | Release branch not merged; staged patch not applied; deploy candidate, backup/restore, smoke tests and rollback drill still required | Railway deployment ID/status, /health, browser flows, online test, DB persistence and rollback verification | Verified candidate is live and all production smoke tests pass | BLOCKED |
+This is the release gate for the existing project. A green automated test suite does not replace art acceptance, physical-device QA, production configuration or a real release drill.
 
-## Explicitly verified versus not verified
+## Acceptance matrix
 
-- GitHub Actions workflow run `42320911632` (run #465) passed on 2026-11-07 with Node 24 after each WebSocket connection gained a fresh command nonce. Movement, attack and rematch commands now require both a strictly increasing sequence and the current connection nonce; duplicate room joins are rejected, and old-session commands are tested across reconnect. Expired account artifacts are pruned at startup and every six hours. Dependency install, server syntax, SVG XML, browser script syntax, `npm run validate`, and the full `npm test` chain all succeeded. This includes SQLite account lifecycle and pruning, scrypt security, Resend adapter tests, account-service lifecycle, account HTTP origin/session/logout tests, replay/reconnect tests and the existing online integration suite.
-- Those automated tests use simulated clients. They do not prove a match between two physical devices.
-- The 17-pose SVG atlas is not a 25-state animation library.
-- Browser speech synthesis and synthesized audio are not a professionally recorded original soundtrack or character voice pack.
-- Guest IDs and display names are not registered accounts.
-- The existing Railway production deployment is still the earlier live deployment. The staged configuration patch is not live.
-- No physical Windows/iPhone/Android QA or production rollback drill is claimed by this audit.
+| Area | Verified implementation | Still outstanding | Status |
+|---|---|---|---|
+| Fighter animation | Two fighters, SVG atlas with 17 key poses each, timed attack clips, active-frame/hitbox synchronization and state mappings | 25 genuinely unique frame-by-frame states per fighter, complete transitions, original final animation art and hitbox review | PARTIAL |
+| Arenas and art | Six selectable Canvas-rendered arenas, including industrial harbor and a separate night-city scene; animated scene elements | Six professional original pixel-art environments with layered parallax, foreground, lighting, atmosphere and animated details | PARTIAL |
+| Accounts and recovery | SQLite/PostgreSQL schema, scrypt password hashes, unique normalized identifiers, registration/login/logout/verification/recovery routes, HttpOnly sessions, HMAC guest IDs, strict Origin checks, Resend adapter, database-backed rate limits and account menu controls | Production secrets, verified sender domain and real mailbox delivery; safe linking of legacy unsigned guest profiles; live PostgreSQL concurrency test; physical browser QA | PARTIAL |
+| Online multiplayer | Authoritative server movement/combat/hitboxes, strict increasing sequence plus per-WebSocket nonce for input/attack/rematch, duplicate-join rejection, acknowledgements, RTT, room isolation and reconnect tests | Match between two physical devices on different networks, packet-loss/jitter soak, rollback netcode and latency compensation | PARTIAL |
+| Persistence and backups | SQLite WAL and PostgreSQL adapters; migrations through v4; stats, settings, match history and Elo; verified v4 backup/restore utilities; atomic hashed rate-limit buckets; expired-session/token cleanup | Production backup schedule, off-volume retention, production restore drill, PostgreSQL live integration and disaster-recovery proof | PARTIAL |
+| Audio | Browser-synthesized music/effects and speech announcements with settings | Original licensed soundtrack, arena/menu music, professional SFX, fighter voice recordings and final mix | PARTIAL |
+| UI/UX | Main menu, fighter/arena selection, local/CPU/online flows, mobile controls, leaderboard/profile surfaces and a basic account/recovery panel | Complete polished multi-screen UX, accessibility and tested Windows/iPhone/Android layouts | PARTIAL |
+| Automated validation | Node 24 GitHub Actions workflow, server/browser syntax, SVG validation, project validator, SQLite migration/backup/account tests, auth/email/HTTP tests and WebSocket integration tests | Dedicated asset-quality checks for final 25-frame animation sets and browser/device automation | VERIFIED |
+| Release operations | Existing production deployment remains online; candidate changes isolated in production-completion-audit; Railway configuration patch remains staged | Staging deployment, production backup/restore drill, smoke tests on release build, rollback plan execution and verified deployment of the accepted commit | BLOCKED |
 
-## Release gates
+## Latest automated verification
 
-Do not merge the draft PR, apply the staged Railway patch, or label a build as final until the blocked acceptance conditions above have evidence attached to the release record. A successful build or CI run alone is not a release acceptance.
+GitHub Actions workflow run 42322176647 (run #570) passed on Node 24 on 2026-11-07. It completed dependency installation, server syntax validation, SVG XML validation, browser-script parsing, npm run validate and the full npm test chain.
 
+The passing suite includes:
+- SQLite schema migration through v4, persistence and migration compatibility.
+- Full-schema backup, integrity verification and restore with a pre-restore safety copy.
+- scrypt password security, account lifecycle, one-time email tokens and session revocation.
+- Resend adapter behavior and account HTTP origin/session/cookie/logout checks.
+- Invalid signed guest-cookie rejection and protection against claiming legacy unsigned profiles.
+- Database-backed rate-limit windows, failed-login lockout, expiry and cleanup.
+- Strict sequence/nonce checks for movement, attacks and rematch; duplicate join rejection; stale-command rejection after reconnect.
+- Existing online room, combat and reconnect integration tests.
 
-## Additional persistence work (2026-11-07)
+Automated CI does not prove live Resend delivery, PostgreSQL concurrency, real two-device networking, physical browser compatibility or commercial-quality artwork/audio.
 
-- Added `scripts/sqlite-maintenance.js backup <db> <backup>`: checkpoints WAL, creates a consistent SQLite snapshot with `VACUUM INTO`, runs integrity/schema checks and compares table counts before reporting success.
-- Added `scripts/sqlite-maintenance.js verify <backup>` for standalone backup verification.
-- Added `scripts/restore-sqlite.js <backup> <target>`: validates the backup, preserves the previous target as a pre-restore copy, verifies the temporary restored copy, and only then replaces the target. The operator must stop the application before running restore.
-- Added `test/backup.test.js`, which creates a temporary database, backs it up, mutates the original, restores the backup, verifies restored player statistics and integrity, and checks that a pre-restore safety copy remains.
-- Wired the backup/restore test into `npm test`. This verifies the maintenance tooling in an isolated test database; it does not establish a production backup schedule or a production restore drill.
+## Account security and configuration
 
+The account API is intentionally fail-closed until all required production variables are configured:
 
-## Account schema foundation (2026-11-07)
+- PLAYER_COOKIE_SECRET — cryptographically random secret, at least 32 characters.
+- APP_ORIGIN — exact public HTTPS origin, without a path.
+- RESEND_API_KEY — Resend API key.
+- MAIL_FROM — sender address on a verified domain.
 
-- Added schema migration 003 for both SQLite and PostgreSQL.
-- Accounts bind one registered identity to an existing player profile; normalized username and email columns have unique constraints.
-- Session records store token hashes rather than bearer tokens, support expiry and revocation, and include account-scoped indexes.
-- Email action tokens store hashes, distinguish verification from password reset, expire, and support one-time consumption.
-- Both storage adapters now apply migration 003 during initialization; validation checks the schema and migration wiring.
-- This is a database foundation only. No public registration/login/logout/recovery API, password hashing implementation, rate limiting, or email delivery is claimed yet. Do not expose account functionality until those layers and security tests are complete.
+Route/IP and per-identity rate-limit buckets are stored as HMAC-SHA-256 digests using PLAYER_COOKIE_SECRET. SQLite is intended for the current single-instance volume deployment; PostgreSQL is required for shared multi-instance operation and still needs live integration coverage.
 
+New guest IDs are signed when the secret is configured. A legacy unsigned guest cookie is preserved for gameplay but cannot be safely linked to an account without an ownership-proof migration. A malformed or incorrect signature is rejected and replaced with a new guest identity.
 
-## Account implementation work (2026-11-07)
+## Production boundary
 
-- Added `auth-security.js` with scrypt password hashing, constant-time verification, opaque session/email tokens, token digests, secure cookie construction and a bounded in-process attempt limiter.
-- Added SQLite and PostgreSQL database operations for account creation, case-insensitive username/email lookup, session creation and lookup, revocation, one-time email token consumption, email verification and password reset. A successful password reset revokes all active sessions.
-- Added `test/auth-security.test.js` and `test/accounts-database.test.js`; wired both into `npm test` and extended static validation.
-- Account security, SQLite account lifecycle, auth-service, email-provider and account HTTP tests passed in Node 24 GitHub Actions run `42319966268`. PostgreSQL account operations are schema/code-covered but still need a live PostgreSQL integration test.
-- Public HTTP authentication routes and actual email delivery are still absent. The account feature must remain unadvertised and unavailable to players until those layers are implemented and verified.
+- Development branch: production-completion-audit.
+- Production branch: main.
+- Production URL: https://glavat-fighters-production.up.railway.app/
+- The development branch has not been deployed to production. The live deployment remains on the older main commit.
+- Do not merge the draft pull request or apply the staged Railway configuration until every release blocker above is accepted.
 
+## Final release condition
 
-## Account service and mail adapter (2026-11-07)
-
-- Added `auth-service.js` to orchestrate registration, email verification, login, 30-day session issue/authentication/logout, password-reset requests and one-time password resets.
-- Added `email-provider.js` for Resend's transactional email API. It requires `RESEND_API_KEY`, `MAIL_FROM` and an HTTPS `APP_ORIGIN`; it fails closed when any setting is missing.
-- Added unit tests for email-provider validation and the complete auth-service lifecycle using a temporary SQLite database and a mocked email sender.
-- These latest tests have not yet been run in GitHub Actions. No live email credentials or real mailbox delivery are available in this development run.
-- The API routes and basic menu controls are connected. They are not release-ready until real mail delivery, browser/device QA, and safe handling of legacy unsigned guest profiles are verified.
-
-
-## Account HTTP implementation (2026-11-07)
-
-- Added origin-checked account HTTP endpoints: `POST /api/auth/register`, `POST /api/auth/login`, `POST /api/auth/logout`, `GET /api/auth/me`, `POST /api/auth/verify-email`, `POST /api/auth/resend-verification`, `POST /api/auth/forgot-password` and `POST /api/auth/reset-password`.
-- Session cookies are HttpOnly, Secure and SameSite=Lax. Player identity cookies are HMAC-signed when `PLAYER_COOKIE_SECRET` (at least 32 characters) is configured. Account-changing requests require an exact HTTPS `APP_ORIGIN` match and are rate-limited in-process.
-- Registration is fail-closed unless the Resend adapter is configured with `RESEND_API_KEY`, `MAIL_FROM` and `APP_ORIGIN`. The current Railway production environment has not been configured or deployed with these values.
-- Legacy unsigned guest cookies cannot safely be upgraded into trusted signed identities without a proof-of-ownership mechanism. The server preserves those guest profiles, but account registration currently requires a signed guest identity; safe legacy-profile linking remains a release blocker.
-- `test/auth-http.test.js` exercises cross-origin rejection, login, secure cookies, session lookup, registration fail-closed behavior without mail credentials, and logout revocation. It is included in `npm test`; the latest full CI run must be checked before treating this newest test as passed.
-
-
-## Account UI connection (2026-11-07)
-
-- Added an expandable account panel to the existing game menu with registration, login, logout, email verification, resend verification, password reset request and password reset controls.
-- Email links containing `?verify=` or `?reset=` prefill the one-time token and open the account panel.
-- The account panel calls the same-origin account API and displays server responses without exposing session tokens to JavaScript.
-- The new UI and HTTP integration tests passed in Node 24 GitHub Actions run `42322176647` (run #570). Real provider delivery and physical browser testing remain outstanding.
-
-
-## Guest identity integrity fix (2026-11-07)
-
-- Corrected signed guest identity validation: when `PLAYER_COOKIE_SECRET` is configured, malformed or incorrect HMAC signatures are rejected and replaced with a newly issued guest identity. Legacy cookies with no signature remain usable for gameplay but cannot be attached to an account.
-- Added HTTP integration assertions that forged signed IDs are replaced and legacy unsigned IDs cannot be claimed by account registration.
-- This security correction passed the full Node 24 test suite in workflow run `42321451226` (run #516).
-
-
-## Persistent authentication throttling (2026-11-07)
-
-- Added migration 004 for SQLite and PostgreSQL with hashed rate-limit keys and expiring fixed-window counters.
-- Database adapters increment counters atomically; SQLite uses an immediate transaction and PostgreSQL uses an atomic upsert. Raw IP/identifier values are not stored in the rate-limit table.
-- Account registration, login, resend-verification and password-reset identity throttles now use database-backed counters when persistent storage is configured. HTTP route throttles are also database-backed, so limits survive process restarts and are shared by instances using the same database.
-- Added a service test that exhausts the failed-login threshold and verifies the next attempt is blocked. The database-backed rate-limit migration and tests are added after the last passing run and still require a fresh Node 24 CI run; PostgreSQL concurrency behavior also needs live integration coverage.
-
-
-
-Audit ref: `production-completion-audit`  
-Audited against the repository state on 2026-11-07. This ledger is deliberately conservative: code presence is not acceptance.
-
-| Workstream | Exists now | Missing / required change | Verification required | Acceptance condition | Status |
-|---|---|---|---|---|---|
-| Existing combat and CPU | Server-authoritative movement, attacks, blocks, grabs, fighter balance, three CPU levels, rooms and reconnect logic | Full adversarial and gameplay QA; confirm all legacy systems survive future changes | Existing integration suite plus regression scenarios | No regressions in local, CPU and online modes | VERIFIED |
-| Persistent statistics | SQLite adapter, WAL, migrations, JSON import, match history, settings, Elo; existing Railway volume mounted at `/data`; verified SQLite backup and guarded restore utilities | Production backup schedule/retention, off-volume copy, production restore drill; production DB migration not yet deployed | Automated isolated backup/restore test passes; production evidence still required | Restore drill passes on production backup and persistence survives deploy/restart | IMPLEMENTED |
-| Online input safety | Server rejects unsequenced/replayed movement, attack and rematch commands; duplicate join on one socket is rejected; acknowledgements and ping/pong RTT | Real two-device internet match; packet-loss/jitter/reconnect soak; no rollback implementation | Two distinct physical devices on separate networks, recorded match IDs and server logs | Full match finishes on both devices and identical result persists | PARTIAL |
-| Fighter animation library | SVG atlas with 17 key poses per fighter and state mapping | 25 complete independently authored clips per fighter; frame sources, timing metadata, anchors, hitbox events, transitions and validation pipeline | Open every clip in an in-game animation viewer; inspect frame sequence and contact timing | All 25 states for every fighter are unique, frame-by-frame and visually accepted | BLOCKED |
-| Six arenas + night city | Existing Canvas arena rendering; sunset terrace and night-city scene separated; harbor scene was added | Professional original layered pixel-art backgrounds, distinct foregrounds, animated set dressing, lighting and atmosphere; visual polish | Capture every arena in game at desktop and mobile sizes; review asset layers and motion | All six arenas and separate night-city scene meet approved visual reference | BLOCKED |
-| Accounts and recovery | SQLite/PostgreSQL account persistence, scrypt password service, registration/login/logout/verify/resend/forgot/reset HTTP routes, secure session cookies, strict Origin validation, signed guest identity for new profiles, Resend email adapter and database-backed per-route/identity throttling | Cross-browser QA and UX polish, production credentials and real mailbox delivery, safe migration/linking of legacy unsigned guest profiles, PostgreSQL live integration test | Node 24 account, mail-provider and HTTP integration tests; live Resend delivery; cross-device account test | New users register, verify, login/logout and recover access; existing guest progress is safely linked; sessions work across devices | PARTIAL |
-| Audio | Browser-generated synth music/SFX and speech synthesis; separate volume controls | Original cleared tracks per arena/menu, authored SFX library, character voice assets, audio mixing and browser/device QA | Play every event in-game, inspect channel routing and volume controls on target browsers | Complete licensed/original audio mix is audible and controllable on each supported device | BLOCKED |
-| UI / UX | Main menu, character and arena selection, CPU/local/online flows, HUD and mobile controls | Complete account screens, profile/history/statistics screens, pause/results/settings flow audit; button and accessibility review | Browser-driven interaction tests and visual review at target viewport sizes | Every requested screen and control is complete, responsive and functional | IN PROGRESS |
-| Windows / iPhone / Android | Responsive browser client and keyboard/touch controls | Physical-device verification and performance profiling on all three platforms | Windows desktop browser, iPhone Safari, Android browser; record versions, viewport, FPS, audio and input checks | All requested screens and a full match pass on each platform | BLOCKED |
-| CI / build validation | Node 24 workflow, syntax checks, SVG parse, browser script parse, project validator, persistence/security/account HTTP/email/online test suite; manual workflow trigger added | Add animation asset integrity checks and browser/device automation | Latest release-candidate commit must have green validator and full npm test run | All required checks green on exact release commit | VERIFIED |
-| Production release | Existing Railway production deployment and persistent volume; a non-destructive staged configuration patch exists | Release branch not merged; staged patch not applied; deploy candidate, backup/restore, smoke tests and rollback drill still required | Railway deployment ID/status, /health, browser flows, online test, DB persistence and rollback verification | Verified candidate is live and all production smoke tests pass | BLOCKED |
-
-## Explicitly verified versus not verified
-
-- GitHub Actions workflow run `42320911632` (run #465) passed on 2026-11-07 with Node 24 after each WebSocket connection gained a fresh command nonce. Movement, attack and rematch commands now require both a strictly increasing sequence and the current connection nonce; duplicate room joins are rejected, and old-session commands are tested across reconnect. Expired account artifacts are pruned at startup and every six hours. Dependency install, server syntax, SVG XML, browser script syntax, `npm run validate`, and the full `npm test` chain all succeeded. This includes SQLite account lifecycle and pruning, scrypt security, Resend adapter tests, account-service lifecycle, account HTTP origin/session/logout tests, replay/reconnect tests and the existing online integration suite.
-- Those automated tests use simulated clients. They do not prove a match between two physical devices.
-- The 17-pose SVG atlas is not a 25-state animation library.
-- Browser speech synthesis and synthesized audio are not a professionally recorded original soundtrack or character voice pack.
-- Guest IDs and display names are not registered accounts.
-- The existing Railway production deployment is still the earlier live deployment. The staged configuration patch is not live.
-- No physical Windows/iPhone/Android QA or production rollback drill is claimed by this audit.
-
-## Release gates
-
-Do not merge the draft PR, apply the staged Railway patch, or label a build as final until the blocked acceptance conditions above have evidence attached to the release record. A successful build or CI run alone is not a release acceptance.
-
-
-## Additional persistence work (2026-11-07)
-
-- Added `scripts/sqlite-maintenance.js backup <db> <backup>`: checkpoints WAL, creates a consistent SQLite snapshot with `VACUUM INTO`, runs integrity/schema checks and compares table counts before reporting success.
-- Added `scripts/sqlite-maintenance.js verify <backup>` for standalone backup verification.
-- Added `scripts/restore-sqlite.js <backup> <target>`: validates the backup, preserves the previous target as a pre-restore copy, verifies the temporary restored copy, and only then replaces the target. The operator must stop the application before running restore.
-- Added `test/backup.test.js`, which creates a temporary database, backs it up, mutates the original, restores the backup, verifies restored player statistics and integrity, and checks that a pre-restore safety copy remains.
-- Wired the backup/restore test into `npm test`. This verifies the maintenance tooling in an isolated test database; it does not establish a production backup schedule or a production restore drill.
-
-
-## Account schema foundation (2026-11-07)
-
-- Added schema migration 003 for both SQLite and PostgreSQL.
-- Accounts bind one registered identity to an existing player profile; normalized username and email columns have unique constraints.
-- Session records store token hashes rather than bearer tokens, support expiry and revocation, and include account-scoped indexes.
-- Email action tokens store hashes, distinguish verification from password reset, expire, and support one-time consumption.
-- Both storage adapters now apply migration 003 during initialization; validation checks the schema and migration wiring.
-- This is a database foundation only. No public registration/login/logout/recovery API, password hashing implementation, rate limiting, or email delivery is claimed yet. Do not expose account functionality until those layers and security tests are complete.
-
-
-## Account implementation work (2026-11-07)
-
-- Added `auth-security.js` with scrypt password hashing, constant-time verification, opaque session/email tokens, token digests, secure cookie construction and a bounded in-process attempt limiter.
-- Added SQLite and PostgreSQL database operations for account creation, case-insensitive username/email lookup, session creation and lookup, revocation, one-time email token consumption, email verification and password reset. A successful password reset revokes all active sessions.
-- Added `test/auth-security.test.js` and `test/accounts-database.test.js`; wired both into `npm test` and extended static validation.
-- Account security, SQLite account lifecycle, auth-service, email-provider and account HTTP tests passed in Node 24 GitHub Actions run `42319966268`. PostgreSQL account operations are schema/code-covered but still need a live PostgreSQL integration test.
-- Public HTTP authentication routes and actual email delivery are still absent. The account feature must remain unadvertised and unavailable to players until those layers are implemented and verified.
-
-
-## Account service and mail adapter (2026-11-07)
-
-- Added `auth-service.js` to orchestrate registration, email verification, login, 30-day session issue/authentication/logout, password-reset requests and one-time password resets.
-- Added `email-provider.js` for Resend's transactional email API. It requires `RESEND_API_KEY`, `MAIL_FROM` and an HTTPS `APP_ORIGIN`; it fails closed when any setting is missing.
-- Added unit tests for email-provider validation and the complete auth-service lifecycle using a temporary SQLite database and a mocked email sender.
-- These latest tests have not yet been run in GitHub Actions. No live email credentials or real mailbox delivery are available in this development run.
-- The API routes and basic menu controls are connected. They are not release-ready until real mail delivery, browser/device QA, and safe handling of legacy unsigned guest profiles are verified.
-
-
-## Account HTTP implementation (2026-11-07)
-
-- Added origin-checked account HTTP endpoints: `POST /api/auth/register`, `POST /api/auth/login`, `POST /api/auth/logout`, `GET /api/auth/me`, `POST /api/auth/verify-email`, `POST /api/auth/resend-verification`, `POST /api/auth/forgot-password` and `POST /api/auth/reset-password`.
-- Session cookies are HttpOnly, Secure and SameSite=Lax. Player identity cookies are HMAC-signed when `PLAYER_COOKIE_SECRET` (at least 32 characters) is configured. Account-changing requests require an exact HTTPS `APP_ORIGIN` match and are rate-limited in-process.
-- Registration is fail-closed unless the Resend adapter is configured with `RESEND_API_KEY`, `MAIL_FROM` and `APP_ORIGIN`. The current Railway production environment has not been configured or deployed with these values.
-- Legacy unsigned guest cookies cannot safely be upgraded into trusted signed identities without a proof-of-ownership mechanism. The server preserves those guest profiles, but account registration currently requires a signed guest identity; safe legacy-profile linking remains a release blocker.
-- `test/auth-http.test.js` exercises cross-origin rejection, login, secure cookies, session lookup, registration fail-closed behavior without mail credentials, and logout revocation. It is included in `npm test`; the latest full CI run must be checked before treating this newest test as passed.
-
-
-## Account UI connection (2026-11-07)
-
-- Added an expandable account panel to the existing game menu with registration, login, logout, email verification, resend verification, password reset request and password reset controls.
-- Email links containing `?verify=` or `?reset=` prefill the one-time token and open the account panel.
-- The account panel calls the same-origin account API and displays server responses without exposing session tokens to JavaScript.
-- The new UI and HTTP integration tests passed in Node 24 GitHub Actions run `42319966268`. Real provider delivery and physical browser testing remain outstanding.
-
-
-## Guest identity integrity fix (2026-11-07)
-
-- Corrected signed guest identity validation: when `PLAYER_COOKIE_SECRET` is configured, malformed or incorrect HMAC signatures are rejected and replaced with a newly issued guest identity. Legacy cookies with no signature remain usable for gameplay but cannot be attached to an account.
-- HTTP integration tests confirm forged signed IDs are replaced and legacy unsigned IDs cannot be claimed by registration.
-- This security correction passed in Node 24 workflow run `42321807821` (run #539). Safe legacy-profile linking remains a release blocker.
-
-
-## Persistent authentication throttling (2026-11-07)
-
-- Added migration 004 for SQLite and PostgreSQL with hashed rate-limit keys and expiring fixed-window counters.
-- Database adapters increment counters atomically; SQLite uses an immediate transaction and PostgreSQL uses an atomic upsert. Raw IP/identifier values are not stored in the rate-limit table.
-- Account registration, login, resend-verification and password-reset identity throttles now use database-backed counters when persistent storage is configured. HTTP route throttles are also database-backed, so limits survive process restarts and are shared by instances using the same database.
-- Added tests for failed-login lockout, fixed-window reset, bucket expiry and cleanup. Node 24 workflow run `42322176647` (run #570) passed the migration, persistent rate-limit, backup/restore, HTTP security-header and full test suites. Rate-limit keys are HMAC-SHA-256 digests using `PLAYER_COOKIE_SECRET`; PostgreSQL concurrency behavior still needs live integration coverage.
-
-
-## Version-4 backup/restore acceptance update (2026-11-07)
-
-- SQLite backup and restore now require schema version 4 and verify the player/statistics/history tables plus accounts, sessions, email tokens and persistent rate-limit buckets.
-- Backup/restore integration tests now build the complete version-4 schema and exercise the full restore path.
-- Node 24 workflow run `42321807821` (run #539) passed after the full-schema backup/restore changes and forwarded-IP rate limiting. The updated version-4 backup and restore validators are covered by CI; production backup/restore drill and off-volume retention remain outstanding.
+The game can be called complete only after all PARTIAL and BLOCKED rows are closed, a fresh full CI run passes on the exact release commit, two-device online play is observed across independent networks, the supported browser/device matrix passes, real email delivery and production restore are verified, and the accepted build is deployed with a tested rollback path.
