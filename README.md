@@ -52,7 +52,7 @@ npm start
 
 ## Проверки и статус релиза
 
-GitHub Actions workflow run `42321807821` (run #539) прошёл на Node 24: установка зависимостей, проверка сервера, SVG, browser script, `npm run validate` и полный `npm test`. Включены тесты SQLite, backup/restore, аккаунтов, почтового адаптера, HTTP-origin/session/logout, anti-replay и WebSocket-интеграции, в том числе проверка старого nonce после reconnect.
+GitHub Actions workflow run `42322176647` (run #570) прошёл на Node 24: установка зависимостей, проверка сервера, SVG, browser script, `npm run validate` и полный `npm test`. Включены тесты SQLite, backup/restore, аккаунтов, почтового адаптера, HTTP-origin/session/logout, anti-replay и WebSocket-интеграции, в том числе проверка старого nonce после reconnect.
 
 **Что ещё не даёт назвать игру готовым коммерческим релизом:**
 
