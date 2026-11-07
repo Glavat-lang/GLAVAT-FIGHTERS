@@ -64,6 +64,10 @@ GitHub Actions workflow run `42322550613` (run #591) прошёл на Node 24: 
 - Музыка, SFX и реплики пока синтезируются браузером; профессиональная оригинальная звуковая библиотека не готова.
 - Нет production backup/restore drill и проверенного rollback-развёртывания.
 
+## Art direction
+
+The saved rooftop sunset/night references and the final animation/art acceptance brief are documented in [ART_DIRECTION.md](docs/ART_DIRECTION.md).
+
 ## Production
 
 Работа ведётся в ветке `production-completion-audit`. Production Railway не обновлялся этой веткой; существующий production deployment остаётся на `main`. Не считать эту сборку релизом и не переносить её в production до закрытия критериев из [RELEASE_ACCEPTANCE.md](docs/RELEASE_ACCEPTANCE.md).
