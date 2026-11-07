@@ -8,8 +8,8 @@ This is the release gate for the existing project. A green automated test suite 
 
 | Area | Verified implementation | Still outstanding | Status |
 |---|---|---|---|
-| Fighter animation | Two fighters, SVG atlas with 17 key poses each, timed attack clips, active-frame/hitbox synchronization and state mappings | 25 genuinely unique frame-by-frame states per fighter, complete transitions, original final animation art and hitbox review | PARTIAL |
-| Arenas and art | Six Canvas-rendered arenas; sunset and night rooftop compositions rebuilt to match the saved reference (graffiti wall, skyline, chain-link fence, helicopter/searchlight, neon sign and wet floor), plus industrial harbor and other scenes | Six professional original pixel-art environments with layered parallax, foreground, lighting, atmosphere and animated details | PARTIAL |
+| Fighter animation | GLAVAT/KILLA palette and names aligned to reference; SVG atlas with 17 composed poses each (shared symbols/transforms), timed attack clips, active-frame/hitbox synchronization and state mappings | 25 genuinely unique frame-by-frame states per fighter, complete transitions, original final animation art and hitbox review | PARTIAL |
+| Arenas and art | Six Canvas-rendered arenas; GLAVAT/KILLA sprite colors and names updated, and sunset/night rooftop compositions rebuilt to match the saved reference (graffiti wall, skyline, chain-link fence, helicopter/searchlight, neon sign and wet floor), plus industrial harbor and other scenes | Six professional original pixel-art environments with layered parallax, foreground, lighting, atmosphere and animated details | PARTIAL |
 | Accounts and recovery | SQLite/PostgreSQL schema, scrypt password hashes, unique normalized identifiers, registration/login/logout/verification/recovery routes, HttpOnly sessions, HMAC guest IDs, strict Origin checks, Resend adapter, database-backed rate limits and account menu controls | Production secrets, verified sender domain and real mailbox delivery; safe linking of legacy unsigned guest profiles; live PostgreSQL concurrency test; physical browser QA | PARTIAL |
 | Online multiplayer | Authoritative server movement/combat/hitboxes, strict increasing sequence plus per-WebSocket nonce for input/attack/rematch, duplicate-join rejection, acknowledgements, RTT, room isolation and reconnect tests | Match between two physical devices on different networks, packet-loss/jitter soak, rollback netcode and latency compensation | PARTIAL |
 | Persistence and backups | SQLite WAL and PostgreSQL adapters; migrations through v4; stats, settings, match history and Elo; verified v4 backup/restore utilities; atomic hashed rate-limit buckets; expired-session/token cleanup | Production backup schedule, off-volume retention, production restore drill, PostgreSQL live integration and disaster-recovery proof | PARTIAL |
@@ -20,7 +20,7 @@ This is the release gate for the existing project. A green automated test suite 
 
 ## Latest automated verification
 
-GitHub Actions workflow run 42322895647 (run #602) passed on Node 24 on 2026-11-07. It completed dependency installation, server syntax validation, SVG XML validation, browser-script parsing, npm run validate and the full npm test chain.
+GitHub Actions workflow run 42323188833 (run #617) passed on Node 24 on 2026-11-07. It completed dependency installation, server syntax validation, SVG XML validation, browser-script parsing, npm run validate and the full npm test chain.
 
 The passing suite includes:
 - SQLite schema migration through v4, persistence and migration compatibility.
