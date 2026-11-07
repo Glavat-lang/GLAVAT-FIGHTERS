@@ -18,6 +18,9 @@ test('registration, verification, login, session, reset and logout lifecycle',as
   const registered=await service.register({playerId,username:'ArcadePlayer',email:'player@example.test',password:'StrongPassword2026!'});
   assert.equal(registered.account.player_id,playerId);
   assert.equal(messages.length,1);
+  for(let i=0;i<8;i++)await assert.rejects(service.login({identifier:'missing@example.test',password:'WrongPassword2026!'}),error=>error.code==='INVALID_CREDENTIALS');
+  await assert.rejects(service.login({identifier:'missing@example.test',password:'WrongPassword2026!'}),error=>error.code==='RATE_LIMITED','failed login attempts must be limited by persistent database buckets');
+
   const verifyToken=new URL(messages[0].html.match(/href="([^"]+)/)[1]).searchParams.get('verify');
   assert.equal(await service.verifyEmail(verifyToken),true);
   assert.equal(await service.verifyEmail(verifyToken),false);
