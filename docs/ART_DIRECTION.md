@@ -79,6 +79,6 @@ Canvas scene code can be used for temporary layout and testing, but the art row 
 
 ## Automated asset gate
 
-- `npm run audit:animations` reports the current atlas frame count, standalone drawing count, duplicate count and symbol-composed pose count. CI runs this non-strict audit.
+- `npm run audit:animations` reports the current atlas frame count, standalone drawing count, duplicate count and symbol-composed pose count. CI runs this non-strict audit. The latest passing run (42323500299, #646) reported 17/25 poses, zero standalone drawings and zero unique standalone frames for both fighters.
 - `npm run release:animations` requires at least 25 unique standalone frame drawings per fighter and exits non-zero otherwise.
 - `npm run release:verify` runs project validation, the full test suite and the strict animation gate. It is expected to fail until the final frame-by-frame art is integrated.
