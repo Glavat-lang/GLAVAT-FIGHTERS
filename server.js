@@ -4,6 +4,11 @@ const fs = require('fs');
 const path = require('path');
 const crypto = require('crypto');
 const WebSocket = require('ws');
+const {parseCookies,sessionCookie}=require('./auth-security');
+const {isMailReady,sendTransactionalEmail}=require('./email-provider');
+const {createAuthService}=require('./auth-service');
+const PLAYER_COOKIE_SECRET=process.env.PLAYER_COOKIE_SECRET||'';
+const authService=createAuthService({database,sendEmail:sendTransactionalEmail,env:process.env});
 const STATS_FILE=process.env.STATS_FILE||path.join(__dirname,'data','fighter-stats.json');
 const database=require('./database');
 let statsData={};
@@ -70,11 +75,55 @@ function attackIntersects(a,v,kind,range){
 
 const server = http.createServer((req, res) => {
   let playerId=readPlayerId(req.headers.cookie||'');
-  if(!playerId){playerId=crypto.randomUUID();res.setHeader('Set-Cookie',`gf_player=${playerId}; Path=/; HttpOnly; SameSite=Lax; Secure; Max-Age=31536000`);}
-  if (req.method !== 'GET' && req.method !== 'HEAD' && !(req.method==='PUT'&&['/api/settings','/api/profile'].includes(req.url?.split('?')[0]))) { res.writeHead(405); return res.end(); }
+  if(!playerId){playerId=crypto.randomUUID();res.setHeader('Set-Cookie',playerCookieHeaders(playerId));}
+  if (req.method !== 'GET' && req.method !== 'HEAD' && !(req.method==='PUT'&&['/api/settings','/api/profile'].includes(req.url?.split('?')[0])) && !(req.method==='POST'&&['/api/auth/register','/api/auth/login','/api/auth/logout','/api/auth/me','/api/auth/verify-email','/api/auth/resend-verification','/api/auth/forgot-password','/api/auth/reset-password'].includes(req.url?.split('?')[0]))) { res.writeHead(405); return res.end(); }
   let pathname;
   try { pathname = decodeURIComponent((req.url || '/').split('?')[0]); }
   catch { res.writeHead(400); return res.end('Bad request'); }
+  if(pathname.startsWith('/api/auth/')){
+    if(req.method==='GET'&&pathname==='/api/auth/me'){
+      const token=authCookieToken(req);if(!token)return json(res,401,{error:'Не выполнен вход.'});
+      return authService.authenticate(token).then(account=>account?json(res,200,{account:{username:account.username,email:account.email,player_id:account.player_id}}):json(res,401,{error:'Сессия истекла.'}));
+    }
+    if(req.method==='POST'){
+      if(!authOriginAllowed(req))return json(res,403,{error:'Проверка источника запроса не пройдена.'});
+      if(!await dbReady)return json(res,503,{error:'Хранилище аккаунтов недоступно.'});
+      if(pathname==='/api/auth/register'){
+        if(!isMailReady())return json(res,503,{error:'Регистрация временно недоступна: почтовый сервис не настроен.'});
+        return readJsonBody(req,16384).then(async body=>{
+          const result=await authService.register({playerId,username:body.username,email:body.email,password:body.password});
+          return json(res,201,{account:result.account,verificationSent:true});
+        }).catch(error=>authError(res,error));
+      }
+      if(pathname==='/api/auth/login'){
+        return readJsonBody(req,8192).then(async body=>{
+          const result=await authService.login({identifier:body.identifier,password:body.password,userAgent:String(req.headers['user-agent']||'').slice(0,200),ipPrefix:String(req.socket.remoteAddress||'').slice(0,64)});
+          setAuthCookies(res,result.account,result.token);
+          return json(res,200,{account:result.account,expiresAt:result.expiresAt});
+        }).catch(error=>authError(res,error));
+      }
+      if(pathname==='/api/auth/logout'){
+        const token=authCookieToken(req);if(token)await authService.logout(token);
+        res.setHeader('Set-Cookie','gf_session=; Path=/; HttpOnly; Secure; SameSite=Lax; Max-Age=0');
+        return json(res,200,{ok:true});
+      }
+      if(pathname==='/api/auth/verify-email'){
+        return readJsonBody(req,8192).then(async body=>json(res,await authService.verifyEmail(body.token)?200:400,{verified:await Promise.resolve(false)})).catch(error=>authError(res,error));
+      }
+      if(pathname==='/api/auth/resend-verification'){
+        if(!isMailReady())return json(res,503,{error:'Почтовый сервис временно недоступен.'});
+        return readJsonBody(req,8192).then(async body=>{await authService.resendVerification(body.identifier);return json(res,200,{accepted:true});}).catch(error=>authError(res,error));
+      }
+      if(pathname==='/api/auth/forgot-password'){
+        if(!isMailReady())return json(res,503,{error:'Почтовый сервис временно недоступен.'});
+        return readJsonBody(req,8192).then(async body=>json(res,200,await authService.requestPasswordReset(body.identifier))).catch(error=>authError(res,error));
+      }
+      if(pathname==='/api/auth/reset-password'){
+        return readJsonBody(req,8192).then(async body=>json(res,await authService.resetPassword({token:body.token,password:body.password})?200:400,{reset:true})).catch(error=>authError(res,error));
+      }
+    }
+    return json(res,405,{error:'Метод не поддерживается.'});
+  }
   if(pathname==='/health'&&req.method==='GET')return dbReady.then(async ready=>{let healthy=false;try{healthy=ready&&await database.healthCheck();}catch(error){console.error('health database probe failed',error.message);}return json(res,healthy?200:503,{ok:healthy,statsReady:healthy,storage:database.isSqlite()?'sqlite':database.isPostgres()?'postgres':'file'});});
   if(pathname==='/api/profile'&&req.method==='GET')return profile(playerId,res);
   if(pathname==='/api/profile'&&req.method==='PUT')return readJsonBody(req).then(async body=>{
