@@ -88,9 +88,9 @@ Do not merge the draft PR, apply the staged Railway patch, or label a build as f
 
 ## Guest identity integrity fix (2026-11-07)
 
-- Corrected signed guest identity validation: when PLAYER_COOKIE_SECRET is configured, a missing, malformed or incorrect HMAC signature is now rejected and replaced with a newly issued guest identity. Previously, malformed signatures could fall back to trusting the supplied player UUID.
-- Added an HTTP integration assertion that a forged guest identity cookie is replaced.
-- This change is committed on production-completion-audit; the latest commit's CI result has not yet been verified. This is a security correction, not release acceptance.
+- Corrected signed guest identity validation: when `PLAYER_COOKIE_SECRET` is configured, malformed or incorrect HMAC signatures are rejected and replaced with a newly issued guest identity. Legacy cookies with no signature remain usable for gameplay but cannot be attached to an account.
+- Added HTTP integration assertions that forged signed IDs are replaced and legacy unsigned IDs cannot be claimed by account registration.
+- This security correction is committed on `production-completion-audit`; it still requires a fresh CI run.
 
 
 ## Persistent authentication throttling (2026-11-07)
@@ -200,12 +200,4 @@ Do not merge the draft PR, apply the staged Railway patch, or label a build as f
 - Added migration 004 for SQLite and PostgreSQL with hashed rate-limit keys and expiring fixed-window counters.
 - Database adapters increment counters atomically; SQLite uses an immediate transaction and PostgreSQL uses an atomic upsert. Raw IP/identifier values are not stored in the rate-limit table.
 - Account registration, login, resend-verification and password-reset identity throttles now use database-backed counters when persistent storage is configured. HTTP route throttles are also database-backed, so limits survive process restarts and are shared by instances using the same database.
-- Added a service test that exhausts the failed-login threshold and verifies the next attempt is blocked. The newest commit still requires a fresh Node 24 CI run; PostgreSQL concurrency behavior still needs live integration coverage.
-
-
-## Persistent brute-force protection (2026-11-07)
-
-- Added schema migration 004 to SQLite and PostgreSQL for hashed `auth_rate_limits` buckets.
-- Per-route/IP and per-identity login, registration, resend-verification and reset-request limits now use atomic database operations. Raw usernames, emails and IP addresses are not stored in the rate-limit table; only SHA-256 key digests are persisted.
-- Expired buckets are removed by the existing six-hour cleanup task.
-- The database tests cover window limits, lockout response and window reset. The new migration and test changes require a fresh Node 24 CI run before being considered verified.
+- Added tests for failed-login lockout, fixed-window reset, bucket expiry and cleanup. The migration and tests still require a fresh Node 24 CI run; PostgreSQL concurrency behavior still needs live integration coverage.
