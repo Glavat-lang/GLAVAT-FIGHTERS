@@ -38,7 +38,7 @@ Password reset: `{ "token": "<token-from-email>", "password": "NewPassword2026!"
 
 ## Important limitations
 
-- The in-process rate limiter is suitable only for a single server instance. Use a shared atomic limiter before enabling multiple replicas.
+- Authentication and route-level throttles use atomic database-backed fixed-window counters. They are shared across replicas that use the same PostgreSQL database; SQLite is suitable for the current single-instance Railway volume deployment. PostgreSQL concurrency still needs live integration coverage.
 - New guest identities are HMAC-signed. Legacy unsigned guest cookies are preserved for gameplay but cannot be safely claimed by registration without proof of ownership; a migration/linking flow is still required.
 - Real provider delivery, verified sender DNS, mailbox UX, Windows/iPhone/Android browser QA and PostgreSQL integration testing are not yet release-accepted.
 
