@@ -49,6 +49,7 @@ assert(packageConfig.scripts['audit:animations']&&packageConfig.scripts['release
 assert(svg.includes('<svg'),'sprite atlas SVG must exist');
 assert(svg.includes('fill="#26252f"')&&svg.includes('fill="#a52d43"')&&svg.includes('M30 17 L35 8 L45 4'),'fighter atlas must match GLAVAT black-cap/hoodie and KILLA red-hoodie palette');
 assert(html.includes('БОЕЦ 2 · KILLA')&&html.includes('Портрет KILLA')&&!html.includes('БОЕЦ 2 · DOJO'),'second fighter must be named KILLA consistently in menu and HUD');
+assert(html.includes("name0=fighters[0]===0?'GLAVAT':'KILLA'")&&html.includes("name1=fighters[1]===0?'GLAVAT':'KILLA'")&&html.includes("f0>=f1?'GLAVAT':'KILLA'")&&!html.includes('DOJO'),'dynamic HUD, accessibility labels and profile favorite must use KILLA instead of the obsolete DOJO name');
 for(const player of [1,2]){
  const frames=svg.match(new RegExp('id="p'+player+'f[0-9]+"','g'))||[];
  assert.equal(frames.length,17,'fighter '+player+' must expose 17 sprite poses');
