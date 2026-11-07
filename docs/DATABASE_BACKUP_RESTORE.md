@@ -10,7 +10,7 @@ Run on the application host with the same Node.js runtime as the service:
 node scripts/sqlite-maintenance.js backup /data/glavat-fighters.sqlite /data/backups/glavat-fighters-YYYY-MM-DD.sqlite
 ```
 
-The command refuses to overwrite an existing backup. It checkpoints the WAL, creates a consistent snapshot using SQLite `VACUUM INTO`, verifies the schema and `PRAGMA integrity_check`, and compares row counts for players, statistics, settings and match history.
+The command refuses to overwrite an existing backup. It checkpoints the WAL, creates a consistent snapshot using SQLite `VACUUM INTO`, verifies the schema and `PRAGMA integrity_check`, and requires schema version 4 and verifies player, statistics, settings, match history, account, session, email-token and persistent rate-limit tables.
 
 ## Verify an existing backup
 
