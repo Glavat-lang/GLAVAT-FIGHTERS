@@ -16,6 +16,8 @@ const migration=fs.readFileSync('migrations/001_initial_schema.sql','utf8');
 const migration2=fs.readFileSync('migrations/002_player_rating.sql','utf8');
 const sqliteMigration1=fs.readFileSync('migrations/sqlite/001_initial_schema.sql','utf8');
 const sqliteMigration2=fs.readFileSync('migrations/sqlite/002_player_rating.sql','utf8');
+const postgresMigration3=fs.readFileSync('migrations/003_accounts.sql','utf8');
+const sqliteMigration3=fs.readFileSync('migrations/sqlite/003_accounts.sql','utf8');
 const start=html.indexOf('<script>');
 const end=html.lastIndexOf('</script>');
 assert(start>=0&&end>start,'inline browser game script must exist');
@@ -56,6 +58,9 @@ assert(migration.includes("CREATE TABLE IF NOT EXISTS player_settings")&&databas
 assert(migration.includes('schema_migrations')&&migration.includes('match_history'),'versioned SQL migration must be present');
 assert(migration2.includes('ADD COLUMN IF NOT EXISTS rating')&&migration2.includes('VALUES (2)'),'PostgreSQL Elo rating migration must be versioned');
 assert(sqliteMigration1.includes('CREATE TABLE IF NOT EXISTS match_history')&&sqliteMigration2.includes('ADD COLUMN rating'),'SQLite schema migrations must cover match history and Elo rating');
+assert(postgresMigration3.includes('CREATE TABLE IF NOT EXISTS accounts')&&postgresMigration3.includes('CREATE TABLE IF NOT EXISTS account_sessions')&&postgresMigration3.includes('CREATE TABLE IF NOT EXISTS account_email_tokens'),'PostgreSQL must have account, revocable-session and single-use email-token schema');
+assert(sqliteMigration3.includes('username_normalized TEXT NOT NULL UNIQUE')&&sqliteMigration3.includes('email_normalized TEXT NOT NULL UNIQUE')&&sqliteMigration3.includes('token_hash TEXT NOT NULL UNIQUE'),'SQLite account identifiers and one-time tokens must be uniquely indexed');
+assert(database.includes('003_accounts.sql'),'both database adapters must apply the registered-account migration');
 assert(server.includes("pathname==='/api/history'")&&server.includes("pathname==='/api/settings'"),'match history and persisted player settings APIs must be present');
 assert(server.includes("database.saveDisplayName")&&server.includes("database.getDisplayName")&&html.includes('id="displayName"'),'guest player profiles must support persistent display names');
 assert(server.includes('room.statsPrepared')&&server.includes('matchId:room.matchId'),'match persistence retries must be idempotent');
