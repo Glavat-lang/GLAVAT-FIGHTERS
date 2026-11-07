@@ -68,6 +68,10 @@ GitHub Actions workflow run `42323188833` (run #617) прошёл на Node 24: 
 
 The saved rooftop sunset/night references and the final animation/art acceptance brief are documented in [ART_DIRECTION.md](docs/ART_DIRECTION.md).
 
+## Release gate
+
+Run `npm run audit:animations` to see the current sprite-atlas audit. `npm run release:verify` runs the complete automated suite and then enforces the 25-unique-frame gate; it currently fails because the atlas still uses 17 symbol-composed poses per fighter.
+
 ## Production
 
 Работа ведётся в ветке `production-completion-audit`. Production Railway не обновлялся этой веткой; существующий production deployment остаётся на `main`. Не считать эту сборку релизом и не переносить её в production до закрытия критериев из [RELEASE_ACCEPTANCE.md](docs/RELEASE_ACCEPTANCE.md).
