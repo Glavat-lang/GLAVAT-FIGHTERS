@@ -49,3 +49,6 @@ Password reset: `{ "token": "<token-from-email>", "password": "NewPassword2026!"
 - Revoked sessions are retained for up to 30 days for operational safety, then removed by the same cleanup.
 - Expired and consumed email-action tokens are removed by the same retention job.
 - The cleanup is transactional for PostgreSQL and uses SQLite's local transaction handling for the volume-backed adapter.
+
+
+The six-hour cleanup task is covered by the account database test suite. Node 24 workflow run `42320544193` (run #439) passed the full validation and test chain, including the cleanup assertions.
