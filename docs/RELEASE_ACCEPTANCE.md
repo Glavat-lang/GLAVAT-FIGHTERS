@@ -99,3 +99,11 @@ Do not merge the draft PR, apply the staged Railway patch, or label a build as f
 - Database adapters increment counters atomically; SQLite uses an immediate transaction and PostgreSQL uses an atomic upsert. Raw IP/identifier values are not stored in the rate-limit table.
 - Account registration, login, resend-verification and password-reset identity throttles now use database-backed counters when persistent storage is configured. HTTP route throttles are also database-backed, so limits survive process restarts and are shared by instances using the same database.
 - Added a service test that exhausts the failed-login threshold and verifies the next attempt is blocked. The newest commit still requires a fresh Node 24 CI run; PostgreSQL concurrency behavior still needs live integration coverage.
+
+
+## Persistent brute-force protection (2026-11-07)
+
+- Added schema migration 004 to SQLite and PostgreSQL for hashed `auth_rate_limits` buckets.
+- Per-route/IP and per-identity login, registration, resend-verification and reset-request limits now use atomic database operations. Raw usernames, emails and IP addresses are not stored in the rate-limit table; only SHA-256 key digests are persisted.
+- Expired buckets are removed by the existing six-hour cleanup task.
+- The database tests cover window limits, lockout response and window reset. The new migration and test changes require a fresh Node 24 CI run before being considered verified.
