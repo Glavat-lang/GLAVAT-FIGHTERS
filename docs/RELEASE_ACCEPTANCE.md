@@ -207,4 +207,4 @@ Do not merge the draft PR, apply the staged Railway patch, or label a build as f
 
 - SQLite backup and restore now require schema version 4 and verify the player/statistics/history tables plus accounts, sessions, email tokens and persistent rate-limit buckets.
 - Backup/restore integration tests now build the complete version-4 schema and exercise the full restore path.
-- Node 24 workflow run `42321682871` (run #531) passed after these stricter backup/restore changes. The updated version-4 backup and restore validators are now covered by CI; production backup/restore drill and off-volume retention remain outstanding.
+- Node 24 workflow run `42321807821` (run #539) passed after the full-schema backup/restore changes and forwarded-IP rate limiting. The updated version-4 backup and restore validators are covered by CI; production backup/restore drill and off-volume retention remain outstanding.
