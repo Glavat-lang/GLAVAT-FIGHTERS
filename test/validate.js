@@ -8,7 +8,7 @@ execFileSync(process.execPath,['--check','auth-security.js'],{stdio:'inherit'});
 execFileSync(process.execPath,['--check','email-provider.js'],{stdio:'inherit'});
 execFileSync(process.execPath,['--check','auth-service.js'],{stdio:'inherit'});
 execFileSync(process.execPath,['--check','test/auth-security.test.js'],{stdio:'inherit'});
-for(const file of ['scripts/sqlite-maintenance.js','scripts/restore-sqlite.js','test/backup.test.js','test/accounts-database.test.js','test/email-provider.test.js','test/auth-service.test.js','test/auth-http.test.js'])execFileSync(process.execPath,['--check',file],{stdio:'inherit'});
+for(const file of ['scripts/sqlite-maintenance.js','scripts/restore-sqlite.js','test/backup.test.js','test/accounts-database.test.js','test/email-provider.test.js','test/auth-service.test.js','test/auth-http.test.js','test/online.test.js'])execFileSync(process.execPath,['--check',file],{stdio:'inherit'});
 const backupTool=fs.readFileSync('scripts/sqlite-maintenance.js','utf8');
 const restoreTool=fs.readFileSync('scripts/restore-sqlite.js','utf8');
 assert(backupTool.includes('VACUUM INTO')&&backupTool.includes('PRAGMA integrity_check'),'SQLite backup must create a consistent snapshot and verify its integrity');
@@ -87,7 +87,8 @@ assert(server.includes('accountSecurityReady:authSecurityReady()')&&server.inclu
 assert(server.includes("if(msg.type==='join'){if(ws.room)return send(ws,{type:'join-error'") ,'server must reject duplicate room-join commands on the same socket');
 assert(server.includes("msg.type==='attack' && room.status==='playing' && other){\n    if(msg.nonce!==ws.commandNonce)return;\n    if(!Number.isSafeInteger(msg.seq)")&&server.includes("msg.type==='rematch'&&room.status==='round-over'){\n    if(msg.nonce!==ws.commandNonce)return;\n    if(!Number.isSafeInteger(msg.seq)"),'all state-changing online commands must be sequenced and nonce-bound');
 assert(server.includes('ws.commandNonce=crypto.randomBytes(16).toString(\'hex\')')&&server.includes('msg.nonce!==ws.commandNonce')&&html.includes('nonce:commandNonce'),'online state commands must be bound to a fresh per-connection nonce');
-assert(test.includes('previous WebSocket session'),'reconnect tests must reject stale command nonces');
+const onlineTest=fs.readFileSync('test/online.test.js','utf8');
+assert(onlineTest.includes('previous WebSocket session'),'reconnect tests must reject stale command nonces');
 assert(html.includes("type:'attack',seq:++inputSeq")&&html.includes("type:'rematch',seq:++inputSeq"),'online client must sequence attack and rematch commands');
 assert(server.includes("msg.type==='ping'")&&html.includes("type:'ping'")&&html.includes("type==='pong'"),'online clients and server must measure round-trip latency');
 assert(server.includes("function attackIntersects(a,v,kind,range)"),'server combat must resolve attack hitboxes against hurtboxes');
