@@ -57,7 +57,7 @@ function playerCookieHeaders(id){const base='gf_player='+id+'; Path=/; HttpOnly;
 function authOriginAllowed(req){try{return !!PLAYER_COOKIE_SECRET&&PLAYER_COOKIE_SECRET.length>=32&&new URL(process.env.APP_ORIGIN).protocol==='https:'&&req.headers.origin===new URL(process.env.APP_ORIGIN).origin;}catch{return false;}}
 function authCookieToken(req){return parseCookies(req.headers.cookie||'').gf_session||null;}
 function setAuthCookies(res,account,token){res.setHeader('Set-Cookie',[...playerCookieHeaders(account.player_id),sessionCookie(token,30*24*60*60)]);}
-function authError(res,error){if(error.code==='RATE_LIMITED'){res.setHeader('Retry-After',String(Math.max(1,Math.ceil(error.retryAfterMs/1000))));return json(res,429,{error:'Слишком много попыток. Попробуйте позже.'});}if(error.code==='INVALID_CREDENTIALS')return json(res,401,{error:'Неверный логин или пароль.'});if(error.code==='EMAIL_NOT_VERIFIED')return json(res,403,{error:'Сначала подтвердите email.'});if(/UNIQUE constraint|duplicate key/i.test(error.message||''))return json(res,409,{error:'Имя пользователя или email уже заняты.'});console.error('account operation failed',error.message);return json(res,503,{error:'Операция временно недоступна.'});}
+function authError(res,error){if(error.code==='RATE_LIMITED'){res.setHeader('Retry-After',String(Math.max(1,Math.ceil(error.retryAfterMs/1000))));return json(res,429,{error:'Слишком много попыток. Попробуйте позже.'});}if(error.code==='INVALID_CREDENTIALS')return json(res,401,{error:'Неверный логин или пароль.'});if(error.code==='EMAIL_NOT_VERIFIED')return json(res,403,{error:'Сначала подтвердите email.'});if(/Password|Username|email address|Invalid email token purpose|Invalid token/i.test(error.message||''))return json(res,400,{error:error.message});if(/UNIQUE constraint|duplicate key/i.test(error.message||''))return json(res,409,{error:'Имя пользователя или email уже заняты.'});console.error('account operation failed',error.message);return json(res,503,{error:'Операция временно недоступна.'});}
 function json(res,status,data){res.writeHead(status,{'Content-Type':'application/json; charset=utf-8','Cache-Control':'no-store'});res.end(JSON.stringify(data));}
 const PORT = Number(process.env.PORT) || 3000;
 const PUBLIC = path.join(__dirname, 'public');
@@ -91,7 +91,8 @@ const server = http.createServer(async (req, res) => {
   if(pathname.startsWith('/api/auth/')){
     if(req.method==='GET'&&pathname==='/api/auth/me'){
       const token=authCookieToken(req);if(!token)return json(res,401,{error:'Не выполнен вход.'});
-      return authService.authenticate(token).then(account=>account?json(res,200,{account:{username:account.username,email:account.email,player_id:account.player_id}}):json(res,401,{error:'Сессия истекла.'}));
+      if(!await dbReady)return json(res,503,{error:'Хранилище аккаунтов недоступно.'});
+      try{const account=await authService.authenticate(token);return account?json(res,200,{account:{username:account.username,email:account.email,player_id:account.player_id}}):json(res,401,{error:'Сессия истекла.'});}catch(error){return authError(res,error);}
     }
     if(req.method==='POST'){
       if(!authOriginAllowed(req))return json(res,403,{error:'Проверка источника запроса не пройдена.'});
@@ -111,7 +112,7 @@ const server = http.createServer(async (req, res) => {
         }).catch(error=>authError(res,error));
       }
       if(pathname==='/api/auth/logout'){
-        const token=authCookieToken(req);if(token)await authService.logout(token);
+        const token=authCookieToken(req);try{if(token)await authService.logout(token);}catch(error){return authError(res,error);}
         res.setHeader('Set-Cookie','gf_session=; Path=/; HttpOnly; Secure; SameSite=Lax; Max-Age=0');
         return json(res,200,{ok:true});
       }
