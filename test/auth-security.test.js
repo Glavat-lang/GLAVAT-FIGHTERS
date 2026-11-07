@@ -22,7 +22,13 @@ test('password policy rejects short, oversized and low-complexity values', () =>
   assert.doesNotThrow(() => validatePassword('LongEnough2026!'));
 });
 
-test('password verification rejects oversized input before scrypt', async () => {\n  const encoded = await hashPassword('GlavatSecure2026!');\n  assert.equal(await verifyPassword('A1'.repeat(65), encoded), false);\n  assert.equal(await verifyPassword('GlavatSecure2026!', encoded), true);\n});\n\ntest('opaque tokens have high entropy and only their digest is stored', () => {
+test('password verification rejects oversized input before scrypt', async () => {
+  const encoded = await hashPassword('GlavatSecure2026!');
+  assert.equal(await verifyPassword('A1'.repeat(65), encoded), false);
+  assert.equal(await verifyPassword('GlavatSecure2026!', encoded), true);
+});
+
+test('opaque tokens have high entropy and only their digest is stored', () => {
   const token = createOpaqueToken();
   assert.ok(token.length >= 40);
   assert.equal(hashToken(token).length, 64);
