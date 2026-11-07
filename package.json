@@ -6,7 +6,7 @@
   "main": "server.js",
   "scripts": {
     "start": "node server.js",
-    "test": "node test/database.test.js && node test/backup.test.js && node --test test/auth-security.test.js test/email-provider.test.js test/animation-assets.test.js test/arena-assets.test.js && node test/accounts-database.test.js && node --test test/auth-service.test.js && node test/auth-http.test.js && node test/online.test.js",
+    "test": "node --test test/combat-input-buffer.test.js && node test/database.test.js && node test/backup.test.js && node --test test/auth-security.test.js test/email-provider.test.js test/animation-assets.test.js test/arena-assets.test.js && node test/accounts-database.test.js && node --test test/auth-service.test.js && node test/auth-http.test.js && node test/online.test.js",
     "validate": "node test/validate.js",
     "audit:animations": "node scripts/audit-animation-assets.js",
     "audit:arenas": "node scripts/audit-arena-assets.js",
