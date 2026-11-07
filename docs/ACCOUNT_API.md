@@ -1,6 +1,6 @@
 # GLAVAT FIGHTERS account API
 
-All mutation requests require JSON and an exact HTTPS `Origin` matching `APP_ORIGIN`. The browser client uses same-origin fetches. Account routes are disabled unless `PLAYER_COOKIE_SECRET` is at least 32 characters and `APP_ORIGIN` is a valid HTTPS origin.
+All mutation requests require JSON and an exact HTTPS `Origin` matching `APP_ORIGIN`. The browser client uses same-origin fetches. The `/health` response reports `accountSecurityReady`, `mailReady` and combined `accountsReady` separately from core game storage health. Account routes are disabled unless `PLAYER_COOKIE_SECRET` is at least 32 characters and `APP_ORIGIN` is a valid HTTPS origin.
 
 ## Required production variables
 
