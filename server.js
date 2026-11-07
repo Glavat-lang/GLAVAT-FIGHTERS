@@ -302,6 +302,7 @@ function handle(ws,msg){
     return;
   }
   if(msg.type==='attack' && room.status==='playing' && other){
+    if(!Number.isSafeInteger(msg.seq)||msg.seq<=ws.lastInputSeq)return;ws.lastInputSeq=msg.seq;slot.state.lastInputSeq=msg.seq;
     const kind=msg.attack&&msg.attack.kind;
     if(!['punch','kick','special','heavyPunch','heavyKick','grab','airPunch','airKick','counter'].includes(kind)) return;
     const nowAt=now(),a=slot.state,v=other.state;
@@ -339,6 +340,7 @@ function handle(ws,msg){
     return;
   }
   if(msg.type==='rematch'&&room.status==='round-over'){
+    if(!Number.isSafeInteger(msg.seq)||msg.seq<=ws.lastInputSeq)return;ws.lastInputSeq=msg.seq;slot.state.lastInputSeq=msg.seq;
     room.rematchVotes.add(idx);
     if(room.rematchVotes.size===2){
       room.rematchVotes.clear();
