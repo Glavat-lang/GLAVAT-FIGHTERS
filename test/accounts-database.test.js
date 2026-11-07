@@ -1,0 +1,43 @@
+'use strict';
+const assert=require('node:assert/strict');
+const fs=require('node:fs');
+const os=require('node:os');
+const path=require('node:path');
+const crypto=require('node:crypto');
+const db=require('../database');
+const {hashPassword,verifyPassword,hashToken,createOpaqueToken}=require('../auth-security');
+const root=fs.mkdtempSync(path.join(os.tmpdir(),'gf-accounts-'));
+const stats=path.join(root,'stats.json'),sqlite=path.join(root,'accounts.sqlite');
+process.env.DATABASE_MODE='sqlite';process.env.SQLITE_FILE=sqlite;delete process.env.DATABASE_URL;
+(async()=>{
+ try{
+  await db.init(stats);
+  const playerId=crypto.randomUUID(),accountId=crypto.randomUUID();
+  await db.ensurePlayer(playerId);
+  const passwordHash=await hashPassword('GlavatAccount2026!');
+  const account=await db.createAccount({accountId,playerId,username:'ArcadeUser',email:'arcade@example.test',passwordHash});
+  assert.equal(account.username,'ArcadeUser');
+  assert.equal((await db.getAccountByLogin('ARCADEUSER')).account_id,accountId);
+  assert.equal((await db.getAccountByLogin('ARCADE@example.test')).account_id,accountId);
+  assert.equal(await verifyPassword('GlavatAccount2026!',(await db.getAccountByLogin('arcadeuser')).password_hash),true);
+  await assert.rejects(db.createAccount({accountId:crypto.randomUUID(),playerId:crypto.randomUUID(),username:'arcadeuser',email:'other@example.test',passwordHash}),/UNIQUE/);
+  const token=createOpaqueToken(),tokenHash=hashToken(token),sessionId=crypto.randomUUID();
+  await db.createAccountSession({sessionId,accountId,tokenHash,expiresAt:new Date(Date.now()+3600000).toISOString(),userAgent:'test'});
+  assert.equal((await db.getAccountBySession(tokenHash)).account_id,accountId);
+  assert.equal(await db.revokeAccountSession(tokenHash),true);
+  assert.equal(await db.getAccountBySession(tokenHash),null);
+  const verifyToken=createOpaqueToken(),verifyHash=hashToken(verifyToken);
+  await db.createAccountEmailToken({tokenId:crypto.randomUUID(),accountId,purpose:'verify_email',tokenHash:verifyHash,expiresAt:new Date(Date.now()+3600000).toISOString()});
+  assert.equal(await db.consumeAccountEmailToken({tokenHash:verifyHash,purpose:'verify_email'}),true);
+  assert.equal(await db.consumeAccountEmailToken({tokenHash:verifyHash,purpose:'verify_email'}),false);
+  const resetToken=createOpaqueToken(),resetHash=hashToken(resetToken),newHash=await hashPassword('NewGlavatPass2026!');
+  const session2=createOpaqueToken(),session2Hash=hashToken(session2);
+  await db.createAccountSession({sessionId:crypto.randomUUID(),accountId,tokenHash:session2Hash,expiresAt:new Date(Date.now()+3600000).toISOString()});
+  await db.createAccountEmailToken({tokenId:crypto.randomUUID(),accountId,purpose:'password_reset',tokenHash:resetHash,expiresAt:new Date(Date.now()+3600000).toISOString()});
+  assert.equal(await db.consumeAccountEmailToken({tokenHash:resetHash,purpose:'password_reset',passwordHash:newHash}),true);
+  assert.equal(await db.getAccountBySession(session2Hash),null,'password reset must revoke all existing sessions');
+  assert.equal(await verifyPassword('NewGlavatPass2026!',(await db.getAccountByLogin('arcadeuser')).password_hash),true);
+  assert.equal(await db.consumeAccountEmailToken({tokenHash:resetHash,purpose:'password_reset',passwordHash:newHash}),false);
+  process.stdout.write('SQLite account creation, unique identities, login lookup, sessions, revocation, one-time email tokens and password reset passed.\\n');
+ }finally{try{await db.close()}catch{};fs.rmSync(root,{recursive:true,force:true});}
+})().catch(error=>{console.error(error);process.exitCode=1});
