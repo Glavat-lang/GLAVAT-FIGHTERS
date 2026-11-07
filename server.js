@@ -101,7 +101,7 @@ const server = http.createServer(async (req, res) => {
       if(!authSecurityReady())return json(res,503,{error:'Система аккаунтов ещё не настроена.'});
       if(!authOriginAllowed(req))return json(res,403,{error:'Проверка источника запроса не пройдена.'});
       if(!await dbReady)return json(res,503,{error:'Хранилище аккаунтов недоступно.'});
-      let attempt;try{const keyHash=crypto.createHash('sha256').update(requestClientIp(req)+':'+pathname).digest('hex');attempt=await database.consumeRateLimit(keyHash,20,15*60*1000);}catch(error){return authError(res,error);}
+      let attempt;try{const keyHash=crypto.createHmac('sha256',PLAYER_COOKIE_SECRET).update(requestClientIp(req)+':'+pathname).digest('hex');attempt=await database.consumeRateLimit(keyHash,20,15*60*1000);}catch(error){return authError(res,error);}
       if(!attempt.allowed){res.setHeader('Retry-After',String(Math.max(1,Math.ceil(attempt.retryAfterMs/1000))));return json(res,429,{error:'Слишком много запросов. Попробуйте позже.'});}
       if(pathname==='/api/auth/register'){
         if(!trustedPlayerId(req.headers.cookie||'',playerId))return json(res,409,{error:'Гостевой профиль ещё не защищён подписью. Старый профиль сохранён, но его нельзя безопасно привязать к аккаунту.'});
