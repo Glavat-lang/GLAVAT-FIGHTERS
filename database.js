@@ -300,7 +300,13 @@ async function consumeAccountEmailToken({tokenHash,purpose,passwordHash=null,now
   return false;
 }
 
+async function pruneAuthArtifacts(now=new Date()){
+  const current=now.toISOString(),cutoff=new Date(now.getTime()-30*24*60*60*1000).toISOString();
+  if(sqlite){const sessions=sqlite.prepare('DELETE FROM account_sessions WHERE expires_at<=? OR revoked_at<=?').run(current,cutoff).changes;const emailTokens=sqlite.prepare('DELETE FROM account_email_tokens WHERE expires_at<=? OR consumed_at<=?').run(current,cutoff).changes;return {sessions,emailTokens};}
+  if(pool){const client=await pool.connect();try{await client.query('BEGIN');const sessions=await client.query('DELETE FROM account_sessions WHERE expires_at<=$1 OR revoked_at<=$2',[now,cutoff]);const emailTokens=await client.query('DELETE FROM account_email_tokens WHERE expires_at<=$1 OR consumed_at<=$2',[now,cutoff]);await client.query('COMMIT');return {sessions:sessions.rowCount,emailTokens:emailTokens.rowCount};}catch(error){await client.query('ROLLBACK');throw error;}finally{client.release();}}
+  return {sessions:0,emailTokens:0};
+}
 function isPostgres() { return !!pool; }
 function isSqlite() { return !!sqlite; }
 function close() { if(sqlite){sqlite.close();sqlite=null;} if(pool){return pool.end().then(()=>{pool=null;});} }
-module.exports = {init,persistStats,recordMatch,ensurePlayer,getHistory,getSettings,saveSettings,getDisplayName,saveDisplayName,healthCheck,isPostgres,isSqlite,createAccount,getAccountByLogin,createAccountSession,getAccountBySession,revokeAccountSession,createAccountEmailToken,consumeAccountEmailToken,close,emptyStats};
+module.exports = {init,persistStats,recordMatch,ensurePlayer,getHistory,getSettings,saveSettings,getDisplayName,saveDisplayName,healthCheck,isPostgres,isSqlite,createAccount,getAccountByLogin,createAccountSession,getAccountBySession,revokeAccountSession,createAccountEmailToken,consumeAccountEmailToken,pruneAuthArtifacts,close,emptyStats};
