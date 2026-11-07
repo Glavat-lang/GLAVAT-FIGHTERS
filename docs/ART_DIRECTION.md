@@ -36,6 +36,8 @@ These images define the direction; they are not production-ready game assets and
 
 ## Layer and animation requirements
 
+The current sprite atlas still composes 17 poses from reusable body/arm/leg symbols and transforms; this is a prototype atlas, not the accepted frame-by-frame deliverable. GLAVAT/KILLA colors and the second fighter name have been aligned to the reference, but the actual character drawings still need a full redraw to match the silhouettes and clothing in the reference.
+
 Final backgrounds must be delivered as separable layers: sky, far skyline, midground buildings, rooftop architecture, fence, foreground props, lighting/reflection overlays. Each layer must have documented dimensions, origin and parallax factor. Animated elements (clouds, helicopter rotor/searchlight, neon flicker, window lights and water/reflections where applicable) must be independent from the static base layers.
 
 ## Fighter animation acceptance
