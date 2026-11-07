@@ -286,7 +286,7 @@ function join(ws,msg) {
 function handle(ws,msg){
   if(!msg||typeof msg!=='object') return;
   if(msg.type==='ping'){send(ws,{type:'pong',sentAt:msg.sentAt,serverTime:now()});return;}
-  if(msg.type==='join') return join(ws,msg);
+  if(msg.type==='join'){if(ws.room)return send(ws,{type:'join-error',message:'This socket has already joined a room.'});return join(ws,msg);}
   const room=ws.room;
   if(!room) return;
   const idx=ws.playerNo-1, slot=room.slots[idx], other=room.slots[1-idx];
