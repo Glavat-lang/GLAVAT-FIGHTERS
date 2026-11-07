@@ -6,11 +6,13 @@
   "main": "server.js",
   "scripts": {
     "start": "node server.js",
-    "test": "node test/database.test.js && node test/backup.test.js && node --test test/auth-security.test.js test/email-provider.test.js test/animation-assets.test.js && node test/accounts-database.test.js && node --test test/auth-service.test.js && node test/auth-http.test.js && node test/online.test.js",
+    "test": "node test/database.test.js && node test/backup.test.js && node --test test/auth-security.test.js test/email-provider.test.js test/animation-assets.test.js test/arena-assets.test.js && node test/accounts-database.test.js && node --test test/auth-service.test.js && node test/auth-http.test.js && node test/online.test.js",
     "validate": "node test/validate.js",
     "audit:animations": "node scripts/audit-animation-assets.js",
+    "audit:arenas": "node scripts/audit-arena-assets.js",
     "release:animations": "node scripts/audit-animation-assets.js --strict",
-    "release:verify": "npm run validate && npm test && npm run release:animations",
+    "release:arenas": "node scripts/audit-arena-assets.js --strict",
+    "release:verify": "npm run validate && npm test && node scripts/release-assets-gate.js",
     "backup:sqlite": "node scripts/sqlite-maintenance.js backup",
     "verify:sqlite-backup": "node scripts/sqlite-maintenance.js verify",
     "restore:sqlite": "node scripts/restore-sqlite.js"
