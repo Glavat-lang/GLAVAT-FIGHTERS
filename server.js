@@ -293,7 +293,7 @@ function handle(ws,msg){
   if(!slot||slot.ws!==ws) return;
   if(msg.type==='input' && room.status==='playing'){
     const v=msg.input||{},p=slot.state;
-    if(Number.isSafeInteger(msg.seq)){if(msg.seq<=ws.lastInputSeq)return;ws.lastInputSeq=msg.seq;p.lastInputSeq=msg.seq;}
+    if(!Number.isSafeInteger(msg.seq)||msg.seq<=ws.lastInputSeq)return;ws.lastInputSeq=msg.seq;p.lastInputSeq=msg.seq;
     p.input={left:!!v.left,right:!!v.right,jump:!!v.jump,dodge:!!v.dodge,run:!!v.run,crouch:!!v.crouch,block:!!v.block};if(v.face===-1||v.face===1)p.dir=v.face;
     if(p.stun<=0)p.block=p.input.block;
     if(p.input.jump&&!p.jumpLatch&&p.y===0&&p.stun<=0)p.vy=-9.5;
