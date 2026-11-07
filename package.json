@@ -6,7 +6,7 @@
   "main": "server.js",
   "scripts": {
     "start": "node server.js",
-    "test": "node test/database.test.js && node test/backup.test.js && node --test test/auth-security.test.js && node test/online.test.js",
+    "test": "node test/database.test.js && node test/backup.test.js && node --test test/auth-security.test.js && node test/accounts-database.test.js && node test/online.test.js",
     "validate": "node test/validate.js",
     "backup:sqlite": "node scripts/sqlite-maintenance.js backup",
     "verify:sqlite-backup": "node scripts/sqlite-maintenance.js verify",
