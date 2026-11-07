@@ -3,6 +3,7 @@ const http = require('http');
 const fs = require('fs');
 const path = require('path');
 const crypto = require('crypto');
+const net=require('node:net');
 const WebSocket = require('ws');
 const database=require('./database');
 const {parseCookies,sessionCookie}=require('./auth-security');
@@ -56,6 +57,7 @@ function trustedPlayerId(cookie='',id=''){if(!PLAYER_COOKIE_SECRET||PLAYER_COOKI
 function playerCookieHeaders(id){const base='gf_player='+id+'; Path=/; HttpOnly; Secure; SameSite=Lax; Max-Age=31536000';return PLAYER_COOKIE_SECRET?[base,'gf_player_sig='+playerSignature(id)+'; Path=/; HttpOnly; Secure; SameSite=Lax; Max-Age=31536000']:[base];}
 function authSecurityReady(){try{return PLAYER_COOKIE_SECRET.length>=32&&new URL(process.env.APP_ORIGIN).protocol==='https:';}catch{return false;}}
 function authOriginAllowed(req){try{return authSecurityReady()&&req.headers.origin===new URL(process.env.APP_ORIGIN).origin;}catch{return false;}}
+function requestClientIp(req){const forwarded=String(req.headers['x-forwarded-for']||'').split(',')[0].trim();if(net.isIP(forwarded))return forwarded;const real=String(req.headers['x-real-ip']||'').trim();if(net.isIP(real))return real;return req.socket.remoteAddress||'unknown';}
 function authCookieToken(req){return parseCookies(req.headers.cookie||'').gf_session||null;}
 function setAuthCookies(res,account,token){res.setHeader('Set-Cookie',[...playerCookieHeaders(account.player_id),sessionCookie(token,30*24*60*60)]);}
 function authError(res,error){if(error.code==='RATE_LIMITED'){res.setHeader('Retry-After',String(Math.max(1,Math.ceil(error.retryAfterMs/1000))));return json(res,429,{error:'Слишком много попыток. Попробуйте позже.'});}if(error.code==='INVALID_CREDENTIALS')return json(res,401,{error:'Неверный логин или пароль.'});if(error.code==='EMAIL_NOT_VERIFIED')return json(res,403,{error:'Сначала подтвердите email.'});if(/Password|Username|email address|Invalid email token purpose|Invalid token/i.test(error.message||''))return json(res,400,{error:error.message});if(/UNIQUE constraint|duplicate key/i.test(error.message||''))return json(res,409,{error:'Имя пользователя или email уже заняты.'});console.error('account operation failed',error.message);return json(res,503,{error:'Операция временно недоступна.'});}
@@ -99,7 +101,7 @@ const server = http.createServer(async (req, res) => {
       if(!authSecurityReady())return json(res,503,{error:'Система аккаунтов ещё не настроена.'});
       if(!authOriginAllowed(req))return json(res,403,{error:'Проверка источника запроса не пройдена.'});
       if(!await dbReady)return json(res,503,{error:'Хранилище аккаунтов недоступно.'});
-      let attempt;try{const keyHash=crypto.createHash('sha256').update(String(req.socket.remoteAddress||'unknown')+':'+pathname).digest('hex');attempt=await database.consumeRateLimit(keyHash,20,15*60*1000);}catch(error){return authError(res,error);}
+      let attempt;try{const keyHash=crypto.createHash('sha256').update(requestClientIp(req)+':'+pathname).digest('hex');attempt=await database.consumeRateLimit(keyHash,20,15*60*1000);}catch(error){return authError(res,error);}
       if(!attempt.allowed){res.setHeader('Retry-After',String(Math.max(1,Math.ceil(attempt.retryAfterMs/1000))));return json(res,429,{error:'Слишком много запросов. Попробуйте позже.'});}
       if(pathname==='/api/auth/register'){
         if(!trustedPlayerId(req.headers.cookie||'',playerId))return json(res,409,{error:'Гостевой профиль ещё не защищён подписью. Старый профиль сохранён, но его нельзя безопасно привязать к аккаунту.'});
