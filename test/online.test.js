@@ -31,9 +31,8 @@ function connect(code,cookie='',fighter=0) {
   return new Promise((resolve,reject)=>{
     const ws=new WebSocket('ws://127.0.0.1:'+port,cookie?{headers:{Cookie:cookie}}:{});
     clients.add(ws);
-    const messages=[];
-    ws.on('message',raw=>{try{messages.push(JSON.parse(raw.toString()))}catch{}});
-    ws.once('open',()=>{ws.send(JSON.stringify({type:'join',code,arena:'sunset',fighter}));resolve({ws,messages})});
+    const messages=[];\n    const originalSend=ws.send.bind(ws);let inputSequence=0;\n    ws.send=(raw,...args)=>{try{const packet=JSON.parse(raw.toString());if(packet.type==='input'){if(Number.isSafeInteger(packet.seq))inputSequence=Math.max(inputSequence,packet.seq);else packet.seq=++inputSequence;raw=JSON.stringify(packet);}}catch{}return originalSend(raw,...args);};\n    ws.on('message',raw=>{try{messages.push(JSON.parse(raw.toString()))}catch{}});
+    ws.once('open',()=>{ws.send(JSON.stringify({type:'join',code,arena:'sunset',fighter}));resolve({ws,messages,sendRaw:originalSend})});
     ws.once('error',reject);
   });
 }
@@ -95,7 +94,7 @@ function waitFor(client,predicate,timeout=5000,from=0) {
     assert.equal(initial.players[1].x,710,'round reset must spawn player two at 710');
     assert.equal(initial.players[0].vy,0,'grounded player one must not accumulate gravity before jumping');
     assert.equal(initial.players[1].vy,0,'grounded player two must not accumulate gravity before jumping');
-    attacker.ws.send(JSON.stringify({type:'input',seq:10,input:{right:true,run:true,face:1}}));
+    attacker.sendRaw(JSON.stringify({type:'input',input:{right:true,run:true,face:1}}));\n    await sleep(75);\n    movement=attacker.messages.filter(m=>m.type==='snapshot'&&m.players?.every(Boolean)).at(-1)?.players[0];\n    assert.equal(movement.inputAck,0,'server must reject unsequenced online input commands');\n    assert.equal(movement.vx,0,'unsequenced input must not affect authoritative movement');\n    attacker.ws.send(JSON.stringify({type:'input',seq:10,input:{right:true,run:true,face:1}}));
     await sleep(75);
     let movement=attacker.messages.filter(m=>m.type==='snapshot'&&m.players?.every(Boolean)).at(-1)?.players[0];
     assert.ok(movement.vx>0,'authoritative snapshots must expose forward velocity');
