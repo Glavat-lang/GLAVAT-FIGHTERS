@@ -96,8 +96,10 @@ const server = http.createServer(async (req, res) => {
     }
     if(req.method==='POST'){
       if(!authOriginAllowed(req))return json(res,403,{error:'Проверка источника запроса не пройдена.'});
+      const attempt=authRequestLimiter.consume(String(req.socket.remoteAddress||'unknown')+':'+pathname);if(!attempt.allowed){res.setHeader('Retry-After',String(Math.max(1,Math.ceil(attempt.retryAfterMs/1000))));return json(res,429,{error:'Слишком много запросов. Попробуйте позже.'});}
       if(!await dbReady)return json(res,503,{error:'Хранилище аккаунтов недоступно.'});
       if(pathname==='/api/auth/register'){
+        if(!trustedPlayerId(req.headers.cookie||'',playerId))return json(res,409,{error:'Гостевой профиль ещё не защищён подписью. Старый профиль сохранён, но его нельзя безопасно привязать к аккаунту.'});
         if(!isMailReady())return json(res,503,{error:'Регистрация временно недоступна: почтовый сервис не настроен.'});
         return readJsonBody(req,16384).then(async body=>{
           const result=await authService.register({playerId,username:body.username,email:body.email,password:body.password});
