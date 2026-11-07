@@ -52,7 +52,9 @@ async function freePort(){const server=net.createServer();await new Promise(reso
   const cookieHeader=[sessionCookie,playerCookie,signatureCookie].map(value=>value.split(';')[0]).join('; ');
   const me=await fetch(base+'/api/auth/me',{headers:{Cookie:cookieHeader}});
   assert.equal(me.status,200);
-  assert.equal((await me.json()).account.username,'HttpPlayer');
+  const meData=await me.json();assert.equal(meData.account.username,'HttpPlayer');
+  const forgedPlayer=crypto.randomUUID(),recovered=await fetch(base+'/api/auth/me',{headers:{Cookie:sessionCookie.split(';')[0]+'; gf_player='+forgedPlayer+'; gf_player_sig='+'0'.repeat(64)}});assert.equal(recovered.status,200);const recoveredCookies=recovered.headers.getSetCookie?recovered.headers.getSetCookie():[recovered.headers.get('set-cookie')||''];assert.equal(recoveredCookies.find(value=>value.startsWith('gf_player='))?.split(';')[0],'gf_player='+meData.account.player_id,'authenticated session must restore the correct signed player identity');
+
   const registration=await fetch(base+'/api/auth/register',{method:'POST',headers:{Origin:APP_ORIGIN,'Content-Type':'application/json',Cookie:cookieHeader},body:JSON.stringify({username:'NewPlayer',email:'new@example.test',password:'NewHttpPass2026!'})});
   assert.equal(registration.status,503,'registration must fail closed when no transactional email provider is configured');
   const logout=await fetch(base+'/api/auth/logout',{method:'POST',headers:{Origin:APP_ORIGIN,Cookie:cookieHeader}});
