@@ -4,7 +4,7 @@
 
 ## Запуск
 
-Требуется Node.js 18+.
+Требуется Node.js 24+.
 
 ```bash
 npm install
