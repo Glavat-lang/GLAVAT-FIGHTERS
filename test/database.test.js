@@ -37,6 +37,23 @@ const database=require('../database');
   assert.deepEqual(versions,[1,2],'SQLite schema migrations must be versioned');
   raw.close();
   await database.close();
+  const oldPath=path.join(root,'old-schema.sqlite');
+  const oldDb=new Database(oldPath);
+  oldDb.exec(`CREATE TABLE schema_migrations(version INTEGER PRIMARY KEY,applied_at TEXT DEFAULT CURRENT_TIMESTAMP);
+    INSERT INTO schema_migrations(version) VALUES(1);
+    CREATE TABLE players(player_id TEXT PRIMARY KEY,display_name TEXT,created_at TEXT DEFAULT CURRENT_TIMESTAMP,last_seen_at TEXT DEFAULT CURRENT_TIMESTAMP);
+    CREATE TABLE player_stats(player_id TEXT PRIMARY KEY REFERENCES players(player_id),matches INTEGER DEFAULT 0,wins INTEGER DEFAULT 0,losses INTEGER DEFAULT 0,draws INTEGER DEFAULT 0,knockouts INTEGER DEFAULT 0,win_streak INTEGER DEFAULT 0,best_streak INTEGER DEFAULT 0,favorite_fighter INTEGER DEFAULT 0,fighter_0_count INTEGER DEFAULT 0,fighter_1_count INTEGER DEFAULT 0,updated_at TEXT DEFAULT CURRENT_TIMESTAMP);
+    INSERT INTO players(player_id) VALUES('\u0024{first}');
+    INSERT INTO player_stats(player_id,matches,wins) VALUES('\u0024{first}',4,3);`);
+  oldDb.close();
+  process.env.SQLITE_FILE=oldPath;
+  const migrated=await database.init(legacyPath);
+  assert.equal(migrated[first].rating,1000,'migration 002 must add a default Elo rating to existing SQLite volumes');
+  const upgraded=new Database(oldPath,{readonly:true});
+  assert.ok(upgraded.pragma('table_info(player_stats)').some(column=>column.name==='rating'),'existing SQLite schema must gain the rating column');
+  assert.deepEqual(upgraded.prepare('SELECT version FROM schema_migrations ORDER BY version').all().map(x=>x.version),[1,2],'existing volume must advance to migration version 2');
+  upgraded.close();
+  await database.close();
   process.stdout.write('SQLite persistence, legacy import, match history, settings, Elo rating and migrations passed.\\n');
  }finally{
   try{await database.close()}catch{}
