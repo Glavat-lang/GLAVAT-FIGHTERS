@@ -44,7 +44,8 @@ function createAuthService({database,sendEmail,env=process.env,clock=Date.now,li
   if(!attempt.allowed){const error=new Error('Too many attempts');error.code='RATE_LIMITED';error.retryAfterMs=attempt.retryAfterMs;throw error;}
   const account=await database.getAccountByLogin(identifier);
   const passwordHash=account?account.password_hash:await dummyPasswordHash;
-  if(!account||!await verifyPassword(password,passwordHash)){const error=new Error('Invalid credentials');error.code='INVALID_CREDENTIALS';throw error;}
+  const passwordMatches=await verifyPassword(typeof password==='string'?password:'',passwordHash);
+  if(!account||!passwordMatches){const error=new Error('Invalid credentials');error.code='INVALID_CREDENTIALS';throw error;}
   if(!account.email_verified_at){const error=new Error('Email verification required');error.code='EMAIL_NOT_VERIFIED';throw error;}
   const token=createOpaqueToken(),tokenHash=hashToken(token),id=sessionId||crypto.randomUUID();
   const expiresAt=new Date(clock()+30*24*60*60*1000).toISOString();
