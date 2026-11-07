@@ -69,10 +69,16 @@ async function init(statsFile) {
     connectionTimeoutMillis: 10000
   });
   await pool.query('SELECT 1');
-  const postgresMigrationOne=fs.readFileSync(path.join(__dirname,'migrations/001_initial_schema.sql'),'utf8');
-  await pool.query(postgresMigrationOne);
-  const postgresMigrationTwo=fs.readFileSync(path.join(__dirname,'migrations/002_player_rating.sql'),'utf8');
-  await pool.query(postgresMigrationTwo);
+  const migrationClient=await pool.connect();
+  try{
+    await migrationClient.query('BEGIN');
+    const postgresMigrationOne=fs.readFileSync(path.join(__dirname,'migrations/001_initial_schema.sql'),'utf8');
+    await migrationClient.query(postgresMigrationOne);
+    const postgresMigrationTwo=fs.readFileSync(path.join(__dirname,'migrations/002_player_rating.sql'),'utf8');
+    await migrationClient.query(postgresMigrationTwo);
+    await migrationClient.query('COMMIT');
+  }catch(error){await migrationClient.query('ROLLBACK');throw error;}
+  finally{migrationClient.release();}
 
   const count = await pool.query('SELECT COUNT(*)::int AS count FROM player_stats');
   if (count.rows[0].count === 0) {
