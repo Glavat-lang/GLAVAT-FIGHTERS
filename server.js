@@ -79,7 +79,7 @@ const server = http.createServer((req, res) => {
   if(pathname==='/api/profile'&&req.method==='GET')return profile(playerId,res);
   if(pathname==='/api/profile'&&req.method==='PUT')return readJsonBody(req).then(async body=>{
     const displayName=typeof body.displayName==='string'?body.displayName.trim():'';
-    if(displayName.length<2||displayName.length>20||!/^[\\p{L}\\p{N} _-]+$/u.test(displayName))return json(res,400,{error:'Имя: 2–20 символов, буквы, цифры, пробел, дефис или подчёркивание.'});
+    if(displayName.length<2||displayName.length>20||!/^[\p{L}\p{N} _-]+$/u.test(displayName))return json(res,400,{error:'Имя: 2–20 символов, буквы, цифры, пробел, дефис или подчёркивание.'});
     if(!await dbReady)return json(res,503,{error:'Profile database unavailable'});
     const saved=await database.saveDisplayName(playerId,displayName);
     if(!saved)return json(res,503,{error:'Persistent profiles require SQLite or PostgreSQL mode'});
