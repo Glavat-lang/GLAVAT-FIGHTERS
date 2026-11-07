@@ -6,11 +6,12 @@
   "main": "server.js",
   "scripts": {
     "start": "node server.js",
-    "test": "node test/online.test.js",
+    "test": "node test/database.test.js && node test/online.test.js",
     "validate": "node test/validate.js"
   },
   "dependencies": {
     "ws": "^8.18.0",
-    "pg": "^8.16.3"
+    "pg": "^8.16.3",
+    "better-sqlite3": "^12.2.0"
   }
 }
