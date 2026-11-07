@@ -83,7 +83,7 @@ Do not merge the draft PR, apply the staged Railway patch, or label a build as f
 - Added an expandable account panel to the existing game menu with registration, login, logout, email verification, resend verification, password reset request and password reset controls.
 - Email links containing `?verify=` or `?reset=` prefill the one-time token and open the account panel.
 - The account panel calls the same-origin account API and displays server responses without exposing session tokens to JavaScript.
-- The new UI and HTTP integration tests passed in Node 24 GitHub Actions run `42319966268`. Real provider delivery and physical browser testing remain outstanding.
+- The new UI and HTTP integration tests passed in Node 24 GitHub Actions run `42321807821` (run #539). Real provider delivery and physical browser testing remain outstanding.
 
 
 ## Guest identity integrity fix (2026-11-07)
@@ -190,9 +190,9 @@ Do not merge the draft PR, apply the staged Railway patch, or label a build as f
 
 ## Guest identity integrity fix (2026-11-07)
 
-- Corrected signed guest identity validation: when PLAYER_COOKIE_SECRET is configured, a missing, malformed or incorrect HMAC signature is now rejected and replaced with a newly issued guest identity. Previously, malformed signatures could fall back to trusting the supplied player UUID.
-- Added an HTTP integration assertion that a forged guest identity cookie is replaced.
-- This change is committed on production-completion-audit; the latest commit's CI result has not yet been verified. This is a security correction, not release acceptance.
+- Corrected signed guest identity validation: when `PLAYER_COOKIE_SECRET` is configured, malformed or incorrect HMAC signatures are rejected and replaced with a newly issued guest identity. Legacy cookies with no signature remain usable for gameplay but cannot be attached to an account.
+- HTTP integration tests confirm forged signed IDs are replaced and legacy unsigned IDs cannot be claimed by registration.
+- This security correction passed in Node 24 workflow run `42321807821` (run #539). Safe legacy-profile linking remains a release blocker.
 
 
 ## Persistent authentication throttling (2026-11-07)
@@ -200,7 +200,7 @@ Do not merge the draft PR, apply the staged Railway patch, or label a build as f
 - Added migration 004 for SQLite and PostgreSQL with hashed rate-limit keys and expiring fixed-window counters.
 - Database adapters increment counters atomically; SQLite uses an immediate transaction and PostgreSQL uses an atomic upsert. Raw IP/identifier values are not stored in the rate-limit table.
 - Account registration, login, resend-verification and password-reset identity throttles now use database-backed counters when persistent storage is configured. HTTP route throttles are also database-backed, so limits survive process restarts and are shared by instances using the same database.
-- Added tests for failed-login lockout, fixed-window reset, bucket expiry and cleanup. Node 24 workflow run `42321451226` (run #516) passed the migration, persistent rate-limit and full test suites. PostgreSQL concurrency behavior still needs live integration coverage.
+- Added tests for failed-login lockout, fixed-window reset, bucket expiry and cleanup. Node 24 workflow run `42321807821` (run #539) passed the migration, persistent rate-limit and full test suites. Rate-limit keys are HMAC-SHA-256 digests using `PLAYER_COOKIE_SECRET`; PostgreSQL concurrency behavior still needs live integration coverage.
 
 
 ## Version-4 backup/restore acceptance update (2026-11-07)
