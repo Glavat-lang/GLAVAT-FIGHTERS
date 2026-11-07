@@ -14,7 +14,7 @@ const emptyStats=database.emptyStats;
 async function profile(id,res){
   if(!await dbReady)return json(res,503,{error:'Statistics database unavailable'});
   try{await database.ensurePlayer(id);const x=statsData[id]||emptyStats();
-    json(res,200,{...x,winRate:x.matches?Math.round(x.wins/x.matches*100):0});
+    json(res,200,{...x,display_name:await database.getDisplayName(id),winRate:x.matches?Math.round(x.wins/x.matches*100):0});
   }catch(error){console.error('profile lookup failed',error.message);json(res,503,{error:'Profile temporarily unavailable'});}
 }
 async function matchHistory(id,res){
@@ -38,8 +38,9 @@ function readJsonBody(req,limit=8192){
 }
 async function leaderboard(res){
   if(!await dbReady)return json(res,503,{error:'Statistics database unavailable'});
-  const players=Object.entries(statsData).map(([id,x])=>({player_id:id.slice(0,8),...x,win_rate:x.matches?Math.round(x.wins/x.matches*100):0}))
-    .filter(x=>x.matches>0).sort((a,b)=>(b.rating||1000)-(a.rating||1000)||b.wins-a.wins||b.best_streak-a.best_streak||b.matches-a.matches).slice(0,50);
+  const entries=Object.entries(statsData).filter(([,x])=>x.matches>0)
+    .sort((a,b)=>(b[1].rating||1000)-(a[1].rating||1000)||b[1].wins-a[1].wins||b[1].best_streak-a[1].best_streak||b[1].matches-a[1].matches).slice(0,50);
+  const players=await Promise.all(entries.map(async([id,x])=>({player_id:id.slice(0,8),display_name:await database.getDisplayName(id),...x,win_rate:x.matches?Math.round(x.wins/x.matches*100):0})));
   json(res,200,{players});
 }
 
@@ -70,12 +71,20 @@ function attackIntersects(a,v,kind,range){
 const server = http.createServer((req, res) => {
   let playerId=readPlayerId(req.headers.cookie||'');
   if(!playerId){playerId=crypto.randomUUID();res.setHeader('Set-Cookie',`gf_player=${playerId}; Path=/; HttpOnly; SameSite=Lax; Secure; Max-Age=31536000`);}
-  if (req.method !== 'GET' && req.method !== 'HEAD' && !(req.method==='PUT'&&req.url?.split('?')[0]==='/api/settings')) { res.writeHead(405); return res.end(); }
+  if (req.method !== 'GET' && req.method !== 'HEAD' && !(req.method==='PUT'&&['/api/settings','/api/profile'].includes(req.url?.split('?')[0]))) { res.writeHead(405); return res.end(); }
   let pathname;
   try { pathname = decodeURIComponent((req.url || '/').split('?')[0]); }
   catch { res.writeHead(400); return res.end('Bad request'); }
   if(pathname==='/health'&&req.method==='GET')return dbReady.then(ready=>json(res,ready?200:503,{ok:ready,statsReady:ready}));
   if(pathname==='/api/profile'&&req.method==='GET')return profile(playerId,res);
+  if(pathname==='/api/profile'&&req.method==='PUT')return readJsonBody(req).then(async body=>{
+    const displayName=typeof body.displayName==='string'?body.displayName.trim():'';
+    if(displayName.length<2||displayName.length>20||!/^[\\p{L}\\p{N} _-]+$/u.test(displayName))return json(res,400,{error:'Имя: 2–20 символов, буквы, цифры, пробел, дефис или подчёркивание.'});
+    if(!await dbReady)return json(res,503,{error:'Profile database unavailable'});
+    const saved=await database.saveDisplayName(playerId,displayName);
+    if(!saved)return json(res,503,{error:'Persistent profiles require SQLite or PostgreSQL mode'});
+    return json(res,200,{display_name:saved});
+  }).catch(error=>json(res,error.message==='Request body too large'?413:400,{error:error.message}));
   if(pathname==='/api/history'&&req.method==='GET')return matchHistory(playerId,res);
   if(pathname==='/api/settings'&&req.method==='GET')return playerSettings(playerId,res,'GET');
   if(pathname==='/api/settings'&&req.method==='PUT')return readJsonBody(req).then(body=>playerSettings(playerId,res,'PUT',body)).catch(error=>json(res,error.message==='Request body too large'?413:400,{error:error.message}));
