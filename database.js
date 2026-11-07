@@ -31,6 +31,8 @@ async function init(statsFile) {
       }
       const migrationThree=sqlite.prepare('SELECT version FROM schema_migrations WHERE version=3').get();
       if(!migrationThree)sqlite.exec(fs.readFileSync(path.join(__dirname,'migrations/sqlite/003_accounts.sql'),'utf8'));
+      const migrationFour=sqlite.prepare('SELECT version FROM schema_migrations WHERE version=4').get();
+      if(!migrationFour)sqlite.exec(fs.readFileSync(path.join(__dirname,'migrations/sqlite/004_auth_rate_limits.sql'),'utf8'));
     });
     applyMigrations();
     const count = sqlite.prepare('SELECT COUNT(*) AS count FROM player_stats').get().count;
@@ -79,6 +81,8 @@ async function init(statsFile) {
     await migrationClient.query(postgresMigrationTwo);
     const postgresMigrationThree=fs.readFileSync(path.join(__dirname,'migrations/003_accounts.sql'),'utf8');
     await migrationClient.query(postgresMigrationThree);
+    const postgresMigrationFour=fs.readFileSync(path.join(__dirname,'migrations/004_auth_rate_limits.sql'),'utf8');
+    await migrationClient.query(postgresMigrationFour);
     await migrationClient.query('COMMIT');
   }catch(error){await migrationClient.query('ROLLBACK');throw error;}
   finally{migrationClient.release();}
@@ -300,13 +304,36 @@ async function consumeAccountEmailToken({tokenHash,purpose,passwordHash=null,now
   return false;
 }
 
+async function consumeRateLimit(keyHash,limit,windowMs,now=new Date()){
+  if(typeof keyHash!=='string'||!/^[a-f0-9]{64}$/i.test(keyHash)||!Number.isInteger(limit)||limit<1||!Number.isInteger(windowMs)||windowMs<1000)throw new Error('Invalid rate limit request');
+  const nowMs=now.getTime(),current=now.toISOString(),expiresAt=new Date(nowMs+windowMs).toISOString();
+  if(sqlite)return sqliteTransaction(()=>{
+    const row=sqlite.prepare('SELECT window_started_at,attempts FROM auth_rate_limits WHERE key_hash=?').get(keyHash);
+    const started=row?Date.parse(row.window_started_at):NaN,expired=!row||!Number.isFinite(started)||started+windowMs<=nowMs;
+    if(expired){sqlite.prepare('INSERT INTO auth_rate_limits(key_hash,window_started_at,attempts,expires_at) VALUES(?,?,1,?) ON CONFLICT(key_hash) DO UPDATE SET window_started_at=excluded.window_started_at,attempts=1,expires_at=excluded.expires_at').run(keyHash,current,expiresAt);return {allowed:true,remaining:limit-1,retryAfterMs:windowMs};}
+    const retryAfterMs=Math.max(0,started+windowMs-nowMs);
+    if(row.attempts>=limit)return {allowed:false,remaining:0,retryAfterMs};
+    const attempts=row.attempts+1;sqlite.prepare('UPDATE auth_rate_limits SET attempts=? WHERE key_hash=?').run(attempts,keyHash);return {allowed:true,remaining:limit-attempts,retryAfterMs};
+  });
+  if(pool){
+    const result=await pool.query(`INSERT INTO auth_rate_limits(key_hash,window_started_at,attempts,expires_at) VALUES($1,$2,1,$3)
+      ON CONFLICT(key_hash) DO UPDATE SET
+      attempts=CASE WHEN auth_rate_limits.window_started_at+($4::double precision*INTERVAL '1 millisecond')<=$2 THEN 1 ELSE auth_rate_limits.attempts+1 END,
+      window_started_at=CASE WHEN auth_rate_limits.window_started_at+($4::double precision*INTERVAL '1 millisecond')<=$2 THEN $2 ELSE auth_rate_limits.window_started_at END,
+      expires_at=CASE WHEN auth_rate_limits.window_started_at+($4::double precision*INTERVAL '1 millisecond')<=$2 THEN $3 ELSE auth_rate_limits.expires_at END
+      RETURNING attempts,window_started_at`,[keyHash,now, new Date(nowMs+windowMs),windowMs]);
+    const attempts=result.rows[0].attempts,start=result.rows[0].window_started_at instanceof Date?result.rows[0].window_started_at.getTime():Date.parse(result.rows[0].window_started_at);
+    return {allowed:attempts<=limit,remaining:Math.max(0,limit-attempts),retryAfterMs:Math.max(0,start+windowMs-nowMs)};
+  }
+  return {allowed:true,remaining:limit-1,retryAfterMs:windowMs};
+}
 async function pruneAuthArtifacts(now=new Date()){
   const current=now.toISOString(),cutoff=new Date(now.getTime()-30*24*60*60*1000).toISOString();
-  if(sqlite){const sessions=sqlite.prepare('DELETE FROM account_sessions WHERE expires_at<=? OR revoked_at<=?').run(current,cutoff).changes;const emailTokens=sqlite.prepare('DELETE FROM account_email_tokens WHERE expires_at<=? OR consumed_at<=?').run(current,cutoff).changes;return {sessions,emailTokens};}
-  if(pool){const client=await pool.connect();try{await client.query('BEGIN');const sessions=await client.query('DELETE FROM account_sessions WHERE expires_at<=$1 OR revoked_at<=$2',[now,cutoff]);const emailTokens=await client.query('DELETE FROM account_email_tokens WHERE expires_at<=$1 OR consumed_at<=$2',[now,cutoff]);await client.query('COMMIT');return {sessions:sessions.rowCount,emailTokens:emailTokens.rowCount};}catch(error){await client.query('ROLLBACK');throw error;}finally{client.release();}}
+  if(sqlite){const sessions=sqlite.prepare('DELETE FROM account_sessions WHERE expires_at<=? OR revoked_at<=?').run(current,cutoff).changes;const emailTokens=sqlite.prepare('DELETE FROM account_email_tokens WHERE expires_at<=? OR consumed_at<=?').run(current,cutoff).changes;const rateLimits=sqlite.prepare('DELETE FROM auth_rate_limits WHERE expires_at<=?').run(current).changes;return {sessions,emailTokens,rateLimits};}
+  if(pool){const client=await pool.connect();try{await client.query('BEGIN');const sessions=await client.query('DELETE FROM account_sessions WHERE expires_at<=$1 OR revoked_at<=$2',[now,cutoff]);const emailTokens=await client.query('DELETE FROM account_email_tokens WHERE expires_at<=$1 OR consumed_at<=$2',[now,cutoff]);const rateLimits=await client.query('DELETE FROM auth_rate_limits WHERE expires_at<=$1',[now]);await client.query('COMMIT');return {sessions:sessions.rowCount,emailTokens:emailTokens.rowCount,rateLimits:rateLimits.rowCount};}catch(error){await client.query('ROLLBACK');throw error;}finally{client.release();}}
   return {sessions:0,emailTokens:0};
 }
 function isPostgres() { return !!pool; }
 function isSqlite() { return !!sqlite; }
 function close() { if(sqlite){sqlite.close();sqlite=null;} if(pool){return pool.end().then(()=>{pool=null;});} }
-module.exports = {init,persistStats,recordMatch,ensurePlayer,getHistory,getSettings,saveSettings,getDisplayName,saveDisplayName,healthCheck,isPostgres,isSqlite,createAccount,getAccountByLogin,createAccountSession,getAccountBySession,revokeAccountSession,createAccountEmailToken,consumeAccountEmailToken,pruneAuthArtifacts,close,emptyStats};
+module.exports = {init,persistStats,recordMatch,ensurePlayer,getHistory,getSettings,saveSettings,getDisplayName,saveDisplayName,healthCheck,isPostgres,isSqlite,createAccount,getAccountByLogin,createAccountSession,getAccountBySession,revokeAccountSession,createAccountEmailToken,consumeAccountEmailToken,consumeRateLimit,pruneAuthArtifacts,close,emptyStats};
