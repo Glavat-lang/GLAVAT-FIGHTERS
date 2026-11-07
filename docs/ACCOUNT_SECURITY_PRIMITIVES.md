@@ -11,7 +11,7 @@ This work adds reusable security primitives and persistent database operations, 
 - SQLite and PostgreSQL account operations now cover creation, normalized username/email lookup, session creation/lookup/revocation, one-time email-token creation/consumption, email verification and password reset.
 - Password reset invalidates all existing sessions for the account.
 - Account creation binds to an existing or newly created player ID, preserving the existing profile identity and its statistics.
-- Tests have been added for the password primitives and SQLite account lifecycle. The full Node 24 test suite has not yet been run against this branch.
+- Tests have been added for the password primitives and SQLite account lifecycle. The full Node 24 GitHub Actions suite passed on 2026-11-07 (workflow run 42318835044, run number 326), including the account lifecycle test.
 
 ## Still required before account endpoints are exposed
 
