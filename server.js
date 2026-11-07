@@ -137,7 +137,7 @@ const server = http.createServer(async (req, res) => {
     }
     return json(res,405,{error:'Метод не поддерживается.'});
   }
-  if(pathname==='/health'&&req.method==='GET')return dbReady.then(async ready=>{let healthy=false;try{healthy=ready&&await database.healthCheck();}catch(error){console.error('health database probe failed',error.message);}return json(res,healthy?200:503,{ok:healthy,statsReady:healthy,storage:database.isSqlite()?'sqlite':database.isPostgres()?'postgres':'file'});});
+  if(pathname==='/health'&&req.method==='GET')return dbReady.then(async ready=>{let healthy=false;try{healthy=ready&&await database.healthCheck();}catch(error){console.error('health database probe failed',error.message);}return json(res,healthy?200:503,{ok:healthy,statsReady:healthy,storage:database.isSqlite()?'sqlite':database.isPostgres()?'postgres':'file',accountSecurityReady:authSecurityReady(),mailReady:isMailReady(),accountsReady:authSecurityReady()&&isMailReady()});});
   if(pathname==='/api/profile'&&req.method==='GET')return profile(playerId,res);
   if(pathname==='/api/profile'&&req.method==='PUT')return readJsonBody(req).then(async body=>{
     const displayName=typeof body.displayName==='string'?body.displayName.trim():'';
