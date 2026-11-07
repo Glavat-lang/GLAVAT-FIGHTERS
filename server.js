@@ -5,12 +5,12 @@ const path = require('path');
 const crypto = require('crypto');
 const WebSocket = require('ws');
 const database=require('./database');
-const {parseCookies,sessionCookie,AttemptLimiter}=require('./auth-security');
+const {parseCookies,sessionCookie}=require('./auth-security');
 const {isMailReady,sendTransactionalEmail}=require('./email-provider');
 const {createAuthService}=require('./auth-service');
 const PLAYER_COOKIE_SECRET=process.env.PLAYER_COOKIE_SECRET||'';
 const authService=createAuthService({database,sendEmail:sendTransactionalEmail,env:process.env});
-const authRequestLimiter=new AttemptLimiter({limit:20,windowMs:15*60*1000,maxKeys:10000});
+
 const STATS_FILE=process.env.STATS_FILE||path.join(__dirname,'data','fighter-stats.json');
 let statsData={};
 async function initStats(){statsData=await database.init(STATS_FILE);await database.pruneAuthArtifacts();return true;}
@@ -98,8 +98,9 @@ const server = http.createServer(async (req, res) => {
     if(req.method==='POST'){
       if(!authSecurityReady())return json(res,503,{error:'Система аккаунтов ещё не настроена.'});
       if(!authOriginAllowed(req))return json(res,403,{error:'Проверка источника запроса не пройдена.'});
-      const attempt=authRequestLimiter.consume(String(req.socket.remoteAddress||'unknown')+':'+pathname);if(!attempt.allowed){res.setHeader('Retry-After',String(Math.max(1,Math.ceil(attempt.retryAfterMs/1000))));return json(res,429,{error:'Слишком много запросов. Попробуйте позже.'});}
       if(!await dbReady)return json(res,503,{error:'Хранилище аккаунтов недоступно.'});
+      let attempt;try{const keyHash=crypto.createHash('sha256').update(String(req.socket.remoteAddress||'unknown')+':'+pathname).digest('hex');attempt=await database.consumeRateLimit(keyHash,20,15*60*1000);}catch(error){return authError(res,error);}
+      if(!attempt.allowed){res.setHeader('Retry-After',String(Math.max(1,Math.ceil(attempt.retryAfterMs/1000))));return json(res,429,{error:'Слишком много запросов. Попробуйте позже.'});}
       if(pathname==='/api/auth/register'){
         if(!trustedPlayerId(req.headers.cookie||'',playerId))return json(res,409,{error:'Гостевой профиль ещё не защищён подписью. Старый профиль сохранён, но его нельзя безопасно привязать к аккаунту.'});
         if(!isMailReady())return json(res,503,{error:'Регистрация временно недоступна: почтовый сервис не настроен.'});
