@@ -166,6 +166,36 @@ function background(){
   for(let i=0;i<6;i++)rect(w*(.5+i*.025),waterY+3,3,5,'#ffd58a');
   for(let i=0;i<56;i++){const x=(i*83+t*(30+i%5)*9)%w,y=(i*47+t*(95+i%7)*17)%(floorY+20);rect(x,y,1,5,'#9bd3e044')}
   for(let i=0;i<9;i++){const x=w*(.13+i*.095),yy=waterY+10+(i%3)*13;rect(x,yy,20+(i%4)*7,2,'#f3a46a55')}
+  // Container ship, stacked freight and moving dockside gantry give the harbor a readable midground.
+  const shipDrift=Math.sin(t*.18)*w*.012,shipX=w*.31+shipDrift,shipY=waterY+7;
+  polygon([[shipX,shipY],[shipX+w*.43,shipY],[shipX+w*.39,shipY+floorY*.09],[shipX+w*.055,shipY+floorY*.09]],'#101f31');
+  rect(shipX+w*.08,shipY-15,w*.27,15,'#29394b');
+  rect(shipX+w*.31,shipY-27,w*.075,27,'#3b4a5a');
+  rect(shipX+w*.325,shipY-22,w*.045,9,'#9bc1c8');
+  for(let row=0;row<2;row++)for(let col=0;col<5;col++){
+   const cx=shipX+w*(.105+col*.052),cy=shipY-31-row*13, cw=w*.047;
+   const colors=['#a84f45','#c17b4f','#536f83','#8c684e','#526d69'];
+   rect(cx,cy,cw,12,colors[(row*3+col)%colors.length]);
+   rect(cx+2,cy+2,cw-4,1,'#e9c18a88');
+   for(let seam=1;seam<4;seam++)rect(cx+seam*cw/4,cy+3,1,8,'#17283a66');
+  }
+  // Suspended crane cables and hooks sway subtly instead of remaining static scenery.
+  for(let crane=0;crane<2;crane++){
+   const gx=w*(.08+crane*.77),gy=waterY-36,arm=w*.2,phase=t*1.15+crane*1.8;
+   rect(gx,gy-105,7,105,'#172b3d');rect(gx-7,gy-107,arm,6,'#263d50');
+   rect(gx+arm-9,gy-104,5,70,'#1c3042');
+   rect(gx+arm-13,gy-36,13,4,'#d18a58');
+   const cableX=gx+arm*.67+Math.sin(phase)*5,cableEnd=gy+Math.sin(phase)*3;
+   rect(cableX,gy-101,1,cableEnd-(gy-101),'#d0b28a99');
+   rect(cableX-3,cableEnd,7,5,'#e19a60');
+   c.globalAlpha=.55+.35*Math.sin(t*2.4+crane);rect(gx-2,gy-111,10,4,'#ffb66d');c.globalAlpha=1;
+  }
+  // Port signal lights and their broken reflections on the moving water.
+  for(let i=0;i<5;i++){
+   const lx=w*(.12+i*.18),ly=waterY-58-(i%2)*19,pulse=.45+.55*Math.sin(t*2.8+i*1.7);
+   c.globalAlpha=pulse;rect(lx,ly,3,4,i%2?'#ff665e':'#f6d58b');c.globalAlpha=1;
+   rect(lx-7,waterY+18+(i%3)*9,12+((i+Math.floor(t*3))%4)*5,1,'#f6b77a66');
+  }
  }else{
   rect(0,120,w,110,'#11152f');for(let i=0;i<6;i++){let x=i*w/6+12;rect(x,110-(i%2)*20,w/12,112,'#16172f');rect(x+4,125-(i%2)*20,w/12-8,3,i%2?'#ff63c8':'#6de9ff');rect(x+4,145-(i%2)*20,w/12-8,23,'#ffffff0c')}
  }
