@@ -52,4 +52,4 @@ Password reset: `{ "token": "<token-from-email>", "password": "NewPassword2026!"
 - The cleanup is transactional for PostgreSQL and uses SQLite's local transaction handling for the volume-backed adapter.
 
 
-The six-hour cleanup task is covered by the account database test suite. Node 24 workflow run `42321807821` (run #539) passed the full validation and test chain, including the cleanup assertions.
+The six-hour cleanup task is covered by the account database test suite. Node 24 workflow run `42322176647` (run #570) passed the full validation and test chain, including the cleanup assertions.
