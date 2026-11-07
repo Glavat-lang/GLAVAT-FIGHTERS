@@ -283,7 +283,7 @@ function waitFor(client,predicate,timeout=5000,from=0) {
     await waitFor(intruder,m=>m.type==='room-reserved');
     const p4Again=await connect(otherCode,cookie4);
     const [resume3,resume4]=await Promise.all([waitFor(p3,m=>m.type==='match-resumed'&&m.status==='playing'),waitFor(p4Again,m=>m.type==='match-resumed'&&m.status==='playing')]);
-    const ackBeforeStale=p4Again.messages.filter(m=>m.type==='snapshot').at(-1)?.players?.[1]?.inputAck;p4Again.sendRaw(JSON.stringify({type:'input',seq:999,nonce:staleCommandNonce,input:{right:true,face:1}}));await sleep(75);const ackAfterStale=p4Again.messages.filter(m=>m.type==='snapshot').at(-1)?.players?.[1]?.inputAck;assert.equal(ackAfterStale,ackBeforeStale,'server must reject commands carrying a nonce from a previous WebSocket session');
+    await waitFor(p4Again,m=>m.type==='snapshot'&&m.players?.every(Boolean));const ackBeforeStale=p4Again.messages.filter(m=>m.type==='snapshot').at(-1)?.players?.[1]?.inputAck;p4Again.sendRaw(JSON.stringify({type:'input',seq:999,nonce:staleCommandNonce,input:{right:true,face:1}}));await sleep(75);const ackAfterStale=p4Again.messages.filter(m=>m.type==='snapshot').at(-1)?.players?.[1]?.inputAck;assert.equal(ackAfterStale,ackBeforeStale,'server must reject commands carrying a nonce from a previous WebSocket session');
     assert.equal(resume3.round,1,'reconnected match must keep its current round');
     await sleep(60);
     const afterResume=p3.messages.filter(m=>m.type==='snapshot').at(-1)?.players?.[0]?.x;
