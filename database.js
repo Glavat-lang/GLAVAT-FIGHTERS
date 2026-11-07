@@ -20,15 +20,18 @@ async function init(statsFile) {
     sqlite.pragma('journal_mode = WAL');
     sqlite.pragma('foreign_keys = ON');
     sqlite.pragma('busy_timeout = 5000');
-    sqlite.exec('CREATE TABLE IF NOT EXISTS schema_migrations(version INTEGER PRIMARY KEY, applied_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP)');
-    const migrationOne=sqlite.prepare('SELECT version FROM schema_migrations WHERE version=1').get();
-    if(!migrationOne)sqlite.exec(fs.readFileSync(path.join(__dirname,'migrations/sqlite/001_initial_schema.sql'),'utf8'));
-    const migrationTwo=sqlite.prepare('SELECT version FROM schema_migrations WHERE version=2').get();
-    if(!migrationTwo){
-      const columns=sqlite.pragma('table_info(player_stats)');
-      if(!columns.some(column=>column.name==='rating'))sqlite.exec(fs.readFileSync(path.join(__dirname,'migrations/sqlite/002_player_rating.sql'),'utf8'));
-      else sqlite.prepare('INSERT OR IGNORE INTO schema_migrations(version) VALUES (2)').run();
-    }
+    const applyMigrations=sqlite.transaction(()=>{
+      sqlite.exec('CREATE TABLE IF NOT EXISTS schema_migrations(version INTEGER PRIMARY KEY, applied_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP)');
+      const migrationOne=sqlite.prepare('SELECT version FROM schema_migrations WHERE version=1').get();
+      if(!migrationOne)sqlite.exec(fs.readFileSync(path.join(__dirname,'migrations/sqlite/001_initial_schema.sql'),'utf8'));
+      const migrationTwo=sqlite.prepare('SELECT version FROM schema_migrations WHERE version=2').get();
+      if(!migrationTwo){
+        const columns=sqlite.pragma('table_info(player_stats)');
+        if(!columns.some(column=>column.name==='rating'))sqlite.exec(fs.readFileSync(path.join(__dirname,'migrations/sqlite/002_player_rating.sql'),'utf8'));
+        else sqlite.prepare('INSERT OR IGNORE INTO schema_migrations(version) VALUES (2)').run();
+      }
+    });
+    applyMigrations();
     const count = sqlite.prepare('SELECT COUNT(*) AS count FROM player_stats').get().count;
     if (count === 0) {
       try {
