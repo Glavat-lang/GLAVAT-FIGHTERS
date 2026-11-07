@@ -10,8 +10,8 @@ function validate(file){
     const result=db.prepare('PRAGMA integrity_check').all();
     if(result.length!==1||result[0].integrity_check!=='ok')throw new Error('SQLite integrity_check failed');
     const version=db.prepare('SELECT MAX(version) AS version FROM schema_migrations').get()?.version||0;
-    if(version<2)throw new Error('Backup schema version is not supported');
-    for(const table of ['players','player_stats','player_settings','match_history']){
+    if(version<4)throw new Error('Backup schema version 4 or newer is required');
+    for(const table of ['players','player_stats','player_settings','match_history','accounts','account_sessions','account_email_tokens','auth_rate_limits']){
       if(!db.prepare("SELECT 1 FROM sqlite_master WHERE type='table' AND name=?").get(table))throw new Error('Missing required table: '+table);
     }
     return version;
