@@ -85,6 +85,11 @@ function attackIntersects(a,v,kind,range){
 }
 
 const server = http.createServer(async (req, res) => {
+  res.setHeader('X-Content-Type-Options','nosniff');
+  res.setHeader('X-Frame-Options','DENY');
+  res.setHeader('Referrer-Policy','strict-origin-when-cross-origin');
+  res.setHeader('Permissions-Policy','camera=(), microphone=(), geolocation=()');
+  if(String(req.headers['x-forwarded-proto']||'').split(',')[0].trim()==='https')res.setHeader('Strict-Transport-Security','max-age=31536000; includeSubDomains');
   let playerId=readPlayerId(req.headers.cookie||'');
   if(!playerId){playerId=crypto.randomUUID();res.setHeader('Set-Cookie',playerCookieHeaders(playerId));}
   if (req.method !== 'GET' && req.method !== 'HEAD' && !(req.method==='PUT'&&['/api/settings','/api/profile'].includes(req.url?.split('?')[0])) && !(req.method==='POST'&&['/api/auth/register','/api/auth/login','/api/auth/logout','/api/auth/verify-email','/api/auth/resend-verification','/api/auth/forgot-password','/api/auth/reset-password'].includes(req.url?.split('?')[0]))) { res.writeHead(405); return res.end(); }
