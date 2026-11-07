@@ -293,7 +293,8 @@ async function consumeAccountEmailToken({tokenHash,purpose,passwordHash=null,now
   }catch(error){await client.query('ROLLBACK');throw error;}finally{client.release();}}
   return false;
 }
-\nfunction isPostgres() { return !!pool; }
+
+function isPostgres() { return !!pool; }
 function isSqlite() { return !!sqlite; }
 function close() { if(sqlite){sqlite.close();sqlite=null;} if(pool){return pool.end().then(()=>{pool=null;});} }
 module.exports = {init,persistStats,recordMatch,ensurePlayer,getHistory,getSettings,saveSettings,getDisplayName,saveDisplayName,healthCheck,isPostgres,isSqlite,createAccount,getAccountByLogin,createAccountSession,getAccountBySession,revokeAccountSession,createAccountEmailToken,consumeAccountEmailToken,close,emptyStats};
