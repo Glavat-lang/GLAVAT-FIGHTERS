@@ -42,6 +42,7 @@ assert(html.includes("oldPhase<.42&&phase>=.42"),'local hit detection must occur
 assert(html.includes("a.attackHit=false;if(mode==='online')"),'attacks must reset hit state and keep online damage server-authoritative');
 assert(html.includes("clipFrame([0,1,4,5,4,1,0],phase)"),'basic punches must show anticipation, extension, and recovery frames');
 assert(html.includes("clipFrame([2,1,6,15,6,3,2],phase)"),'heavy kicks must show a multi-stage attack sequence');
+assert(database.includes("DATABASE_MODE === 'sqlite'")&&database.includes("journal_mode = WAL")&&database.includes("foreign_keys = ON"),"Railway volume database must use durable SQLite settings");
 assert(database.includes("CREATE TABLE IF NOT EXISTS players")&&database.includes("CREATE TABLE IF NOT EXISTS player_stats")&&database.includes("CREATE TABLE IF NOT EXISTS match_history"),'PostgreSQL schema must cover player identity, statistics and match history');
 assert(database.includes("rating INTEGER NOT NULL DEFAULT 1000")&&database.includes("rating=EXCLUDED.rating"),"PostgreSQL player ratings must be durable");
 assert(database.includes("CREATE TABLE IF NOT EXISTS player_settings")&&database.includes("BEGIN")&&database.includes("COMMIT"),'PostgreSQL settings and transactional writes must be implemented');
