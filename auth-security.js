@@ -24,7 +24,7 @@ async function hashPassword(password) {
 }
 
 async function verifyPassword(password, encoded) {
-  if (typeof password !== 'string' || typeof encoded !== 'string') return false;
+  // Reject oversized input before invoking the deliberately expensive KDF.\n  if (typeof password !== 'string' || password.length > PASSWORD_MAX || typeof encoded !== 'string') return false;
   const parts = encoded.split('$');
   if (parts.length !== 6 || parts[0] !== 'scrypt') return false;
   const N = Number(parts[1]), r = Number(parts[2]), p = Number(parts[3]);
