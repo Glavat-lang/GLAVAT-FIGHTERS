@@ -25,6 +25,8 @@ const database=require('../database');
   const history=await database.getHistory(second,10);
   assert.equal(history.length,1,'SQLite must retain match history');
   assert.equal(history[0].winner_player_id,second,'SQLite match history must preserve the winner');
+  assert.equal(await database.saveDisplayName(second,'Arcade_Pro'),'Arcade_Pro','SQLite must persist a player display name');
+  assert.equal(await database.getDisplayName(second),'Arcade_Pro','player display name must survive a database read');
   const settings=await database.saveSettings(second,{musicVolume:.35,effectsVolume:.8,voiceVolume:.4,soundOn:false,voiceOn:true,unknown:'discard'});
   assert.deepEqual(settings,{musicVolume:.35,effectsVolume:.8,voiceVolume:.4,soundOn:false,voiceOn:true},'settings must be filtered and persisted');
   assert.deepEqual(await database.getSettings(second),settings,'player settings must survive a read after write');
@@ -54,7 +56,7 @@ const database=require('../database');
   assert.deepEqual(upgraded.prepare('SELECT version FROM schema_migrations ORDER BY version').all().map(x=>x.version),[1,2],'existing volume must advance to migration version 2');
   upgraded.close();
   await database.close();
-  process.stdout.write('SQLite persistence, legacy import, match history, settings, Elo rating and migrations passed.\\n');
+  process.stdout.write('SQLite persistence, legacy import, guest profiles, match history, settings, Elo rating and migrations passed.\\n');
  }finally{
   try{await database.close()}catch{}
   fs.rmSync(root,{recursive:true,force:true});
