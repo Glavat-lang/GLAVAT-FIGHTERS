@@ -93,6 +93,8 @@ function waitFor(client,predicate,timeout=5000,from=0) {
     const no=c=>c.messages.find(m=>m.type==='joined')?.playerNo;
     const attacker=no(p1)===1?p1:p2,defender=attacker===p1?p2:p1;
     const initial=await waitFor(attacker,m=>m.type==='snapshot'&&m.players?.every(Boolean));
+    attacker.ws.send(JSON.stringify({type:'join',code:'REPLAY',arena:'sunset',fighter:0}));
+    await waitFor(attacker,m=>m.type==='join-error');
     assert.equal(initial.players[0].x,290,'round reset must spawn player one at 290');
     assert.equal(initial.players[1].x,710,'round reset must spawn player two at 710');
     assert.equal(initial.players[0].vy,0,'grounded player one must not accumulate gravity before jumping');
