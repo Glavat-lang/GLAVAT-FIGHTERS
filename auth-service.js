@@ -21,6 +21,7 @@ function createAuthService({database,sendEmail,env=process.env,clock=Date.now,li
   return true;
  }
  async function register({playerId,username,email,password}){
+  const registrationAttempt=limiter.consume('register:'+normalize(email));if(!registrationAttempt.allowed){const error=new Error('Too many attempts');error.code='RATE_LIMITED';error.retryAfterMs=registrationAttempt.retryAfterMs;throw error;}
   validateIdentity(username,email);
   if(typeof password!=='string')throw new Error('Invalid password');
   const passwordHash=await hashPassword(password);
@@ -29,6 +30,7 @@ function createAuthService({database,sendEmail,env=process.env,clock=Date.now,li
   return {account:{account_id:account.account_id,player_id:account.player_id,username:account.username,email:account.email},verificationSent:true};
  }
  async function resendVerification(identifier){
+  const resendAttempt=limiter.consume('resend:'+normalize(identifier));if(!resendAttempt.allowed){const error=new Error('Too many attempts');error.code='RATE_LIMITED';error.retryAfterMs=resendAttempt.retryAfterMs;throw error;}
   const account=await database.getAccountByLogin(identifier);
   if(!account||account.email_verified_at)return false;
   await issueEmailToken(account,'verify_email');return true;
@@ -58,9 +60,10 @@ function createAuthService({database,sendEmail,env=process.env,clock=Date.now,li
   return database.revokeAccountSession(digest,new Date(clock()));
  }
  async function requestPasswordReset(identifier){
+  const resetAttempt=limiter.consume('reset:'+normalize(identifier));if(!resetAttempt.allowed){const error=new Error('Too many attempts');error.code='RATE_LIMITED';error.retryAfterMs=resetAttempt.retryAfterMs;throw error;}
   const account=await database.getAccountByLogin(identifier);
   if(!account)return {accepted:true};
-  try{await issueEmailToken(account,'password_reset');}catch(error){if(error.message==='Transactional email is not configured')throw error;}
+  try{await issueEmailToken(account,'password_reset');}catch(error){if(error.message==='Transactional email is not configured')throw error;console.error('password reset email delivery failed',error.message);}
   return {accepted:true};
  }
  async function resetPassword({token,password}){
