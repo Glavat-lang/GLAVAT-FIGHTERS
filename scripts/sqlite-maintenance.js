@@ -10,9 +10,9 @@ function validateDatabase(file){
     const integrity=db.prepare('PRAGMA integrity_check').all();
     if(integrity.length!==1||integrity[0].integrity_check!=='ok')throw new Error('SQLite integrity_check failed: '+JSON.stringify(integrity));
     const version=db.prepare('SELECT MAX(version) AS version FROM schema_migrations').get()?.version||0;
-    if(version<2)throw new Error('Database schema is older than required version 2');
-    const tables=db.prepare("SELECT name FROM sqlite_master WHERE type='table' AND name IN ('players','player_stats','player_settings','match_history') ORDER BY name").all().map(x=>x.name);
-    if(tables.length!==4)throw new Error('Required player/statistics/history tables are missing');
+    if(version<4)throw new Error('Database schema is older than required version 4');
+    const tables=db.prepare("SELECT name FROM sqlite_master WHERE type='table' AND name IN ('players','player_stats','player_settings','match_history','accounts','account_sessions','account_email_tokens','auth_rate_limits') ORDER BY name").all().map(x=>x.name);
+    if(tables.length!==8)throw new Error('Required player, statistics, history and account-security tables are missing');
     const counts={};
     for(const table of tables)counts[table]=db.prepare('SELECT COUNT(*) AS count FROM "'+table+'"').get().count;
     return {schemaVersion:version,counts};
