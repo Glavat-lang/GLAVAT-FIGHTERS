@@ -83,7 +83,7 @@ Do not merge the draft PR, apply the staged Railway patch, or label a build as f
 - Added an expandable account panel to the existing game menu with registration, login, logout, email verification, resend verification, password reset request and password reset controls.
 - Email links containing `?verify=` or `?reset=` prefill the one-time token and open the account panel.
 - The account panel calls the same-origin account API and displays server responses without exposing session tokens to JavaScript.
-- The new UI and HTTP integration tests passed in Node 24 GitHub Actions run `42321807821` (run #539). Real provider delivery and physical browser testing remain outstanding.
+- The new UI and HTTP integration tests passed in Node 24 GitHub Actions run `42322176647` (run #570). Real provider delivery and physical browser testing remain outstanding.
 
 
 ## Guest identity integrity fix (2026-11-07)
@@ -200,7 +200,7 @@ Do not merge the draft PR, apply the staged Railway patch, or label a build as f
 - Added migration 004 for SQLite and PostgreSQL with hashed rate-limit keys and expiring fixed-window counters.
 - Database adapters increment counters atomically; SQLite uses an immediate transaction and PostgreSQL uses an atomic upsert. Raw IP/identifier values are not stored in the rate-limit table.
 - Account registration, login, resend-verification and password-reset identity throttles now use database-backed counters when persistent storage is configured. HTTP route throttles are also database-backed, so limits survive process restarts and are shared by instances using the same database.
-- Added tests for failed-login lockout, fixed-window reset, bucket expiry and cleanup. Node 24 workflow run `42321807821` (run #539) passed the migration, persistent rate-limit and full test suites. Rate-limit keys are HMAC-SHA-256 digests using `PLAYER_COOKIE_SECRET`; PostgreSQL concurrency behavior still needs live integration coverage.
+- Added tests for failed-login lockout, fixed-window reset, bucket expiry and cleanup. Node 24 workflow run `42322176647` (run #570) passed the migration, persistent rate-limit, backup/restore, HTTP security-header and full test suites. Rate-limit keys are HMAC-SHA-256 digests using `PLAYER_COOKIE_SECRET`; PostgreSQL concurrency behavior still needs live integration coverage.
 
 
 ## Version-4 backup/restore acceptance update (2026-11-07)
