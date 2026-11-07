@@ -30,6 +30,7 @@ async function freePort(){const server=net.createServer();await new Promise(reso
   let healthy=false;
   for(let i=0;i<80;i++){try{const response=await fetch(base+'/health');if(response.ok){healthy=true;break;}}catch{}await sleep(100);}
   assert.equal(healthy,true,'HTTP server must become healthy');
+  const health=await fetch(base+'/health').then(response=>response.json());assert.equal(health.accountSecurityReady,true);assert.equal(health.mailReady,false);assert.equal(health.accountsReady,false,'health must distinguish live game storage from unavailable account email configuration');
   const denied=await fetch(base+'/api/auth/login',{method:'POST',headers:{Origin:'https://evil.example.test','Content-Type':'application/json'},body:JSON.stringify({identifier:'HttpPlayer',password:'HttpAccountPass2026!'})});
   assert.equal(denied.status,403,'cross-origin authentication requests must be rejected');
   const bad=await fetch(base+'/api/auth/login',{method:'POST',headers:{Origin:APP_ORIGIN,'Content-Type':'application/json'},body:JSON.stringify({identifier:'HttpPlayer',password:'WrongPassword2026!'})});
