@@ -51,7 +51,7 @@ async function leaderboard(res){
 }
 
 function playerSignature(id){return crypto.createHmac('sha256',PLAYER_COOKIE_SECRET).update(id).digest('hex');}
-function readPlayerId(cookie=''){const values=parseCookies(cookie),id=values.gf_player;if(!id||!/^[0-9a-f-]{36}$/i.test(id))return null;if(!PLAYER_COOKIE_SECRET)return id;const supplied=values.gf_player_sig||'',expected=playerSignature(id);if(!/^[0-9a-f]{64}$/i.test(supplied))return id;return crypto.timingSafeEqual(Buffer.from(supplied,'hex'),Buffer.from(expected,'hex'))?id:id;}
+function readPlayerId(cookie=''){const values=parseCookies(cookie),id=values.gf_player;if(!id||!/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(id))return null;if(!PLAYER_COOKIE_SECRET)return id;const supplied=values.gf_player_sig||'';if(!/^[0-9a-f]{64}$/i.test(supplied))return null;const expected=playerSignature(id);return crypto.timingSafeEqual(Buffer.from(supplied,'hex'),Buffer.from(expected,'hex'))?id:null;}
 function trustedPlayerId(cookie='',id=''){if(!PLAYER_COOKIE_SECRET||PLAYER_COOKIE_SECRET.length<32||!id)return false;const supplied=parseCookies(cookie).gf_player_sig||'',expected=playerSignature(id);return /^[0-9a-f]{64}$/i.test(supplied)&&crypto.timingSafeEqual(Buffer.from(supplied,'hex'),Buffer.from(expected,'hex'));}
 function playerCookieHeaders(id){const base='gf_player='+id+'; Path=/; HttpOnly; Secure; SameSite=Lax; Max-Age=31536000';return PLAYER_COOKIE_SECRET?[base,'gf_player_sig='+playerSignature(id)+'; Path=/; HttpOnly; Secure; SameSite=Lax; Max-Age=31536000']:[base];}
 function authSecurityReady(){try{return PLAYER_COOKIE_SECRET.length>=32&&new URL(process.env.APP_ORIGIN).protocol==='https:';}catch{return false;}}
