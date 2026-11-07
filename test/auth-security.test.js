@@ -14,14 +14,15 @@ test('password hashing uses unique salted scrypt hashes and verifies safely', as
   assert.equal(first.startsWith('scrypt$16384$8$1$'), true);
 });
 
-test('password policy rejects short and low-complexity values', () => {
+test('password policy rejects short, oversized and low-complexity values', () => {
   assert.throws(() => validatePassword('short1'));
   assert.throws(() => validatePassword('onlyletterslong'));
   assert.throws(() => validatePassword('1234567890123'));
+  assert.throws(() => validatePassword('A1'.repeat(65)));
   assert.doesNotThrow(() => validatePassword('LongEnough2026!'));
 });
 
-test('opaque tokens have high entropy and only their digest is stored', () => {
+test('password verification rejects oversized input before scrypt', async () => {\n  const encoded = await hashPassword('GlavatSecure2026!');\n  assert.equal(await verifyPassword('A1'.repeat(65), encoded), false);\n  assert.equal(await verifyPassword('GlavatSecure2026!', encoded), true);\n});\n\ntest('opaque tokens have high entropy and only their digest is stored', () => {
   const token = createOpaqueToken();
   assert.ok(token.length >= 40);
   assert.equal(hashToken(token).length, 64);
