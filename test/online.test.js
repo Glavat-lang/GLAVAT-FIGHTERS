@@ -7,13 +7,14 @@ const os = require('node:os');
 const http = require('node:http');
 const net = require('node:net');
 const WebSocket = require('ws');
+const {DatabaseSync}=require('node:sqlite');
 
-let port=0,base='',statsFile='',child;
+let port=0,base='',statsFile='',sqliteFile='',child;
 const clients = new Set();
 let childOutput='',childExit=null,restartChild=null,restartOutput='';
 const sleep = ms => new Promise(r => setTimeout(r, ms));
 async function reservePort(){return new Promise((resolve,reject)=>{const probe=net.createServer();probe.once('error',reject);probe.listen(0,'127.0.0.1',()=>{const selected=probe.address().port;probe.close(err=>err?reject(err):resolve(selected))})})}
-function startServer(selectedPort,statsPath,onOutput,onExit){const processChild=spawn(process.execPath,['server.js'],{env:{...process.env,PORT:String(selectedPort),STATS_FILE:statsPath},stdio:['ignore','pipe','pipe']});processChild.stdout.on('data',x=>onOutput(x));processChild.stderr.on('data',x=>onOutput(x));processChild.on('exit',(code,signal)=>onExit?.({code,signal}));return processChild}
+function startServer(selectedPort,statsPath,onOutput,onExit){const processChild=spawn(process.execPath,['server.js'],{env:{...process.env,PORT:String(selectedPort),STATS_FILE:statsPath,DATABASE_URL:'',DATABASE_MODE:'sqlite',SQLITE_FILE:sqliteFile},stdio:['ignore','pipe','pipe']});processChild.stdout.on('data',x=>onOutput(x));processChild.stderr.on('data',x=>onOutput(x));processChild.on('exit',(code,signal)=>onExit?.({code,signal}));return processChild}
 async function ready() {
   for (let i=0;i<80;i++) {
     try { await new Promise((resolve,reject)=>{const req=http.get(base,res=>{res.resume();resolve()});req.on('error',reject);req.setTimeout(300,reject)}); return; }
@@ -48,9 +49,9 @@ function waitFor(client,predicate,timeout=5000,from=0) {
 }
 (async()=>{
   try {
-    port=await reservePort();base='http://127.0.0.1:'+port;statsFile=path.join(os.tmpdir(),'gf-stats-'+process.pid+'-'+port+'.json');child=startServer(port,statsFile,x=>childOutput+=x,x=>childExit=x);
+    port=await reservePort();base='http://127.0.0.1:'+port;statsFile=path.join(os.tmpdir(),'gf-stats-'+process.pid+'-'+port+'.json');sqliteFile=path.join(os.tmpdir(),'gf-stats-'+process.pid+'-'+port+'.sqlite');child=startServer(port,statsFile,x=>childOutput+=x,x=>childExit=x);
     await ready();
-    const health=await getJson('/health');assert.equal(health.status,200,'health endpoint must verify persistent storage readiness');assert.equal(health.body.statsReady,true,'persistent stats storage must be writable');
+    const health=await getJson('/health');assert.equal(health.status,200,'health endpoint must verify persistent storage readiness');assert.equal(health.body.statsReady,true,'persistent stats storage must be writable');assert.equal(health.body.storage,'sqlite','integration server must exercise the production SQLite adapter');
     const cookie1=await identity(),cookie2=await identity();
     assert.match(cookie1,/^gf_player=/,'server must issue a persistent player identity');
     assert.match(cookie2,/^gf_player=/,'second player must receive an independent identity');
@@ -65,6 +66,11 @@ function waitFor(client,predicate,timeout=5000,from=0) {
     assert.equal(settings.status,200,'player settings endpoint must be available');
     const savedSettings=await sendJson('/api/settings',cookie1,{musicVolume:.4,effectsVolume:.6,voiceVolume:.2,soundOn:false,voiceOn:true,unexpected:'discard'});
     assert.equal(savedSettings.status,200,'player settings must accept validated updates');
+    const persistedSettings=await getJson('/api/settings',cookie1);
+    assert.deepEqual(persistedSettings.body.settings,{musicVolume:.4,effectsVolume:.6,voiceVolume:.2,soundOn:false,voiceOn:true},'SQLite settings must persist through the HTTP API');
+    const savedName=await sendJson('/api/profile',cookie1,{displayName:'Arcade One'});
+    assert.equal(savedName.status,200,'guest player must be able to save a display name');
+    assert.equal((await getJson('/api/profile',cookie1)).body.display_name,'Arcade One','display name must persist through the profile API');
     const history=await getJson('/api/history',cookie1);
     assert.equal(history.status,200,'match history endpoint must be available');
     assert.deepEqual(history.body.matches,[],'new player must have an empty match history');
@@ -223,13 +229,20 @@ function waitFor(client,predicate,timeout=5000,from=0) {
     assert.equal(loserStats.body.rating,984,'loser must lose Elo rating after a decisive match');
     assert.equal(loserStats.body.matches,1,'completed match must persist once for the loser');
     assert.equal(loserStats.body.losses,1,'loser statistics must be saved');
-    const disk=JSON.parse(fs.readFileSync(statsFile,'utf8'));
-    assert.equal(disk[ cookie1.slice('gf_player='.length) ].wins,1,'winner statistics must be durably written to the database file');
-    assert.equal(disk[ cookie2.slice('gf_player='.length) ].losses,1,'loser statistics must be durably written to the database file');
+    const rawDb=new DatabaseSync(sqliteFile);
+    const winnerRow=rawDb.prepare('SELECT wins,rating FROM player_stats WHERE player_id=?').get(cookie1.slice('gf_player='.length));
+    const loserRow=rawDb.prepare('SELECT losses,rating FROM player_stats WHERE player_id=?').get(cookie2.slice('gf_player='.length));
+    assert.equal(winnerRow.wins,1,'winner statistics must be durably written to SQLite');
+    assert.equal(loserRow.losses,1,'loser statistics must be durably written to SQLite');
+    assert.equal(rawDb.prepare('SELECT COUNT(*) AS count FROM match_history').get().count,1,'the completed match must be stored in relational history');
+    rawDb.close();
+    const savedHistory=await getJson('/api/history',cookie1);
+    assert.equal(savedHistory.body.matches.length,1,'player history API must return the completed match');
     const restartPort=await reservePort();restartChild=startServer(restartPort,statsFile,x=>restartOutput+=x);await readyAt(restartPort);
     const reloaded=await getJsonAt('http://127.0.0.1:'+restartPort,'/api/profile',cookie1);
     assert.equal(reloaded.status,200,'profile API must be available after process restart');
     assert.equal(reloaded.body.wins,1,'statistics must reload from persistent storage after restart');
+    assert.equal(reloaded.body.display_name,'Arcade One','guest display name must survive process restart');
     const ranked=await getJson('/api/leaderboard',cookie1);
     assert.equal(ranked.body.players.length,2,'leaderboard must include both players after the match');
     process.stdout.write('TEST 10: best-of-three result, durable stats and process restart\\n');
