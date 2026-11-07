@@ -35,7 +35,7 @@ function connect(code,cookie='',fighter=0) {
     const originalSend=ws.send.bind(ws);let inputSequence=0,commandNonce=null;
     ws.send=(raw,...args)=>{try{const packet=JSON.parse(raw.toString());if(['input','attack','rematch'].includes(packet.type)){if(commandNonce&&!packet.nonce)packet.nonce=commandNonce;if(Number.isSafeInteger(packet.seq))inputSequence=Math.max(inputSequence,packet.seq);else packet.seq=++inputSequence;raw=JSON.stringify(packet);}}catch{}return originalSend(raw,...args);};
     ws.on('message',raw=>{try{const packet=JSON.parse(raw.toString());if(packet.type==='joined')commandNonce=packet.commandNonce;messages.push(packet);}catch{}});
-    ws.once('open',()=>{ws.send(JSON.stringify({type:'join',code,arena:'sunset',fighter}));resolve({ws,messages,sendRaw:originalSend})});
+    ws.once('open',()=>{ws.send(JSON.stringify({type:'join',code,arena:'sunset',fighter}));resolve({ws,messages,sendRaw:originalSend,get commandNonce(){return commandNonce;}})});
     ws.once('error',reject);
   });
 }
@@ -278,11 +278,12 @@ function waitFor(client,predicate,timeout=5000,from=0) {
     const special=await specialHit;assert.equal(special.damage,25,'full meter must unlock the server-validated special attack');
     const beforeDrop=p3.messages.filter(m=>m.type==='snapshot').at(-1)?.players?.[0]?.x;
     assert.ok(beforeDrop>290,'active room movement must be present before disconnect');
-    p4.ws.close();await waitFor(p3,m=>m.type==='opponent-left');
+    const staleCommandNonce=p4.commandNonce;p4.ws.close();await waitFor(p3,m=>m.type==='opponent-left');
     const intruder=await connect(otherCode,await identity());
     await waitFor(intruder,m=>m.type==='room-reserved');
     const p4Again=await connect(otherCode,cookie4);
     const [resume3,resume4]=await Promise.all([waitFor(p3,m=>m.type==='match-resumed'&&m.status==='playing'),waitFor(p4Again,m=>m.type==='match-resumed'&&m.status==='playing')]);
+    const ackBeforeStale=p4Again.messages.filter(m=>m.type==='snapshot').at(-1)?.players?.[1]?.inputAck;p4Again.sendRaw(JSON.stringify({type:'input',seq:999,nonce:staleCommandNonce,input:{right:true,face:1}}));await sleep(75);const ackAfterStale=p4Again.messages.filter(m=>m.type==='snapshot').at(-1)?.players?.[1]?.inputAck;assert.equal(ackAfterStale,ackBeforeStale,'server must reject commands carrying a nonce from a previous WebSocket session');
     assert.equal(resume3.round,1,'reconnected match must keep its current round');
     await sleep(60);
     const afterResume=p3.messages.filter(m=>m.type==='snapshot').at(-1)?.players?.[0]?.x;
