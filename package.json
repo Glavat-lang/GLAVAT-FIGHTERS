@@ -6,8 +6,11 @@
   "main": "server.js",
   "scripts": {
     "start": "node server.js",
-    "test": "node test/database.test.js && node test/online.test.js",
-    "validate": "node test/validate.js"
+    "test": "node test/database.test.js && node test/backup.test.js && node test/online.test.js",
+    "validate": "node test/validate.js",
+    "backup:sqlite": "node scripts/sqlite-maintenance.js backup",
+    "verify:sqlite-backup": "node scripts/sqlite-maintenance.js verify",
+    "restore:sqlite": "node scripts/restore-sqlite.js"
   },
   "dependencies": {
     "ws": "^8.18.0",
