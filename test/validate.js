@@ -8,7 +8,7 @@ execFileSync(process.execPath,['--check','auth-security.js'],{stdio:'inherit'});
 execFileSync(process.execPath,['--check','email-provider.js'],{stdio:'inherit'});
 execFileSync(process.execPath,['--check','auth-service.js'],{stdio:'inherit'});
 execFileSync(process.execPath,['--check','test/auth-security.test.js'],{stdio:'inherit'});
-for(const file of ['scripts/sqlite-maintenance.js','scripts/restore-sqlite.js','test/backup.test.js','test/accounts-database.test.js','test/email-provider.test.js','test/auth-service.test.js'])execFileSync(process.execPath,['--check',file],{stdio:'inherit'});
+for(const file of ['scripts/sqlite-maintenance.js','scripts/restore-sqlite.js','test/backup.test.js','test/accounts-database.test.js','test/email-provider.test.js','test/auth-service.test.js','test/auth-http.test.js'])execFileSync(process.execPath,['--check',file],{stdio:'inherit'});
 const backupTool=fs.readFileSync('scripts/sqlite-maintenance.js','utf8');
 const restoreTool=fs.readFileSync('scripts/restore-sqlite.js','utf8');
 assert(backupTool.includes('VACUUM INTO')&&backupTool.includes('PRAGMA integrity_check'),'SQLite backup must create a consistent snapshot and verify its integrity');
