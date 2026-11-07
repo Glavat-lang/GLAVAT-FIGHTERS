@@ -1,6 +1,8 @@
 'use strict';
 const assert=require('node:assert/strict');
 const {test}=require('node:test');
+const path=require('node:path');
+const {spawnSync}=require('node:child_process');
 const {auditAtlas}=require('../scripts/audit-animation-assets');
 
 function fixture(count,{shared=false,duplicate=false}={}){
@@ -34,4 +36,13 @@ test('rejects repeated standalone frame drawings',()=>{
   const report=auditAtlas(fixture(25,{duplicate:true}));
   assert.equal(report.ready,false);
   assert.equal(report.fighters[1].uniqueFrameCount,1);
+});
+
+
+test('strict release animation gate fails on the current incomplete atlas',()=>{
+  const script=path.join(__dirname,'../scripts/audit-animation-assets.js');
+  const result=spawnSync(process.execPath,[script,'--strict'],{encoding:'utf8'});
+  assert.equal(result.status,1);
+  assert.match(result.stdout,/0 standalone drawings/);
+  assert.match(result.stdout,/Animation asset gate: INCOMPLETE/);
 });
