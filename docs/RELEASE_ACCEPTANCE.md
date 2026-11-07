@@ -90,7 +90,7 @@ Do not merge the draft PR, apply the staged Railway patch, or label a build as f
 
 - Corrected signed guest identity validation: when `PLAYER_COOKIE_SECRET` is configured, malformed or incorrect HMAC signatures are rejected and replaced with a newly issued guest identity. Legacy cookies with no signature remain usable for gameplay but cannot be attached to an account.
 - Added HTTP integration assertions that forged signed IDs are replaced and legacy unsigned IDs cannot be claimed by account registration.
-- This security correction is committed on `production-completion-audit`; it still requires a fresh CI run.
+- This security correction passed the full Node 24 test suite in workflow run `42321451226` (run #516).
 
 
 ## Persistent authentication throttling (2026-11-07)
@@ -200,4 +200,4 @@ Do not merge the draft PR, apply the staged Railway patch, or label a build as f
 - Added migration 004 for SQLite and PostgreSQL with hashed rate-limit keys and expiring fixed-window counters.
 - Database adapters increment counters atomically; SQLite uses an immediate transaction and PostgreSQL uses an atomic upsert. Raw IP/identifier values are not stored in the rate-limit table.
 - Account registration, login, resend-verification and password-reset identity throttles now use database-backed counters when persistent storage is configured. HTTP route throttles are also database-backed, so limits survive process restarts and are shared by instances using the same database.
-- Added tests for failed-login lockout, fixed-window reset, bucket expiry and cleanup. The migration and tests still require a fresh Node 24 CI run; PostgreSQL concurrency behavior still needs live integration coverage.
+- Added tests for failed-login lockout, fixed-window reset, bucket expiry and cleanup. Node 24 workflow run `42321451226` (run #516) passed the migration, persistent rate-limit and full test suites. PostgreSQL concurrency behavior still needs live integration coverage.
