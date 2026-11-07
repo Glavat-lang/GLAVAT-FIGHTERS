@@ -83,6 +83,7 @@ assert(server.includes('room.statsPrepared')&&server.includes('matchId:room.matc
 assert(server.includes("FIGHTER_BALANCE"),'server must define individual fighter balance profiles');
 assert(server.includes("Number.isSafeInteger(msg.seq)")&&server.includes("inputAck:p.lastInputSeq"),'online inputs must reject stale sequence numbers and acknowledge accepted input');
 assert(server.includes('if(!Number.isSafeInteger(msg.seq)||msg.seq<=ws.lastInputSeq)return'),'server must reject both unsequenced and replayed online inputs');
+assert(server.includes('accountSecurityReady:authSecurityReady()')&&server.includes('accountsReady:authSecurityReady()&&isMailReady()'),'health endpoint must expose account security and email readiness independently');
 assert(server.includes("if(msg.type==='join'){if(ws.room)return send(ws,{type:'join-error'") ,'server must reject duplicate room-join commands on the same socket');
 assert(server.includes("msg.type==='attack' && room.status==='playing' && other){\n    if(!Number.isSafeInteger(msg.seq)")&&server.includes("msg.type==='rematch'&&room.status==='round-over'){\n    if(!Number.isSafeInteger(msg.seq)"),'all state-changing online commands must be sequenced');
 assert(html.includes("type:'attack',seq:++inputSeq")&&html.includes("type:'rematch',seq:++inputSeq"),'online client must sequence attack and rematch commands');
