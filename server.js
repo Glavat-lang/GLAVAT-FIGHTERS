@@ -115,7 +115,7 @@ const server = http.createServer(async (req, res) => {
       }
       if(pathname==='/api/auth/logout'){
         const token=authCookieToken(req);try{if(token)await authService.logout(token);}catch(error){return authError(res,error);}
-        res.setHeader('Set-Cookie','gf_session=; Path=/; HttpOnly; Secure; SameSite=Lax; Max-Age=0');
+        const guestId=crypto.randomUUID();res.setHeader('Set-Cookie',[...playerCookieHeaders(guestId),'gf_session=; Path=/; HttpOnly; Secure; SameSite=Lax; Max-Age=0']);
         return json(res,200,{ok:true});
       }
       if(pathname==='/api/auth/verify-email'){
