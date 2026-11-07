@@ -100,7 +100,7 @@ const server = http.createServer(async (req, res) => {
     if(req.method==='GET'&&pathname==='/api/auth/me'){
       const token=authCookieToken(req);if(!token)return json(res,401,{error:'Не выполнен вход.'});
       if(!await dbReady)return json(res,503,{error:'Хранилище аккаунтов недоступно.'});
-      try{const account=await authService.authenticate(token);return account?json(res,200,{account:{username:account.username,email:account.email,player_id:account.player_id}}):json(res,401,{error:'Сессия истекла.'});}catch(error){return authError(res,error);}
+      try{const account=await authService.authenticate(token);if(!account)return json(res,401,{error:'Сессия истекла.'});res.setHeader('Set-Cookie',playerCookieHeaders(account.player_id));return json(res,200,{account:{username:account.username,email:account.email,player_id:account.player_id}});}catch(error){return authError(res,error);}
     }
     if(req.method==='POST'){
       if(!authSecurityReady())return json(res,503,{error:'Система аккаунтов ещё не настроена.'});
