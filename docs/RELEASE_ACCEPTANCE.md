@@ -20,7 +20,7 @@ This is the release gate for the existing project. A green automated test suite 
 
 ## Latest automated verification
 
-GitHub Actions workflow run 42323393086 (run #634) passed on Node 24 on 2026-11-07. It completed dependency installation, server syntax validation, SVG XML validation, browser-script parsing, npm run validate and the full npm test chain.
+GitHub Actions workflow run 42323500299 (run #646) passed on Node 24 on 2026-11-07. It completed dependency installation, server syntax validation, SVG XML validation, browser-script parsing, npm run validate and the full npm test chain.
 
 The passing suite includes:
 - SQLite schema migration through v4, persistence and migration compatibility.
@@ -62,4 +62,4 @@ The game can be called complete only after all PARTIAL and BLOCKED rows are clos
 
 ### Animation audit result
 
-Workflow run 42323393086 (run #634) executed the new non-strict animation audit and reported, for each fighter: 17/25 poses, 0 standalone drawings, 0 unique standalone frames and 17 symbol-composed poses. CI remains green because this is a reporting audit; the strict release gate intentionally fails until real frame art is supplied.
+Workflow run 42323500299 (run #646) executed the new non-strict animation audit and reported, for each fighter: 17/25 poses, 0 standalone drawings, 0 unique standalone frames and 17 symbol-composed poses. CI remains green because this is a reporting audit; the strict release gate intentionally fails until real frame art is supplied.
