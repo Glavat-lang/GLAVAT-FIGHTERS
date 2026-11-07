@@ -29,6 +29,8 @@ async function init(statsFile) {
         if(!columns.some(column=>column.name==='rating'))sqlite.exec(fs.readFileSync(path.join(__dirname,'migrations/sqlite/002_player_rating.sql'),'utf8'));
         else sqlite.prepare('INSERT OR IGNORE INTO schema_migrations(version) VALUES (2)').run();
       }
+      const migrationThree=sqlite.prepare('SELECT version FROM schema_migrations WHERE version=3').get();
+      if(!migrationThree)sqlite.exec(fs.readFileSync(path.join(__dirname,'migrations/sqlite/003_accounts.sql'),'utf8'));
     });
     applyMigrations();
     const count = sqlite.prepare('SELECT COUNT(*) AS count FROM player_stats').get().count;
@@ -75,6 +77,8 @@ async function init(statsFile) {
     await migrationClient.query(postgresMigrationOne);
     const postgresMigrationTwo=fs.readFileSync(path.join(__dirname,'migrations/002_player_rating.sql'),'utf8');
     await migrationClient.query(postgresMigrationTwo);
+    const postgresMigrationThree=fs.readFileSync(path.join(__dirname,'migrations/003_accounts.sql'),'utf8');
+    await migrationClient.query(postgresMigrationThree);
     await migrationClient.query('COMMIT');
   }catch(error){await migrationClient.query('ROLLBACK');throw error;}
   finally{migrationClient.release();}
