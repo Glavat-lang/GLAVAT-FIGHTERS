@@ -43,6 +43,8 @@ assert(start>=0&&end>start,'inline browser game script must exist');
 new Function(html.slice(start+8,end));
 const svg=fs.readFileSync('public/fighters.svg','utf8');
 assert(svg.includes('<svg'),'sprite atlas SVG must exist');
+assert(svg.includes('fill="#26252f"')&&svg.includes('fill="#a52d43"')&&svg.includes('M30 17 L35 8 L45 4'),'fighter atlas must match GLAVAT black-cap/hoodie and KILLA red-hoodie palette');
+assert(html.includes('БОЕЦ 2 · KILLA')&&html.includes('Портрет KILLA')&&!html.includes('БОЕЦ 2 · DOJO'),'second fighter must be named KILLA consistently in menu and HUD');
 for(const player of [1,2]){
  const frames=svg.match(new RegExp('id="p'+player+'f[0-9]+"','g'))||[];
  assert.equal(frames.length,17,'fighter '+player+' must expose 17 sprite poses');
