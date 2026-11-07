@@ -30,7 +30,7 @@ async function freePort(){const server=net.createServer();await new Promise(reso
   let healthy=false;
   for(let i=0;i<80;i++){try{const response=await fetch(base+'/health');if(response.ok){healthy=true;break;}}catch{}await sleep(100);}
   assert.equal(healthy,true,'HTTP server must become healthy');
-  const health=await fetch(base+'/health').then(response=>response.json());assert.equal(health.accountSecurityReady,true);assert.equal(health.mailReady,false);assert.equal(health.accountsReady,false,'health must distinguish live game storage from unavailable account email configuration');
+  const healthResponse=await fetch(base+'/health',{headers:{'x-forwarded-proto':'https'}});const health=await healthResponse.json();assert.equal(healthResponse.headers.get('x-content-type-options'),'nosniff');assert.equal(healthResponse.headers.get('x-frame-options'),'DENY');assert.equal(healthResponse.headers.get('referrer-policy'),'strict-origin-when-cross-origin');assert.equal(healthResponse.headers.get('cache-control'),'no-store');assert.equal(healthResponse.headers.get('strict-transport-security'),'max-age=31536000; includeSubDomains');assert.equal(health.accountSecurityReady,true);assert.equal(health.mailReady,false);assert.equal(health.accountsReady,false,'health must distinguish live game storage from unavailable account email configuration');
   const forgedId='22222222-2222-4222-8222-222222222222';
   const forgedProfile=await fetch(base+'/api/profile',{headers:{Cookie:'gf_player='+forgedId+'; gf_player_sig='+('0'.repeat(64))}});
   const refreshed=forgedProfile.headers.getSetCookie?forgedProfile.headers.getSetCookie():[forgedProfile.headers.get('set-cookie')||''];
