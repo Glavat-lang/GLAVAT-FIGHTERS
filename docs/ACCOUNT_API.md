@@ -41,3 +41,11 @@ Password reset: `{ "token": "<token-from-email>", "password": "NewPassword2026!"
 - The in-process rate limiter is suitable only for a single server instance. Use a shared atomic limiter before enabling multiple replicas.
 - New guest identities are HMAC-signed. Legacy unsigned guest cookies are preserved for gameplay but cannot be safely claimed by registration without proof of ownership; a migration/linking flow is still required.
 - Real provider delivery, verified sender DNS, mailbox UX, Windows/iPhone/Android browser QA and PostgreSQL integration testing are not yet release-accepted.
+
+
+## Session and token retention
+
+- Expired sessions are removed during database initialization and every six hours while the server is running.
+- Revoked sessions are retained for up to 30 days for operational safety, then removed by the same cleanup.
+- Expired and consumed email-action tokens are removed by the same retention job.
+- The cleanup is transactional for PostgreSQL and uses SQLite's local transaction handling for the volume-backed adapter.
