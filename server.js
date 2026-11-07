@@ -68,7 +68,7 @@ const rooms = new Map();
 const MAX_ROOMS = 2000, MAX_CLIENTS = 4000, ROOM_TTL = 90_000;
 const clamp = (n, lo, hi) => Math.max(lo, Math.min(hi, n));
 const now = () => Date.now();
-// GLAVAT is agile; DOJO trades speed for reach, guard and impact.
+// GLAVAT is agile; KILLA trades speed for reach, guard and impact.
 const FIGHTER_BALANCE = Object.freeze([
   Object.freeze({speed:1,damage:1,reach:1,recovery:1,guard:.18}),
   Object.freeze({speed:.92,damage:1.12,reach:1.08,recovery:1.12,guard:.14})
