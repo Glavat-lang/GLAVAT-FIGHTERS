@@ -84,3 +84,10 @@ Do not merge the draft PR, apply the staged Railway patch, or label a build as f
 - Email links containing `?verify=` or `?reset=` prefill the one-time token and open the account panel.
 - The account panel calls the same-origin account API and displays server responses without exposing session tokens to JavaScript.
 - The new UI and HTTP integration tests passed in Node 24 GitHub Actions run `42319966268`. Real provider delivery and physical browser testing remain outstanding.
+
+
+## Guest identity integrity fix (2026-11-07)
+
+- Corrected signed guest identity validation: when PLAYER_COOKIE_SECRET is configured, a missing, malformed or incorrect HMAC signature is now rejected and replaced with a newly issued guest identity. Previously, malformed signatures could fall back to trusting the supplied player UUID.
+- Added an HTTP integration assertion that a forged guest identity cookie is replaced.
+- This change is committed on production-completion-audit; the latest commit's CI result has not yet been verified. This is a security correction, not release acceptance.
