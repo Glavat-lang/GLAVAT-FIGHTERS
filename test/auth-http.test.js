@@ -58,7 +58,7 @@ async function freePort(){const server=net.createServer();await new Promise(reso
   const registration=await fetch(base+'/api/auth/register',{method:'POST',headers:{Origin:APP_ORIGIN,'Content-Type':'application/json',Cookie:cookieHeader},body:JSON.stringify({username:'NewPlayer',email:'new@example.test',password:'NewHttpPass2026!'})});
   assert.equal(registration.status,503,'registration must fail closed when no transactional email provider is configured');
   const logout=await fetch(base+'/api/auth/logout',{method:'POST',headers:{Origin:APP_ORIGIN,Cookie:cookieHeader}});
-  assert.equal(logout.status,200);
+  assert.equal(logout.status,200);const logoutCookies=logout.headers.getSetCookie?logout.headers.getSetCookie():[logout.headers.get('set-cookie')||''];assert.notEqual(logoutCookies.find(value=>value.startsWith('gf_player='))?.split(';')[0],'gf_player='+meData.account.player_id,'logout must rotate the browser to a fresh guest identity');assert.ok(logoutCookies.some(value=>value.startsWith('gf_player_sig=')),'logout must sign the new guest identity');assert.ok(logoutCookies.some(value=>value.startsWith('gf_session=')&&value.includes('Max-Age=0')),'logout must clear the session cookie');
   const after=await fetch(base+'/api/auth/me',{headers:{Cookie:cookieHeader}});
   assert.equal(after.status,401,'logout must revoke the session server-side');
   process.stdout.write('Account HTTP origin protection, login, secure cookies, session lookup, mail fail-closed behavior and logout passed.\\n');
