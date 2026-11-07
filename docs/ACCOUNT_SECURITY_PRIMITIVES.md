@@ -13,7 +13,7 @@ This work adds reusable security primitives and persistent database operations, 
 - `email-provider.js` integrates with Resend when `RESEND_API_KEY`, `MAIL_FROM` and an HTTPS `APP_ORIGIN` are configured; it remains disabled without those credentials.
 - Password reset invalidates all existing sessions for the account.
 - Account creation binds to an existing or newly created player ID, preserving the existing profile identity and its statistics.
-- Tests have been added for the password primitives and SQLite account lifecycle. The full Node 24 GitHub Actions suite passed on 2026-11-07 in workflow run `42320911632` (run #465), including account database, auth-service, email-provider, HTTP security and WebSocket replay/reconnect tests. The later persistent rate-limit migration is still awaiting its own fresh CI run.
+- Tests have been added for the password primitives and SQLite account lifecycle. The full Node 24 GitHub Actions suite passed on 2026-11-07 in workflow run `42321451226` (run #516), including migration 004, persistent database-backed rate limits, auth-service, email-provider, HTTP security, forged/legacy guest-cookie handling and WebSocket replay/reconnect tests.
 
 ## Still required before account functionality is accepted for release
 
