@@ -81,7 +81,7 @@ function attackIntersects(a,v,kind,range){
   return hitTop<hurtBottom && hitBottom>hurtTop;
 }
 
-const server = http.createServer((req, res) => {
+const server = http.createServer(async (req, res) => {
   let playerId=readPlayerId(req.headers.cookie||'');
   if(!playerId){playerId=crypto.randomUUID();res.setHeader('Set-Cookie',playerCookieHeaders(playerId));}
   if (req.method !== 'GET' && req.method !== 'HEAD' && !(req.method==='PUT'&&['/api/settings','/api/profile'].includes(req.url?.split('?')[0])) && !(req.method==='POST'&&['/api/auth/register','/api/auth/login','/api/auth/logout','/api/auth/verify-email','/api/auth/resend-verification','/api/auth/forgot-password','/api/auth/reset-password'].includes(req.url?.split('?')[0]))) { res.writeHead(405); return res.end(); }
