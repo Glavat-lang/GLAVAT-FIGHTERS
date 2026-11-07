@@ -16,7 +16,7 @@ function createAuthService({database,sendEmail,env=process.env,clock=Date.now,li
    const digest=crypto.createHash('sha256').update(key,'utf8').digest('hex');
    return database.consumeRateLimit(digest,limit,windowMs,new Date(clock()));
   }
-  return await takeRateLimit(key);
+  return limiter.consume(key);
  }
  async function issueEmailToken(account,purpose){
   if(typeof sendEmail!=='function'||!origin())throw new Error('Transactional email is not configured');
@@ -47,7 +47,7 @@ function createAuthService({database,sendEmail,env=process.env,clock=Date.now,li
   return database.consumeAccountEmailToken({tokenHash:hashToken(token),purpose:'verify_email',now:new Date(clock())});
  }
  async function login({identifier,password,sessionId,userAgent=null,ipPrefix=null}){
-  const key='login:'+normalize(identifier),attempt=limiter.consume(key);
+  const key='login:'+normalize(identifier),attempt=await takeRateLimit(key);
   if(!attempt.allowed){const error=new Error('Too many attempts');error.code='RATE_LIMITED';error.retryAfterMs=attempt.retryAfterMs;throw error;}
   const account=await database.getAccountByLogin(identifier);
   const passwordHash=account?account.password_hash:await dummyPasswordHash;
