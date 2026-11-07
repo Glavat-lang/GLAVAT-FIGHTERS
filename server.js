@@ -75,7 +75,7 @@ const server = http.createServer((req, res) => {
   let pathname;
   try { pathname = decodeURIComponent((req.url || '/').split('?')[0]); }
   catch { res.writeHead(400); return res.end('Bad request'); }
-  if(pathname==='/health'&&req.method==='GET')return dbReady.then(ready=>json(res,ready?200:503,{ok:ready,statsReady:ready}));
+  if(pathname==='/health'&&req.method==='GET')return dbReady.then(async ready=>{let healthy=false;try{healthy=ready&&await database.healthCheck();}catch(error){console.error('health database probe failed',error.message);}return json(res,healthy?200:503,{ok:healthy,statsReady:healthy,storage:database.isSqlite()?'sqlite':database.isPostgres()?'postgres':'file'});});
   if(pathname==='/api/profile'&&req.method==='GET')return profile(playerId,res);
   if(pathname==='/api/profile'&&req.method==='PUT')return readJsonBody(req).then(async body=>{
     const displayName=typeof body.displayName==='string'?body.displayName.trim():'';
