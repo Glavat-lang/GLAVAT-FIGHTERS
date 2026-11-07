@@ -20,7 +20,7 @@ try{
   execFileSync(process.execPath,['scripts/restore-sqlite.js',backup,source],{stdio:'pipe'});
   const restored=new DatabaseSync(source,{readOnly:true});
   const row=restored.prepare('SELECT matches,wins,rating FROM player_stats WHERE player_id=?').get('11111111-1111-4111-8111-111111111111');
-  assert.deepEqual(row,{matches:7,wins:5,rating:1120});
+  assert.deepEqual({...row},{matches:7,wins:5,rating:1120});
   assert.equal(restored.prepare('PRAGMA integrity_check').get().integrity_check,'ok');
   restored.close();
   const safety=fs.readdirSync(root).find(name=>name.startsWith('source.sqlite.pre-restore-'));
