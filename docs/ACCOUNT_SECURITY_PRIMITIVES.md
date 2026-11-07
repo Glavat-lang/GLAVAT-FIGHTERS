@@ -8,15 +8,17 @@ This work adds reusable security primitives and persistent database operations, 
 - Password verification uses constant-time comparison and rejects unsupported parameter encodings.
 - Session and email-action tokens are generated from 256 bits of cryptographic randomness; only SHA-256 token digests are stored.
 - The session cookie helper sets HttpOnly, Secure and SameSite=Lax.
-- SQLite and PostgreSQL account operations now cover creation, normalized username/email lookup, session creation/lookup/revocation, one-time email-token creation/consumption, email verification and password reset.\n- `auth-service.js` orchestrates registration, verification email, login, session issue/authentication/logout, password-reset email and one-time reset consumption.\n- `email-provider.js` integrates with Resend when `RESEND_API_KEY`, `MAIL_FROM` and an HTTPS `APP_ORIGIN` are configured; it remains disabled without those credentials.
+- SQLite and PostgreSQL account operations now cover creation, normalized username/email lookup, session creation/lookup/revocation, one-time email-token creation/consumption, email verification and password reset.
+- `auth-service.js` orchestrates registration, verification email, login, session issue/authentication/logout, password-reset email and one-time reset consumption.
+- `email-provider.js` integrates with Resend when `RESEND_API_KEY`, `MAIL_FROM` and an HTTPS `APP_ORIGIN` are configured; it remains disabled without those credentials.
 - Password reset invalidates all existing sessions for the account.
 - Account creation binds to an existing or newly created player ID, preserving the existing profile identity and its statistics.
-- Tests have been added for the password primitives and SQLite account lifecycle. The full Node 24 GitHub Actions suite passed on 2026-11-07 in workflow run `42319966268` (run #399), including account database, auth-service, email-provider, HTTP security and online integration tests.
+- Tests have been added for the password primitives and SQLite account lifecycle. The full Node 24 GitHub Actions suite passed on 2026-11-07 in workflow run `42320911632` (run #465), including account database, auth-service, email-provider, HTTP security and WebSocket replay/reconnect tests. The later persistent rate-limit migration is still awaiting its own fresh CI run.
 
 ## Still required before account functionality is accepted for release
 
 1. Cross-browser UI and end-to-end validation of registration, login, logout, email verification and password recovery. The API routes and basic menu controls now exist.
 2. Configure the Resend provider in production, verify the sender domain, and prove real verification/reset email delivery.
-3. Production-grade shared rate limiting and account-enumeration-safe responses. The in-process limiter is only a single-process guard.
+3. Live PostgreSQL concurrency validation for the new database-backed rate limiter; SQLite is suitable for the current single-instance Railway volume.
 4. Session rotation and explicit guest-to-account linking UX, plus end-to-end security tests.
-5. Full Node 24 CI run and production persistence verification.
+5. Fresh Node 24 CI run after migration 004, plus production persistence and backup verification.
