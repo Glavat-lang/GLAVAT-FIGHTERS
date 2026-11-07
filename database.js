@@ -4,12 +4,59 @@ const path = require('path');
 const crypto = require('crypto');
 
 let pool = null;
+let sqlite = null;
 let filePath = null;
+let sqlitePath = null;
 let writeQueue = Promise.resolve();
 const emptyStats = () => ({matches:0,wins:0,losses:0,draws:0,knockouts:0,win_streak:0,best_streak:0,favorite_fighter:0,fighter_0_count:0,fighter_1_count:0,rating:1000});
 
 async function init(statsFile) {
   filePath = statsFile;
+  if (!process.env.DATABASE_URL && (process.env.DATABASE_MODE === 'sqlite' || process.env.SQLITE_FILE)) {
+    const Database = require('better-sqlite3');
+    sqlitePath = process.env.SQLITE_FILE || path.join(path.dirname(statsFile), 'glavat-fighters.sqlite');
+    fs.mkdirSync(path.dirname(sqlitePath), {recursive:true});
+    sqlite = new Database(sqlitePath);
+    sqlite.pragma('journal_mode = WAL');
+    sqlite.pragma('foreign_keys = ON');
+    sqlite.pragma('busy_timeout = 5000');
+    sqlite.exec(`CREATE TABLE IF NOT EXISTS schema_migrations(version INTEGER PRIMARY KEY, applied_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP);
+      CREATE TABLE IF NOT EXISTS players(player_id TEXT PRIMARY KEY, display_name TEXT, created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP, last_seen_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP);
+      CREATE TABLE IF NOT EXISTS player_stats(
+        player_id TEXT PRIMARY KEY REFERENCES players(player_id) ON DELETE CASCADE,
+        matches INTEGER NOT NULL DEFAULT 0 CHECK(matches>=0), wins INTEGER NOT NULL DEFAULT 0 CHECK(wins>=0),
+        losses INTEGER NOT NULL DEFAULT 0 CHECK(losses>=0), draws INTEGER NOT NULL DEFAULT 0 CHECK(draws>=0),
+        knockouts INTEGER NOT NULL DEFAULT 0 CHECK(knockouts>=0), win_streak INTEGER NOT NULL DEFAULT 0 CHECK(win_streak>=0),
+        best_streak INTEGER NOT NULL DEFAULT 0 CHECK(best_streak>=0), favorite_fighter INTEGER NOT NULL DEFAULT 0 CHECK(favorite_fighter IN (0,1)),
+        fighter_0_count INTEGER NOT NULL DEFAULT 0 CHECK(fighter_0_count>=0), fighter_1_count INTEGER NOT NULL DEFAULT 0 CHECK(fighter_1_count>=0),
+        rating INTEGER NOT NULL DEFAULT 1000 CHECK(rating>=0), updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP);
+      CREATE TABLE IF NOT EXISTS player_settings(player_id TEXT PRIMARY KEY REFERENCES players(player_id) ON DELETE CASCADE, settings TEXT NOT NULL DEFAULT '{}', updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP);
+      CREATE TABLE IF NOT EXISTS match_history(
+        match_id TEXT PRIMARY KEY, room_code TEXT NOT NULL, player_one_id TEXT NOT NULL REFERENCES players(player_id),
+        player_two_id TEXT NOT NULL REFERENCES players(player_id), winner_player_id TEXT REFERENCES players(player_id),
+        result_reason TEXT NOT NULL, round_number INTEGER NOT NULL CHECK(round_number>0),
+        player_one_fighter INTEGER NOT NULL CHECK(player_one_fighter IN (0,1)),
+        player_two_fighter INTEGER NOT NULL CHECK(player_two_fighter IN (0,1)), completed_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP);
+      CREATE INDEX IF NOT EXISTS match_history_player_one_idx ON match_history(player_one_id, completed_at DESC);
+      CREATE INDEX IF NOT EXISTS match_history_player_two_idx ON match_history(player_two_id, completed_at DESC);`);
+    sqlite.prepare('INSERT OR IGNORE INTO schema_migrations(version) VALUES (1)').run();
+    sqlite.prepare('INSERT OR IGNORE INTO schema_migrations(version) VALUES (2)').run();
+    const count = sqlite.prepare('SELECT COUNT(*) AS count FROM player_stats').get().count;
+    if (count === 0) {
+      try {
+        const legacy = JSON.parse(fs.readFileSync(filePath, 'utf8'));
+        if (legacy && typeof legacy === 'object' && !Array.isArray(legacy)) upsertStatsSqlite(legacy);
+      } catch (error) { if (error.code !== 'ENOENT') console.error('legacy stats import skipped:', error.message); }
+    }
+    const rows = sqlite.prepare('SELECT * FROM player_stats').all();
+    const data = {};
+    for (const row of rows) data[row.player_id] = {
+      matches:row.matches,wins:row.wins,losses:row.losses,draws:row.draws,knockouts:row.knockouts,
+      win_streak:row.win_streak,best_streak:row.best_streak,favorite_fighter:row.favorite_fighter,
+      fighter_0_count:row.fighter_0_count,fighter_1_count:row.fighter_1_count,rating:row.rating
+    };
+    return data;
+  }
   if (!process.env.DATABASE_URL) {
     fs.mkdirSync(path.dirname(filePath), {recursive:true});
     try {
@@ -99,6 +146,21 @@ async function init(statsFile) {
   return data;
 }
 
+function upsertStatsSqlite(data) {
+  const player = sqlite.prepare('INSERT INTO players(player_id) VALUES(?) ON CONFLICT(player_id) DO UPDATE SET last_seen_at=CURRENT_TIMESTAMP');
+  const stats = sqlite.prepare(`INSERT INTO player_stats(player_id,matches,wins,losses,draws,knockouts,win_streak,best_streak,favorite_fighter,fighter_0_count,fighter_1_count,rating)
+    VALUES(@id,@matches,@wins,@losses,@draws,@knockouts,@win_streak,@best_streak,@favorite_fighter,@fighter_0_count,@fighter_1_count,@rating)
+    ON CONFLICT(player_id) DO UPDATE SET matches=excluded.matches,wins=excluded.wins,losses=excluded.losses,draws=excluded.draws,
+    knockouts=excluded.knockouts,win_streak=excluded.win_streak,best_streak=excluded.best_streak,favorite_fighter=excluded.favorite_fighter,
+    fighter_0_count=excluded.fighter_0_count,fighter_1_count=excluded.fighter_1_count,rating=excluded.rating,updated_at=CURRENT_TIMESTAMP`);
+  for (const [id,value] of Object.entries(data)) {
+    if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(id)) continue;
+    player.run(id);
+    stats.run({id,matches:value.matches||0,wins:value.wins||0,losses:value.losses||0,draws:value.draws||0,knockouts:value.knockouts||0,
+      win_streak:value.win_streak||0,best_streak:value.best_streak||0,favorite_fighter:value.favorite_fighter||0,
+      fighter_0_count:value.fighter_0_count||0,fighter_1_count:value.fighter_1_count||0,rating:Number.isInteger(value.rating)?value.rating:1000});
+  }
+}
 async function upsertStats(data, client=pool) {
   for (const [id, value] of Object.entries(data)) {
     if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(id)) continue;
@@ -115,6 +177,7 @@ async function upsertStats(data, client=pool) {
 }
 
 async function persistStats(data) {
+  if (sqlite) { const tx=sqlite.transaction(()=>upsertStatsSqlite(data)); tx(); return; }
   if (pool) {
     const client = await pool.connect();
     try { await client.query('BEGIN'); await upsertStats(data, client); await client.query('COMMIT'); }
@@ -129,10 +192,12 @@ async function persistStats(data) {
 }
 
 async function ensurePlayer(id) {
+  if(sqlite&&id){sqlite.prepare('INSERT INTO players(player_id) VALUES(?) ON CONFLICT(player_id) DO UPDATE SET last_seen_at=CURRENT_TIMESTAMP').run(id);return;}
   if (!pool || !id) return;
   await pool.query('INSERT INTO players(player_id) VALUES($1) ON CONFLICT(player_id) DO UPDATE SET last_seen_at=NOW()', [id]);
 }
 async function recordMatch(data, match) {
+  if(sqlite){const tx=sqlite.transaction(()=>{upsertStatsSqlite(data);const ids=match.playerIds||[];const valid=ids.length===2&&ids.every(id=>typeof id==='string'&&/^[0-9a-f-]{36}$/i.test(id));if(valid)sqlite.prepare(`INSERT OR IGNORE INTO match_history(match_id,room_code,player_one_id,player_two_id,winner_player_id,result_reason,round_number,player_one_fighter,player_two_fighter) VALUES(?,?,?,?,?,?,?,?,?)`).run(match.matchId||crypto.randomUUID(),match.roomCode,ids[0],ids[1],match.winner===null?null:ids[match.winner],match.reason,match.round,match.fighters[0],match.fighters[1]);});tx();return;}
   if (!pool) return persistStats(data);
   const client = await pool.connect();
   try {
@@ -150,6 +215,7 @@ async function recordMatch(data, match) {
   finally { client.release(); }
 }
 async function getHistory(id, limit=20) {
+  if(sqlite)return sqlite.prepare('SELECT match_id,room_code,player_one_id,player_two_id,winner_player_id,result_reason,round_number,player_one_fighter,player_two_fighter,completed_at FROM match_history WHERE player_one_id=? OR player_two_id=? ORDER BY completed_at DESC LIMIT ?').all(id,id,Math.max(1,Math.min(50,limit)));
   if (!pool) return [];
   const result = await pool.query(`SELECT match_id,room_code,player_one_id,player_two_id,winner_player_id,
     result_reason,round_number,player_one_fighter,player_two_fighter,completed_at
@@ -157,23 +223,31 @@ async function getHistory(id, limit=20) {
     ORDER BY completed_at DESC LIMIT $2`,[id,Math.max(1,Math.min(50,limit))]);
   return result.rows;
 }
+function safeSettings(settings) {
+  const safe={};
+  for(const key of ['musicVolume','effectsVolume','voiceVolume','soundOn','voiceOn']){
+    const value=settings&&settings[key];
+    if(typeof value==='boolean')safe[key]=value;
+    else if(typeof value==='number'&&Number.isFinite(value))safe[key]=Math.max(0,Math.min(1,value));
+  }
+  return safe;
+}
 async function getSettings(id) {
+  if(sqlite){const row=sqlite.prepare('SELECT settings FROM player_settings WHERE player_id=?').get(id);return row?JSON.parse(row.settings):{};}
   if (!pool) return {};
   const result = await pool.query('SELECT settings FROM player_settings WHERE player_id=$1',[id]);
   return result.rows[0]?.settings || {};
 }
 async function saveSettings(id, settings) {
+  if(sqlite){await ensurePlayer(id);const safe=safeSettings(settings);sqlite.prepare('INSERT INTO player_settings(player_id,settings) VALUES(?,?) ON CONFLICT(player_id) DO UPDATE SET settings=excluded.settings,updated_at=CURRENT_TIMESTAMP').run(id,JSON.stringify(safe));return safe;}
   if (!pool) return {};
   await ensurePlayer(id);
-  const safe = {};
-  for (const key of ['musicVolume','effectsVolume','voiceVolume','soundOn','voiceOn']) {
-    const value = settings && settings[key];
-    if (typeof value === 'boolean') safe[key] = value;
-    else if (typeof value === 'number' && Number.isFinite(value)) safe[key] = Math.max(0,Math.min(1,value));
-  }
+  const safe = safeSettings(settings);
   await pool.query(`INSERT INTO player_settings(player_id,settings) VALUES($1,$2::jsonb)
     ON CONFLICT(player_id) DO UPDATE SET settings=EXCLUDED.settings,updated_at=NOW()`,[id,JSON.stringify(safe)]);
   return safe;
 }
 function isPostgres() { return !!pool; }
-module.exports = {init,persistStats,recordMatch,ensurePlayer,getHistory,getSettings,saveSettings,isPostgres,emptyStats};
+function isSqlite() { return !!sqlite; }
+function close() { if(sqlite){sqlite.close();sqlite=null;} if(pool){return pool.end().then(()=>{pool=null;});} }
+module.exports = {init,persistStats,recordMatch,ensurePlayer,getHistory,getSettings,saveSettings,isPostgres,isSqlite,close,emptyStats};
