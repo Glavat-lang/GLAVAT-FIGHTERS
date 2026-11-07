@@ -13,10 +13,10 @@ This work adds reusable security primitives and persistent database operations, 
 - Account creation binds to an existing or newly created player ID, preserving the existing profile identity and its statistics.
 - Tests have been added for the password primitives and SQLite account lifecycle. The Node 24 GitHub Actions suite passed on 2026-11-07 (workflow run 42318835044, run number 326), including the database account lifecycle test. The newer auth-service and email-provider tests were added after that run and still require a fresh CI pass.
 
-## Still required before account endpoints are exposed
+## Still required before account functionality is accepted for release
 
-1. Registration, login, logout and current-session HTTP routes with CSRF/origin checks.
-2. A configured transactional email provider, verified sender domain, verification and password-reset delivery tests.
+1. Cross-browser UI and end-to-end validation of registration, login, logout, email verification and password recovery. The API routes and basic menu controls now exist.
+2. Configure the Resend provider in production, verify the sender domain, and prove real verification/reset email delivery.
 3. Production-grade shared rate limiting and account-enumeration-safe responses. The in-process limiter is only a single-process guard.
 4. Session rotation and explicit guest-to-account linking UX, plus end-to-end security tests.
 5. Full Node 24 CI run and production persistence verification.
