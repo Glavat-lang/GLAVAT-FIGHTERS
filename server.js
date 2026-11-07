@@ -76,7 +76,7 @@ function attackIntersects(a,v,kind,range){
 const server = http.createServer((req, res) => {
   let playerId=readPlayerId(req.headers.cookie||'');
   if(!playerId){playerId=crypto.randomUUID();res.setHeader('Set-Cookie',playerCookieHeaders(playerId));}
-  if (req.method !== 'GET' && req.method !== 'HEAD' && !(req.method==='PUT'&&['/api/settings','/api/profile'].includes(req.url?.split('?')[0])) && !(req.method==='POST'&&['/api/auth/register','/api/auth/login','/api/auth/logout','/api/auth/me','/api/auth/verify-email','/api/auth/resend-verification','/api/auth/forgot-password','/api/auth/reset-password'].includes(req.url?.split('?')[0]))) { res.writeHead(405); return res.end(); }
+  if (req.method !== 'GET' && req.method !== 'HEAD' && !(req.method==='PUT'&&['/api/settings','/api/profile'].includes(req.url?.split('?')[0])) && !(req.method==='POST'&&['/api/auth/register','/api/auth/login','/api/auth/logout','/api/auth/verify-email','/api/auth/resend-verification','/api/auth/forgot-password','/api/auth/reset-password'].includes(req.url?.split('?')[0]))) { res.writeHead(405); return res.end(); }
   let pathname;
   try { pathname = decodeURIComponent((req.url || '/').split('?')[0]); }
   catch { res.writeHead(400); return res.end('Bad request'); }
@@ -108,7 +108,7 @@ const server = http.createServer((req, res) => {
         return json(res,200,{ok:true});
       }
       if(pathname==='/api/auth/verify-email'){
-        return readJsonBody(req,8192).then(async body=>json(res,await authService.verifyEmail(body.token)?200:400,{verified:await Promise.resolve(false)})).catch(error=>authError(res,error));
+        return readJsonBody(req,8192).then(async body=>{const verified=await authService.verifyEmail(body.token);return json(res,verified?200:400,{verified});}).catch(error=>authError(res,error));
       }
       if(pathname==='/api/auth/resend-verification'){
         if(!isMailReady())return json(res,503,{error:'Почтовый сервис временно недоступен.'});
