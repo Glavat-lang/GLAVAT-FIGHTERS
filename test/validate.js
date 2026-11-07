@@ -4,7 +4,7 @@ const fs=require('node:fs');
 const {execFileSync}=require('node:child_process');
 execFileSync(process.execPath,['--check','server.js'],{stdio:'inherit'});
 execFileSync(process.execPath,['--check','database.js'],{stdio:'inherit'});\nexecFileSync(process.execPath,['--check','auth-security.js'],{stdio:'inherit'});\nexecFileSync(process.execPath,['--check','test/auth-security.test.js'],{stdio:'inherit'});
-for(const file of ['scripts/sqlite-maintenance.js','scripts/restore-sqlite.js','test/backup.test.js'])execFileSync(process.execPath,['--check',file],{stdio:'inherit'});
+for(const file of ['scripts/sqlite-maintenance.js','scripts/restore-sqlite.js','test/backup.test.js','test/accounts-database.test.js'])execFileSync(process.execPath,['--check',file],{stdio:'inherit'});
 const backupTool=fs.readFileSync('scripts/sqlite-maintenance.js','utf8');
 const restoreTool=fs.readFileSync('scripts/restore-sqlite.js','utf8');
 assert(backupTool.includes('VACUUM INTO')&&backupTool.includes('PRAGMA integrity_check'),'SQLite backup must create a consistent snapshot and verify its integrity');
@@ -61,6 +61,7 @@ assert(sqliteMigration1.includes('CREATE TABLE IF NOT EXISTS match_history')&&sq
 assert(postgresMigration3.includes('CREATE TABLE IF NOT EXISTS accounts')&&postgresMigration3.includes('CREATE TABLE IF NOT EXISTS account_sessions')&&postgresMigration3.includes('CREATE TABLE IF NOT EXISTS account_email_tokens'),'PostgreSQL must have account, revocable-session and single-use email-token schema');
 assert(sqliteMigration3.includes('username_normalized TEXT NOT NULL UNIQUE')&&sqliteMigration3.includes('email_normalized TEXT NOT NULL UNIQUE')&&sqliteMigration3.includes('token_hash TEXT NOT NULL UNIQUE'),'SQLite account identifiers and one-time tokens must be uniquely indexed');
 assert(database.includes('003_accounts.sql'),'both database adapters must apply the registered-account migration');
+for(const method of ['createAccount','getAccountByLogin','createAccountSession','getAccountBySession','revokeAccountSession','createAccountEmailToken','consumeAccountEmailToken'])assert(database.includes('function '+method),'persistent account operation missing: '+method);
 assert(server.includes("pathname==='/api/history'")&&server.includes("pathname==='/api/settings'"),'match history and persisted player settings APIs must be present');
 assert(server.includes("database.saveDisplayName")&&server.includes("database.getDisplayName")&&html.includes('id="displayName"'),'guest player profiles must support persistent display names');
 assert(server.includes('room.statsPrepared')&&server.includes('matchId:room.matchId'),'match persistence retries must be idempotent');
@@ -80,4 +81,5 @@ assert(html.includes("function ai(dt){")&&html.includes("const threat=p.attack>0
 assert(html.includes("doAttack(1,'special')")&&html.includes("doAttack(1,'counter')")&&html.includes("doAttack(1,'grab')"),'CPU must use supers, counters and throws when appropriate');
 assert(html.includes("p.fighter===1?.92:1"),'local movement must reflect individual fighter speed');
 assert(html.includes("a.fighter===1?1.12:1"),'local damage must reflect individual fighter power');
-process.stdout.write('Server, browser script, 17 sprite poses and animation state mappings validated.\\n');
+process.stdout.write('Server, browser script, 17 sprite poses and animation state mappings validated.
+');
