@@ -167,6 +167,18 @@ async function recordMatch(data, match) {
   } catch (error) { await client.query('ROLLBACK'); throw error; }
   finally { client.release(); }
 }
+async function getDisplayName(id) {
+  if(sqlite){const row=sqlite.prepare('SELECT display_name FROM players WHERE player_id=?').get(id);return row?.display_name||null;}
+  if(pool){const result=await pool.query('SELECT display_name FROM players WHERE player_id=$1',[id]);return result.rows[0]?.display_name||null;}
+  return null;
+}
+async function saveDisplayName(id, name) {
+  if(!sqlite&&!pool)return null;
+  await ensurePlayer(id);
+  if(sqlite)sqlite.prepare('UPDATE players SET display_name=?,last_seen_at=CURRENT_TIMESTAMP WHERE player_id=?').run(name,id);
+  else await pool.query('UPDATE players SET display_name=$1,last_seen_at=NOW() WHERE player_id=$2',[name,id]);
+  return name;
+}
 async function getHistory(id, limit=20) {
   if(sqlite)return sqlite.prepare('SELECT match_id,room_code,player_one_id,player_two_id,winner_player_id,result_reason,round_number,player_one_fighter,player_two_fighter,completed_at FROM match_history WHERE player_one_id=? OR player_two_id=? ORDER BY completed_at DESC LIMIT ?').all(id,id,Math.max(1,Math.min(50,limit)));
   if (!pool) return [];
@@ -203,4 +215,4 @@ async function saveSettings(id, settings) {
 function isPostgres() { return !!pool; }
 function isSqlite() { return !!sqlite; }
 function close() { if(sqlite){sqlite.close();sqlite=null;} if(pool){return pool.end().then(()=>{pool=null;});} }
-module.exports = {init,persistStats,recordMatch,ensurePlayer,getHistory,getSettings,saveSettings,isPostgres,isSqlite,close,emptyStats};
+module.exports = {init,persistStats,recordMatch,ensurePlayer,getHistory,getSettings,saveSettings,getDisplayName,saveDisplayName,isPostgres,isSqlite,close,emptyStats};
