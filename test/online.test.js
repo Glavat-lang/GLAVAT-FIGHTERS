@@ -93,6 +93,7 @@ function waitFor(client,predicate,timeout=5000,from=0) {
     const no=c=>c.messages.find(m=>m.type==='joined')?.playerNo;
     const attacker=no(p1)===1?p1:p2,defender=attacker===p1?p2:p1;
     const initial=await waitFor(attacker,m=>m.type==='snapshot'&&m.players?.every(Boolean));
+    const attacksBefore=attacker.messages.filter(m=>m.type==='attack-start').length;attacker.sendRaw(JSON.stringify({type:'attack',attack:{kind:'punch'}}));await sleep(50);assert.equal(attacker.messages.filter(m=>m.type==='attack-start').length,attacksBefore,'server must reject unsequenced attack commands');
     attacker.ws.send(JSON.stringify({type:'join',code:'REPLAY',arena:'sunset',fighter:0}));
     await waitFor(attacker,m=>m.type==='join-error');
     assert.equal(initial.players[0].x,290,'round reset must spawn player one at 290');
@@ -214,6 +215,7 @@ function waitFor(client,predicate,timeout=5000,from=0) {
     assert.equal(roundEnd.champion,false,'one round must not prematurely finish best-of-three');
     process.stdout.write('TEST 9: KO and round result\\n');
     const rematchFromA=attacker.messages.length,rematchFromD=defender.messages.length;
+    attacker.sendRaw(JSON.stringify({type:'rematch'}));await sleep(60);assert.equal(attacker.messages.slice(rematchFromA).some(m=>m.type==='rematch-wait'||m.type==='match-start'),false,'server must reject unsequenced rematch commands');
     attacker.ws.send(JSON.stringify({type:'rematch'}));defender.ws.send(JSON.stringify({type:'rematch'}));
     await Promise.all([waitFor(attacker,m=>m.type==='match-start'&&m.round===2,5000,rematchFromA),waitFor(defender,m=>m.type==='match-start'&&m.round===2,5000,rematchFromD)]);
     attacker.ws.send(JSON.stringify({type:'input',input:{right:true,face:1}}));defender.ws.send(JSON.stringify({type:'input',input:{left:true,face:-1}}));await sleep(300);attacker.ws.send(JSON.stringify({type:'input',input:{right:false,face:1}}));defender.ws.send(JSON.stringify({type:'input',input:{left:false,face:-1}}));await sleep(25);
