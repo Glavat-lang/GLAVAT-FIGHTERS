@@ -78,6 +78,7 @@ assert(database.includes('003_accounts.sql'),'both database adapters must apply 
 for(const method of ['createAccount','getAccountByLogin','createAccountSession','getAccountBySession','revokeAccountSession','createAccountEmailToken','consumeAccountEmailToken'])assert(database.includes('function '+method),'persistent account operation missing: '+method);
 assert(server.includes("pathname==='/api/history'")&&server.includes("pathname==='/api/settings'"),'match history and persisted player settings APIs must be present');
 assert(server.includes("database.saveDisplayName")&&server.includes("database.getDisplayName")&&html.includes('id="displayName"'),'guest player profiles must support persistent display names');
+assert(database.includes('function pruneAuthArtifacts')&&server.includes('database.pruneAuthArtifacts()')&&server.includes('6*60*60*1000'),'expired authentication artifacts must be cleaned at startup and periodically');
 assert(server.includes('room.statsPrepared')&&server.includes('matchId:room.matchId'),'match persistence retries must be idempotent');
 assert(server.includes("FIGHTER_BALANCE"),'server must define individual fighter balance profiles');
 assert(server.includes("Number.isSafeInteger(msg.seq)")&&server.includes("inputAck:p.lastInputSeq"),'online inputs must reject stale sequence numbers and acknowledge accepted input');
