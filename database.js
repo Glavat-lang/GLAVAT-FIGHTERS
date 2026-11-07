@@ -5,6 +5,7 @@ const crypto = require('crypto');
 
 let pool = null;
 let sqlite = null;
+function sqliteTransaction(callback){sqlite.exec('BEGIN IMMEDIATE');try{const result=callback();sqlite.exec('COMMIT');return result;}catch(error){sqlite.exec('ROLLBACK');throw error;}}
 let filePath = null;
 let sqlitePath = null;
 let writeQueue = Promise.resolve();
@@ -13,20 +14,18 @@ const emptyStats = () => ({matches:0,wins:0,losses:0,draws:0,knockouts:0,win_str
 async function init(statsFile) {
   filePath = statsFile;
   if (!process.env.DATABASE_URL && (process.env.DATABASE_MODE === 'sqlite' || process.env.SQLITE_FILE)) {
-    const Database = require('better-sqlite3');
+    const {DatabaseSync} = require('node:sqlite');
     sqlitePath = process.env.SQLITE_FILE || path.join(path.dirname(statsFile), 'glavat-fighters.sqlite');
     fs.mkdirSync(path.dirname(sqlitePath), {recursive:true});
-    sqlite = new Database(sqlitePath);
-    sqlite.pragma('journal_mode = WAL');
-    sqlite.pragma('foreign_keys = ON');
-    sqlite.pragma('busy_timeout = 5000');
-    const applyMigrations=sqlite.transaction(()=>{
+    sqlite = new DatabaseSync(sqlitePath);
+    sqlite.exec('PRAGMA journal_mode = WAL; PRAGMA foreign_keys = ON; PRAGMA busy_timeout = 5000;');
+    const applyMigrations=()=>sqliteTransaction(()=>{
       sqlite.exec('CREATE TABLE IF NOT EXISTS schema_migrations(version INTEGER PRIMARY KEY, applied_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP)');
       const migrationOne=sqlite.prepare('SELECT version FROM schema_migrations WHERE version=1').get();
       if(!migrationOne)sqlite.exec(fs.readFileSync(path.join(__dirname,'migrations/sqlite/001_initial_schema.sql'),'utf8'));
       const migrationTwo=sqlite.prepare('SELECT version FROM schema_migrations WHERE version=2').get();
       if(!migrationTwo){
-        const columns=sqlite.pragma('table_info(player_stats)');
+        const columns=sqlite.prepare('PRAGMA table_info(player_stats)').all();
         if(!columns.some(column=>column.name==='rating'))sqlite.exec(fs.readFileSync(path.join(__dirname,'migrations/sqlite/002_player_rating.sql'),'utf8'));
         else sqlite.prepare('INSERT OR IGNORE INTO schema_migrations(version) VALUES (2)').run();
       }
@@ -131,7 +130,7 @@ async function upsertStats(data, client=pool) {
 }
 
 async function persistStats(data) {
-  if (sqlite) { const tx=sqlite.transaction(()=>upsertStatsSqlite(data)); tx(); return; }
+  if (sqlite) { sqliteTransaction(()=>upsertStatsSqlite(data)); return; }
   if (pool) {
     const client = await pool.connect();
     try { await client.query('BEGIN'); await upsertStats(data, client); await client.query('COMMIT'); }
@@ -151,7 +150,7 @@ async function ensurePlayer(id) {
   await pool.query('INSERT INTO players(player_id) VALUES($1) ON CONFLICT(player_id) DO UPDATE SET last_seen_at=NOW()', [id]);
 }
 async function recordMatch(data, match) {
-  if(sqlite){const tx=sqlite.transaction(()=>{upsertStatsSqlite(data);const ids=match.playerIds||[];const valid=ids.length===2&&ids.every(id=>typeof id==='string'&&/^[0-9a-f-]{36}$/i.test(id));if(valid)sqlite.prepare(`INSERT OR IGNORE INTO match_history(match_id,room_code,player_one_id,player_two_id,winner_player_id,result_reason,round_number,player_one_fighter,player_two_fighter) VALUES(?,?,?,?,?,?,?,?,?)`).run(match.matchId||crypto.randomUUID(),match.roomCode,ids[0],ids[1],match.winner===null?null:ids[match.winner],match.reason,match.round,match.fighters[0],match.fighters[1]);});tx();return;}
+  if(sqlite){sqliteTransaction(()=>{upsertStatsSqlite(data);const ids=match.playerIds||[];const valid=ids.length===2&&ids.every(id=>typeof id==='string'&&/^[0-9a-f-]{36}$/i.test(id));if(valid)sqlite.prepare(`INSERT OR IGNORE INTO match_history(match_id,room_code,player_one_id,player_two_id,winner_player_id,result_reason,round_number,player_one_fighter,player_two_fighter) VALUES(?,?,?,?,?,?,?,?,?)`).run(match.matchId||crypto.randomUUID(),match.roomCode,ids[0],ids[1],match.winner===null?null:ids[match.winner],match.reason,match.round,match.fighters[0],match.fighters[1]);});return;}
   if (!pool) return persistStats(data);
   const client = await pool.connect();
   try {
