@@ -51,14 +51,15 @@ for(const state of ["p.kind==='grab'","p.kind==='counter'","p.kind==='special'",
  assert(html.includes(state),'animation state must be mapped to a sprite clip: '+state);
 }
 assert(html.includes('<option value="harbor">')&&html.includes("arena==='harbor'")&&server.includes("'harbor'].includes(msg.arena)"),'sixth harbor arena must be available and selectable online');
-assert(html.includes("if(sunset)")&&html.includes("else if(night)"),'sunset terrace and night city must render as distinct environments');
+assert(html.includes('if(sunset||night)')&&html.includes('if(sunset){')&&html.includes('const mx=w*.76'),'sunset rooftop and night rooftop must render as distinct environments');
 assert(html.includes('id="voice"'),'announcer voice must be user-toggleable');
 assert(html.includes('id="voiceVolume"'),'announcer and fighter voices must have an independent volume control');
 assert(html.includes('localStorage.getItem("gf-settings")')&&html.includes("localStorage.setItem('gf-settings'"),'audio settings must persist between visits');
 assert(html.includes("easy?210:hard?75:115"),'CPU must expose a distinct easy reaction profile');
 assert(html.includes("function saveLocalMatch(winner,reason)"),'offline championships must persist player statistics locally');
 assert(html.includes('function generateRoomCode()')&&html.includes('crypto.getRandomValues(bytes)'),'new online rooms must start with a unique random invite code');
-assert(html.includes('modern country home with a glass terrace')&&html.includes('drifting sunset clouds'),'sunset arena must include the house terrace and animated atmosphere');
+assert(html.includes('GLAVAT FIGHTERS graffiti')&&html.includes('Chain-link fence and steel supports')&&html.includes('Helicopter silhouette and animated searchlight')&&html.includes("fillText('GLAVAT'")&&html.includes("fillText('FIGHTERS'"),'sunset and night arenas must follow the supplied rooftop pixel-art reference');
+assert(!html.includes('modern country home with a glass terrace'),'sunset arena must not regress to the unrelated house-terrace scene');
 assert(html.includes("localStorage.getItem('gf-local-stats')"),'player profile must include locally saved match history');
 
 
