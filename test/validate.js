@@ -11,7 +11,7 @@ execFileSync(process.execPath,['--check','test/auth-security.test.js'],{stdio:'i
 for(const file of ['scripts/sqlite-maintenance.js','scripts/restore-sqlite.js','test/backup.test.js','test/accounts-database.test.js','test/email-provider.test.js','test/auth-service.test.js','test/auth-http.test.js','test/online.test.js'])execFileSync(process.execPath,['--check',file],{stdio:'inherit'});
 const backupTool=fs.readFileSync('scripts/sqlite-maintenance.js','utf8');
 const restoreTool=fs.readFileSync('scripts/restore-sqlite.js','utf8');
-assert(backupTool.includes('VACUUM INTO')&&backupTool.includes('PRAGMA integrity_check'),'SQLite backup must create a consistent snapshot and verify its integrity');
+assert(backupTool.includes('VACUUM INTO')&&backupTool.includes('PRAGMA integrity_check')&&backupTool.includes('version<4')&&backupTool.includes('auth_rate_limits'),'SQLite backup must verify a consistent snapshot with full account-security schema');
 assert(restoreTool.includes('pre-restore-')&&restoreTool.includes('fs.renameSync(temp,target)'),'SQLite restore must retain the previous database and atomically replace it');
 const authService=fs.readFileSync('auth-service.js','utf8');
 assert(authService.includes('async function register')&&authService.includes('async function login')&&authService.includes('async function verifyEmail')&&authService.includes('async function resetPassword'),'account lifecycle service must implement registration, login, email verification and password recovery');
