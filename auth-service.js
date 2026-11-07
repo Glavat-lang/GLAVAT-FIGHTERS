@@ -4,7 +4,6 @@ const {hashPassword,verifyPassword,createOpaqueToken,hashToken,AttemptLimiter}=r
 const {escapeHtml}=require('./email-provider');
 const dummyPasswordHash=hashPassword('GlavatDummyAccountProbe2026!');
 function normalize(value){return String(value||'').trim().toLowerCase();}
-async function takeLimit(database,limiter,key,limit,windowMs,now){if(typeof database.consumeRateLimit==='function'){const digest=crypto.createHash('sha256').update(key).digest('hex');return database.consumeRateLimit(digest,limit,windowMs,now);}return limiter.consume(key);}
 function validateIdentity(username,email){
  if(typeof username!=='string'||!/^[A-Za-z0-9_]{3,24}$/.test(username))throw new Error('Username must be 3–24 letters, numbers or underscores');
  if(typeof email!=='string'||email.length>254||!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email))throw new Error('A valid email address is required');
