@@ -212,7 +212,12 @@ async function saveSettings(id, settings) {
     ON CONFLICT(player_id) DO UPDATE SET settings=EXCLUDED.settings,updated_at=NOW()`,[id,JSON.stringify(safe)]);
   return safe;
 }
+async function healthCheck(){
+  if(sqlite){const row=sqlite.prepare('SELECT 1 AS ok').get();return row?.ok===1;}
+  if(pool){const result=await pool.query('SELECT 1 AS ok');return result.rows[0]?.ok===1;}
+  return true;
+}
 function isPostgres() { return !!pool; }
 function isSqlite() { return !!sqlite; }
 function close() { if(sqlite){sqlite.close();sqlite=null;} if(pool){return pool.end().then(()=>{pool=null;});} }
-module.exports = {init,persistStats,recordMatch,ensurePlayer,getHistory,getSettings,saveSettings,getDisplayName,saveDisplayName,isPostgres,isSqlite,close,emptyStats};
+module.exports = {init,persistStats,recordMatch,ensurePlayer,getHistory,getSettings,saveSettings,getDisplayName,saveDisplayName,healthCheck,isPostgres,isSqlite,close,emptyStats};
