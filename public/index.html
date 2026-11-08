@@ -26,8 +26,32 @@
  <div class="help"><span><b>← →</b> движение</span><span><b>↑</b> прыжок</span><span><b>УДАР</b> атака</span><span><b>ЩИТ</b> блок</span></div>
  <footer class="foot">GLAVAT LABS · BUILT FOR THE ARENA</footer>
 </div><div class="toast" id="toast"></div>
+<script>
+window.__glavatBooted=false;
+window.setTimeout(()=>{
+  if(window.__glavatBooted)return;
+  const status=document.getElementById("status");
+  if(status)status.textContent="Игра не загрузилась. Обнови страницу; если ошибка повторится — сообщи мне.";
+  const create=document.getElementById("create");
+  if(create)create.addEventListener("click",()=>{if(status)status.textContent="Игровой модуль не загрузился. Это ошибка загрузки скрипта, а не комнаты.";});
+},7000);
+</script>
 <script type="module">
-import {createClient} from "https://esm.sh/@supabase/supabase-js@2";
+let createClient;
+try {
+  ({createClient}=await import("https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm"));
+} catch(firstError) {
+  try {
+    ({createClient}=await import("https://esm.sh/@supabase/supabase-js@2"));
+  } catch(secondError) {
+    const status=document.getElementById("status");
+    if(status)status.textContent="Не удалось загрузить сетевой модуль. Проверь подключение и обнови страницу.";
+    const create=document.getElementById("create");
+    if(create)create.onclick=()=>{if(status)status.textContent="Сетевая библиотека не загрузилась. Попробуй открыть игру в Safari/Chrome.";
+    };
+    throw secondError;
+  }
+}
 (()=>{
 const supabase=createClient("https://tlhgtvrimqrqfjjtotvu.supabase.co","sb_publishable_joSf2lrXMkYo2ekZjQ7ujg_odwc_dua",{realtime:{params:{eventsPerSecond:35}}});
 const $=id=>document.getElementById(id),c=$("game"),g=c.getContext("2d"),W=960,F=470,me=(globalThis.crypto?.randomUUID?.()||("p-"+Date.now()+"-"+Math.random().toString(36).slice(2)));
@@ -55,7 +79,7 @@ function inputLoop(){const v=JSON.stringify(keys);if(slot===1&&joined&&v!==last)
 function bg(){const grad=g.createLinearGradient(0,0,0,520);grad.addColorStop(0,"#282b49");grad.addColorStop(.7,"#20243a");grad.addColorStop(1,"#16182a");g.fillStyle=grad;g.fillRect(0,0,960,520);g.strokeStyle="#454b70";g.lineWidth=2;for(let x=0;x<960;x+=48){g.beginPath();g.moveTo(x,0);g.lineTo(x,F);g.stroke()}g.fillStyle="#34334d";g.fillRect(0,F,960,50);g.fillStyle="#636081";g.fillRect(0,F,960,4);for(let i=0;i<6;i++){g.fillStyle="#ffd66b66";g.fillRect(70+i*165,65,3,18);g.fillRect(63+i*165,73,17,3)}}
 function draw(f,i,t){if(!f)return;const x=f.x,y=f.y,d=f.facing,col=i?"#ff6b95":"#5de8df",dark=i?"#9c355e":"#267e86";g.save();g.translate(x,y+Math.sin(t/115+i)*2);g.scale(d,1);g.fillStyle="#07091466";g.beginPath();g.ellipse(0,2,37,8,0,0,Math.PI*2);g.fill();g.lineCap="round";g.lineJoin="round";g.strokeStyle=dark;g.lineWidth=15;g.beginPath();g.moveTo(-5,-35);g.lineTo(-16,-8);g.lineTo(-20,0);g.stroke();g.strokeStyle=col;g.lineWidth=10;g.beginPath();g.moveTo(7,-35);g.lineTo(15,-9);g.lineTo(21,0);g.stroke();g.lineWidth=19;g.beginPath();g.moveTo(0,-94);g.quadraticCurveTo(-5,-65,0,-39);g.stroke();g.lineWidth=9;g.strokeStyle=dark;g.beginPath();g.moveTo(0,-103);g.lineTo(0,-91);g.stroke();g.fillStyle="#f4f2ff";g.beginPath();g.arc(0,-119,18,0,Math.PI*2);g.fill();g.fillStyle="#252940";g.beginPath();g.arc(7,-121,2.5,0,7);g.arc(14,-121,2.5,0,7);g.fill();g.strokeStyle=col;g.lineWidth=13;g.beginPath();g.moveTo(0,-85);if(f.blocking){g.lineTo(24,-106);g.lineTo(35,-85)}else if(f.attacking){g.lineTo(27,-76);g.lineTo(58,-83)}else{g.lineTo(20,-65);g.lineTo(25,-48)}g.stroke();if(f.attacking){g.fillStyle="#f4f2ff";g.beginPath();g.arc(61,-83,8,0,7);g.fill()}g.restore()}
 function render(t){bg();if(fighters){draw(fighters[0],0,t);draw(fighters[1],1,t)}else{draw(makeF(0),0,t);draw(makeF(1),1,t)}requestAnimationFrame(render)}render(0);
-const p=new URLSearchParams(location.search);if(p.get("room"))$("roomCode").value=p.get("room").toUpperCase();$("connection").textContent="Realtime готов";
+const p=new URLSearchParams(location.search);if(p.get("room"))$("roomCode").value=p.get("room").toUpperCase();$("connection").textContent="Realtime готов";window.__glavatBooted=true;
 })();
 </script>
 </body></html>
