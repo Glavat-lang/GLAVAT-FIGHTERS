@@ -26,85 +26,36 @@
  <div class="help"><span><b>← →</b> движение</span><span><b>↑</b> прыжок</span><span><b>УДАР</b> атака</span><span><b>ЩИТ</b> блок</span></div>
  <footer class="foot">GLAVAT LABS · BUILT FOR THE ARENA</footer>
 </div><div class="toast" id="toast"></div>
-<script>
-(() => {
-const $ = id => document.getElementById(id);
-const canvas=$("game"),ctx=canvas.getContext("2d");
-let socket,slot=0,code="",joined=false,playing=false,fighters=null,keys={},lastInput={},shake=0,particles=[],toastTimer;
-const W=960,H=520,FLOOR=470;
-const params=new URLSearchParams(location.search);
-if(params.get("room")) $("roomCode").value=params.get("room").toUpperCase();
-function toast(t){$("toast").textContent=t;$("toast").classList.add("show");clearTimeout(toastTimer);toastTimer=setTimeout(()=>$("toast").classList.remove("show"),2100)}
-function connect(){
- const proto=location.protocol==="https:"?"wss:":"ws:";
- socket=new WebSocket(proto+"//"+location.host);
- socket.onopen=()=>{$("dot").classList.add("ok");$("connection").textContent="Арена онлайн";$("status").textContent="Можно создавать комнату или входить по коду."};
- socket.onclose=()=>{$("dot").classList.remove("ok");$("connection").textContent="Нет соединения";if(joined){$("status").textContent="Соединение потеряно. Обнови страницу.";joined=false;show("lobby")}};
- socket.onerror=()=>{$("status").textContent="Не удалось подключиться к серверу."};
- socket.onmessage=e=>{const m=JSON.parse(e.data);
-  if(m.type==="error"){toast(m.message);$("status").textContent=m.message}
-  if(m.type==="joined"){joined=true;slot=m.slot;code=m.code;$("codeDisplay").textContent=code;show("waiting");history.replaceState({}, "", "?room="+code)}
-  if(m.type==="room"&&m.room.players===2){show(null);$("name0").textContent=(m.room.names[0]||"ИГРОК 1").toUpperCase();$("name1").textContent=(m.room.names[1]||"ИГРОК 2").toUpperCase()}
-  if(m.type==="start"){playing=true;show(null);$("round").textContent="РАУНД "+m.round;toast("БОЙ НАЧАЛСЯ!")}
-  if(m.type==="state"){fighters=m.fighters;$("hp0").style.width=fighters[0].hp+"%";$("hp1").style.width=fighters[1].hp+"%";$("round").textContent="РАУНД "+m.round}
-  if(m.type==="finished"){playing=false;const won=m.winner===slot;$("resultTitle").textContent=won?"ПОБЕДА!":"ПОРАЖЕНИЕ";$("resultText").textContent=won?"Арена твоя. Сопернику нужен реванш.":"Сегодня не твой день. Попробуй ещё раз.";show("result")}
-  if(m.type==="round"){playing=true;show(null);toast("НОВЫЙ РАУНД")}
-  if(m.type==="opponent-left"||m.type==="waiting"){playing=false;show("waiting");$("status").textContent="Соперник вышел. Ждём нового игрока."}
- }
-}
+<script type="module">
+import {createClient} from "https://esm.sh/@supabase/supabase-js@2";
+(()=>{
+const supabase=createClient("https://tlhgtvrimqrqfjjtotvu.supabase.co","sb_publishable_joSf2lrXMkYo2ekZjQ7ujg_odwc_dua",{realtime:{params:{eventsPerSecond:35}}});
+const $=id=>document.getElementById(id),c=$("game"),g=c.getContext("2d"),W=960,F=470,me=crypto.randomUUID();
+let ch=null,slot=0,code="",joined=false,playing=false,started=false,round=1,players=["ИГРОК 1","ИГРОК 2"],fighters=null,keys={},remote={},last="",lastTick=0;
+const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
+function toast(s){$("toast").textContent=s;$("toast").classList.add("show");setTimeout(()=>$("toast").classList.remove("show"),1800)}
 function show(id){["lobby","waiting","result"].forEach(x=>$(x).classList.toggle("hidden",x!==id))}
-function send(data){if(socket&&socket.readyState===1)socket.send(JSON.stringify(data))}
-function enter(withCode){const name=$("playerName").value.trim()||"Игрок";const c=withCode?$("roomCode").value.trim().toUpperCase():"";if(withCode&&c.length<4){toast("Введи код комнаты");return}if(!socket||socket.readyState!==1){toast("Подключаемся, попробуй ещё раз");return}send({type:"join",name,code:c})}
-$("create").onclick=()=>enter(false);
-$("join").onclick=()=>{ $("roomCode").classList.remove("hidden");if($("roomCode").value.trim())enter(true);else $("roomCode").focus()};
-$("roomCode").addEventListener("keydown",e=>{if(e.key==="Enter")enter(true)});
-$("copy").onclick=async()=>{const link=location.origin+"?room="+code;try{await navigator.clipboard.writeText("Заходи в GLAVAT FIGHTERS! Код: "+code+" · "+link);toast("Приглашение скопировано")}catch{toast(link)}};
-$("cancel").onclick=()=>location.href=location.pathname;
-$("again").onclick=()=>send({type:"rematch"});
-$("back").onclick=()=>location.href=location.pathname;
-function bindButton(el){const k=el.dataset.key;const down=e=>{e.preventDefault();keys[k]=true;el.classList.add("active")};const up=e=>{e.preventDefault();keys[k]=false;el.classList.remove("active")};el.addEventListener("pointerdown",down);["pointerup","pointercancel","pointerleave"].forEach(ev=>el.addEventListener(ev,up))}
-document.querySelectorAll("[data-key]").forEach(bindButton);
-window.addEventListener("keydown",e=>{const map={ArrowLeft:"left",KeyA:"left",ArrowRight:"right",KeyD:"right",ArrowUp:"jump",KeyW:"jump",Space:"attack",KeyJ:"attack",KeyK:"block",ShiftLeft:"block"};const k=map[e.code];if(k){e.preventDefault();keys[k]=true}});
-window.addEventListener("keyup",e=>{const map={ArrowLeft:"left",KeyA:"left",ArrowRight:"right",KeyD:"right",ArrowUp:"jump",KeyW:"jump",Space:"attack",KeyJ:"attack",KeyK:"block",ShiftLeft:"block"};if(map[e.code])keys[map[e.code]]=false});
-function inputLoop(){const v={...keys};if(JSON.stringify(v)!==JSON.stringify(lastInput)){send({type:"input",...v});lastInput=v}requestAnimationFrame(inputLoop)}inputLoop();
-function rounded(x,y,w,h,r,color){ctx.fillStyle=color;ctx.beginPath();ctx.roundRect(x,y,w,h,r);ctx.fill()}
-function background(t){
- const sky=ctx.createLinearGradient(0,0,0,H);sky.addColorStop(0,"#282b49");sky.addColorStop(.68,"#20243a");sky.addColorStop(1,"#16182a");ctx.fillStyle=sky;ctx.fillRect(0,0,W,H);
- ctx.save();ctx.globalAlpha=.2;for(let i=0;i<7;i++){ctx.fillStyle=i%2?"#646b9b":"#4e547d";ctx.beginPath();ctx.arc(95+i*150,105+(i%3)*28,35+(i%2)*20,0,Math.PI*2);ctx.fill()}ctx.restore();
- ctx.strokeStyle="#454b70";ctx.lineWidth=2;for(let x=0;x<W;x+=48){ctx.beginPath();ctx.moveTo(x,0);ctx.lineTo(x,FLOOR);ctx.stroke()}
- ctx.fillStyle="#34334d";ctx.fillRect(0,FLOOR,W,H-FLOOR);ctx.fillStyle="#636081";ctx.fillRect(0,FLOOR,W,4);
- ctx.fillStyle="#ffffff0a";for(let i=0;i<20;i++)ctx.fillRect((i*73)%W,FLOOR+25+(i%3)*12,30,2);
- for(let i=0;i<6;i++){const x=70+i*165;ctx.fillStyle="#ffd66b";ctx.globalAlpha=.4;ctx.fillRect(x,65,3,18);ctx.fillRect(x-7,73,17,3);ctx.globalAlpha=1}
-}
-function stick(f,index,t){
- if(!f)return;const x=f.x,y=f.y,dir=f.facing,accent=index===0?"#5de8df":"#ff6b95",dark=index===0?"#267e86":"#9c355e";
- const bob=f.grounded?Math.sin(t/115+index)*2:0,leg=Math.sin(t/95+index)*.35;
- ctx.save();ctx.translate(x,y+bob);ctx.scale(dir,1);
- ctx.shadowColor=accent;ctx.shadowBlur=f.attacking?20:8;
- // shadow
- ctx.shadowBlur=0;ctx.fillStyle="#07091466";ctx.beginPath();ctx.ellipse(0,2,37,8,0,0,Math.PI*2);ctx.fill();
- ctx.lineCap="round";ctx.lineJoin="round";
- // legs
- ctx.strokeStyle=dark;ctx.lineWidth=15;ctx.beginPath();ctx.moveTo(-5,-35);ctx.lineTo(-13+leg*13,-8);ctx.lineTo(-20+leg*18,0);ctx.stroke();
- ctx.strokeStyle=accent;ctx.lineWidth=9;ctx.beginPath();ctx.moveTo(7,-35);ctx.lineTo(14-leg*13,-9);ctx.lineTo(21-leg*16,0);ctx.stroke();
- // torso
- ctx.strokeStyle=accent;ctx.lineWidth=19;ctx.beginPath();ctx.moveTo(0,-94);ctx.quadraticCurveTo(-5,-65,0,-39);ctx.stroke();
- // neck and head
- ctx.strokeStyle=dark;ctx.lineWidth=9;ctx.beginPath();ctx.moveTo(0,-103);ctx.lineTo(0,-91);ctx.stroke();
- ctx.fillStyle="#f4f2ff";ctx.beginPath();ctx.arc(0,-119,18,0,Math.PI*2);ctx.fill();
- ctx.fillStyle="#252940";ctx.beginPath();ctx.arc(7,-121,2.5,0,Math.PI*2);ctx.fill();ctx.beginPath();ctx.arc(14,-121,2.5,0,Math.PI*2);ctx.fill();
- // arms
- if(f.blocking){ctx.strokeStyle=accent;ctx.lineWidth=12;ctx.beginPath();ctx.moveTo(0,-85);ctx.lineTo(24,-106);ctx.lineTo(35,-85);ctx.stroke();ctx.strokeStyle="#f4f2ff";ctx.lineWidth=7;ctx.beginPath();ctx.moveTo(35,-85);ctx.lineTo(20,-69);ctx.stroke()}
- else if(f.attacking){ctx.strokeStyle=accent;ctx.lineWidth=13;ctx.beginPath();ctx.moveTo(0,-84);ctx.lineTo(27,-76);ctx.lineTo(58,-83);ctx.stroke();ctx.fillStyle="#f4f2ff";ctx.beginPath();ctx.arc(61,-83,8,0,Math.PI*2);ctx.fill();ctx.strokeStyle=accent;ctx.lineWidth=3;ctx.beginPath();ctx.moveTo(54,-102);ctx.lineTo(79,-111);ctx.moveTo(60,-95);ctx.lineTo(88,-96);ctx.stroke()}
- else{ctx.strokeStyle=accent;ctx.lineWidth=12;ctx.beginPath();ctx.moveTo(0,-85);ctx.lineTo(20,-65);ctx.lineTo(25,-48);ctx.stroke();ctx.strokeStyle=dark;ctx.beginPath();ctx.moveTo(0,-85);ctx.lineTo(-18,-68);ctx.lineTo(-23,-52);ctx.stroke()}
- ctx.restore();
- // shield spark
- if(f.blocking){ctx.strokeStyle=accent+"99";ctx.lineWidth=3;ctx.beginPath();ctx.arc(x+dir*26,y-84,28,-1.2,1.2);ctx.stroke()}
-}
-function render(t){background(t);if(fighters){stick(fighters[0],0,t);stick(fighters[1],1,t)}else{stick({x:280,y:FLOOR,facing:1,grounded:true},0,t);stick({x:680,y:FLOOR,facing:-1,grounded:true},1,t)}
- if(!playing&&!joined){ctx.fillStyle="#ffffff0c";ctx.font="900 22px system-ui";ctx.textAlign="center";ctx.fillText("ARE YOU READY?",480,330)}
- requestAnimationFrame(render)}
-render(0);connect();
+function send(event,payload){if(ch)ch.send({type:"broadcast",event,payload}).catch(()=>{})}
+function makeF(i){return{slot:i,x:i?680:280,y:F,vx:0,vy:0,hp:100,facing:i?-1:1,grounded:true,blocking:false,attacking:false,cd:0,stun:0}}
+function hud(){if(!fighters)return;$("hp0").style.width=fighters[0].hp+"%";$("hp1").style.width=fighters[1].hp+"%";$("round").textContent="РАУНД "+round}
+function roster(){if(!ch)return;const all=Object.values(ch.presenceState()).flat().filter(x=>x?.id);const list=[...new Map(all.map(x=>[x.id,x])).values()].sort((a,b)=>a.joinedAt-b.joinedAt);const n=list.findIndex(x=>x.id===me);if(n<0)return;slot=n;players=[list[0]?.name||"ИГРОК 1",list[1]?.name||"ИГРОК 2"];$("name0").textContent=players[0].toUpperCase();$("name1").textContent=players[1].toUpperCase();if(list.length===2&&!started){started=true;playing=true;round=1;fighters=[makeF(0),makeF(1)];show(null);hud();toast("БОЙ НАЧАЛСЯ!")}else if(list.length<2){if(started){started=false;playing=false;fighters=null;show("waiting");$("status").textContent="Соперник вышел. Ждём нового игрока."}else show("waiting")}}
+async function enter(useCode){const name=$("playerName").value.trim()||"Игрок",room=useCode?$("roomCode").value.trim().toUpperCase():Math.random().toString(36).slice(2,8).toUpperCase();if(useCode&&room.length<4){toast("Введи код комнаты");return}if(ch)await supabase.removeChannel(ch);code=room;$("codeDisplay").textContent=code;history.replaceState({},"","?room="+code);ch=supabase.channel("glavat-fighters-"+code,{config:{broadcast:{self:false},presence:{key:me}}}).on("presence",{event:"sync"},roster).on("broadcast",{event:"input"},({payload})=>{if(slot===0&&payload?.slot===1)remote=payload.input||{}}).on("broadcast",{event:"state"},({payload})=>{if(slot===1&&payload?.fighters){fighters=payload.fighters;round=payload.round;hud();if(payload.status==="finished"){playing=false;show("result");$("resultTitle").textContent=payload.winner===slot?"ПОБЕДА!":"ПОРАЖЕНИЕ";$("resultText").textContent=payload.winner===slot?"Арена твоя. Сопернику нужен реванш.":"Попробуй ещё раз — реванш ждёт."}}}).on("broadcast",{event:"rematch"},()=>{if(slot===0)reset()});ch.subscribe(async s=>{if(s==="SUBSCRIBED"){joined=true;$("dot").classList.add("ok");$("connection").textContent="Арена онлайн";await ch.track({id:me,name:name.slice(0,16),joinedAt:Date.now()+Math.random()});show("waiting");roster();if(!useCode)toast("Комната создана: "+code)}else if(s==="CHANNEL_ERROR"||s==="TIMED_OUT"){$("status").textContent="Не удалось подключиться. Попробуй ещё раз."}})}
+$("create").onclick=()=>enter(false);$("join").onclick=()=>{$("roomCode").classList.remove("hidden");if($("roomCode").value.trim())enter(true);else $("roomCode").focus()};$("roomCode").onkeydown=e=>{if(e.key==="Enter")enter(true)};
+$("copy").onclick=async()=>{const link=location.origin+location.pathname+"?room="+code;try{await navigator.clipboard.writeText("Заходи в GLAVAT FIGHTERS! Код: "+code+" · "+link);toast("Приглашение скопировано")}catch{toast(link)}};
+async function leave(){if(ch){await supabase.removeChannel(ch);ch=null}joined=false;playing=false;started=false;fighters=null;history.replaceState({},"",location.pathname);show("lobby")} $("cancel").onclick=leave;$("back").onclick=leave;
+$("again").onclick=()=>{if(slot===0)reset();else send("rematch",{})};
+const map={ArrowLeft:"left",KeyA:"left",ArrowRight:"right",KeyD:"right",ArrowUp:"jump",KeyW:"jump",Space:"attack",KeyJ:"attack",KeyK:"block",ShiftLeft:"block"};
+addEventListener("keydown",e=>{if(map[e.code]){e.preventDefault();keys[map[e.code]]=true}});addEventListener("keyup",e=>{if(map[e.code])keys[map[e.code]]=false});
+document.querySelectorAll("[data-key]").forEach(el=>{const k=el.dataset.key,down=e=>{e.preventDefault();keys[k]=true;el.classList.add("active")},up=e=>{e.preventDefault();keys[k]=false;el.classList.remove("active")};el.addEventListener("pointerdown",down);["pointerup","pointercancel","pointerleave"].forEach(ev=>el.addEventListener(ev,up))});
+function attack(a,d){if(a.cd>0||a.stun>0)return;a.cd=22;a.attacking=true;if(Math.abs(a.x-d.x)<112&&Math.sign(d.x-a.x)===a.facing&&Math.abs(a.y-d.y)<70){const block=d.blocking&&d.grounded&&d.facing===-a.facing;d.hp=Math.max(0,d.hp-(block?4:12));d.vx+=a.facing*(block?2:8);if(!block){d.vy=-4;d.stun=12;d.grounded=false}}}
+function reset(){round++;fighters=[makeF(0),makeF(1)];playing=true;show(null);hud();send("state",{fighters,round,status:"playing"});toast("НОВЫЙ РАУНД")}
+function tick(){if(!playing||!fighters||slot!==0)return;const [a,b]=fighters,inputs=[keys,remote];for(const f of fighters){const v=inputs[f.slot]||{};f.cd=Math.max(0,f.cd-1);f.stun=Math.max(0,f.stun-1);f.attacking=f.cd>14;f.blocking=!!v.block&&f.grounded&&f.stun===0;if(!f.stun){if(v.left)f.vx-=.9;if(v.right)f.vx+=.9;if(!v.left&&!v.right)f.vx*=.78;f.vx=clamp(f.vx,-6.4,6.4);if(v.jump&&f.grounded){f.vy=-13;f.grounded=false}if(v.attack)attack(f,fighters[1-f.slot])}else f.vx*=.9;f.x=clamp(f.x+f.vx,55,W-55);f.vy+=.68;f.y+=f.vy;if(f.y>=F){f.y=F;f.vy=0;f.grounded=true}}a.facing=a.x<=b.x?1:-1;b.facing=b.x>=a.x?-1:1;hud();if(a.hp<=0||b.hp<=0){playing=false;const winner=a.hp<=0?1:0;send("state",{fighters,round,status:"finished",winner});show("result");$("resultTitle").textContent=winner===slot?"ПОБЕДА!":"ПОРАЖЕНИЕ";$("resultText").textContent=winner===slot?"Арена твоя. Сопернику нужен реванш.":"Попробуй ещё раз — реванш ждёт."}else send("state",{fighters,round,status:"playing"})}
+function loop(t){if(t-lastTick>33){lastTick=t;tick()}requestAnimationFrame(loop)}requestAnimationFrame(loop);
+function inputLoop(){const v=JSON.stringify(keys);if(slot===1&&joined&&v!==last){send("input",{slot,input:{...keys}});last=v}requestAnimationFrame(inputLoop)}inputLoop();
+function bg(){const grad=g.createLinearGradient(0,0,0,520);grad.addColorStop(0,"#282b49");grad.addColorStop(.7,"#20243a");grad.addColorStop(1,"#16182a");g.fillStyle=grad;g.fillRect(0,0,960,520);g.strokeStyle="#454b70";g.lineWidth=2;for(let x=0;x<960;x+=48){g.beginPath();g.moveTo(x,0);g.lineTo(x,F);g.stroke()}g.fillStyle="#34334d";g.fillRect(0,F,960,50);g.fillStyle="#636081";g.fillRect(0,F,960,4);for(let i=0;i<6;i++){g.fillStyle="#ffd66b66";g.fillRect(70+i*165,65,3,18);g.fillRect(63+i*165,73,17,3)}}
+function draw(f,i,t){if(!f)return;const x=f.x,y=f.y,d=f.facing,col=i?"#ff6b95":"#5de8df",dark=i?"#9c355e":"#267e86";g.save();g.translate(x,y+Math.sin(t/115+i)*2);g.scale(d,1);g.fillStyle="#07091466";g.beginPath();g.ellipse(0,2,37,8,0,0,Math.PI*2);g.fill();g.lineCap="round";g.lineJoin="round";g.strokeStyle=dark;g.lineWidth=15;g.beginPath();g.moveTo(-5,-35);g.lineTo(-16,-8);g.lineTo(-20,0);g.stroke();g.strokeStyle=col;g.lineWidth=10;g.beginPath();g.moveTo(7,-35);g.lineTo(15,-9);g.lineTo(21,0);g.stroke();g.lineWidth=19;g.beginPath();g.moveTo(0,-94);g.quadraticCurveTo(-5,-65,0,-39);g.stroke();g.lineWidth=9;g.strokeStyle=dark;g.beginPath();g.moveTo(0,-103);g.lineTo(0,-91);g.stroke();g.fillStyle="#f4f2ff";g.beginPath();g.arc(0,-119,18,0,Math.PI*2);g.fill();g.fillStyle="#252940";g.beginPath();g.arc(7,-121,2.5,0,7);g.arc(14,-121,2.5,0,7);g.fill();g.strokeStyle=col;g.lineWidth=13;g.beginPath();g.moveTo(0,-85);if(f.blocking){g.lineTo(24,-106);g.lineTo(35,-85)}else if(f.attacking){g.lineTo(27,-76);g.lineTo(58,-83)}else{g.lineTo(20,-65);g.lineTo(25,-48)}g.stroke();if(f.attacking){g.fillStyle="#f4f2ff";g.beginPath();g.arc(61,-83,8,0,7);g.fill()}g.restore()}
+function render(t){bg();if(fighters){draw(fighters[0],0,t);draw(fighters[1],1,t)}else{draw(makeF(0),0,t);draw(makeF(1),1,t)}requestAnimationFrame(render)}render(0);
+const p=new URLSearchParams(location.search);if(p.get("room"))$("roomCode").value=p.get("room").toUpperCase();$("connection").textContent="Realtime готов";
 })();
 </script>
 </body></html>
