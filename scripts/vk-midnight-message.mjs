@@ -1,9 +1,7 @@
 const CONFIG = Object.freeze({
   apiVersion: "5.199",
   groupId: "243224791",
-  chatId: "3",
-  peerId: "2000000003",
-  userId: "290172143",
+  peerId: "2000000291",
 });
 
 const token = process.env.VK_TOKEN?.trim();
@@ -58,34 +56,36 @@ try {
   if (!group) throw new Error("VK token does not resolve to the expected community.");
   console.log(`Community verified: ${group.name} (${group.id}).`);
 
-  console.log(`Attempting to add user ${CONFIG.userId} to existing chat ${CONFIG.chatId}...`);
-  try {
-    const addResult = await vkCall("messages.addChatUser", {
-      chat_id: CONFIG.chatId,
-      user_id: CONFIG.userId,
-      group_id: CONFIG.groupId,
-    });
-    console.log(`messages.addChatUser response: ${JSON.stringify(addResult)}`);
-  } catch (error) {
-    console.log(`messages.addChatUser failed: ${error.message}`);
-  }
-
-  console.log("Checking chat members after add attempt...");
+  console.log(`Checking members of target chat ${CONFIG.peerId}...`);
   const members = await vkCall("messages.getConversationMembers", {
     peer_id: CONFIG.peerId,
     group_id: CONFIG.groupId,
     count: "100",
     extended: "1",
   });
-  console.log(`Final member list: ${JSON.stringify(members)}`);
 
   const ids = (members.items ?? []).map((member) => Number(member.member_id));
-  if (ids.includes(Number(CONFIG.userId))) {
-    console.log("SUCCESS: the personal VK account is now a chat member.");
-  } else {
-    console.log("The personal VK account is still not a chat member. No message was sent.");
+  console.log(`Chat member IDs: ${ids.join(", ") || "(none returned)"}`);
+
+  if (!ids.includes(-Number(CONFIG.groupId))) {
+    throw new Error("The community is not listed as a member of this chat. Add the community to the conversation in VK, then run this test again.");
   }
+
+  console.log("Community membership confirmed. Sending one test message...");
+  const sent = await vkCall("messages.send", {
+    peer_id: CONFIG.peerId,
+    group_id: CONFIG.groupId,
+    random_id: String(Date.now() % 2147483647),
+    message: "Тест бота «Аркаша». Если ты видишь это сообщение, отправка работает.",
+  });
+
+  console.log(`messages.send returned message ID: ${sent}`);
+  if (!sent || Number(sent) === 0) {
+    throw new Error("VK returned message ID 0. Delivery is not confirmed; check the conversation before enabling the schedule.");
+  }
+
+  console.log("VK accepted the test message and returned a non-zero message ID.");
 } catch (error) {
-  console.error(`VK add-user diagnostic failed: ${error.message}`);
+  console.error(`VK chat test failed: ${error.message}`);
   process.exit(1);
 }
