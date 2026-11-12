@@ -1,12 +1,14 @@
 const CONFIG = Object.freeze({
   apiVersion: "5.199",
-  groupId: "243224791",
+  expectedUserId: "290172143",
   peerId: "2000000291",
+  testMessage: "Я тебя люблю ❤️",
 });
 
-const token = process.env.VK_TOKEN?.trim();
+const token = process.env.VK_USER_TOKEN?.trim();
 if (!token) {
-  console.error("Configuration error: GitHub Actions secret VK_TOKEN is missing or empty.");
+  console.error("Configuration error: GitHub Actions secret VK_USER_TOKEN is missing.");
+  console.error("Add your personal VK access token as a GitHub Actions secret. Never print or commit it.");
   process.exit(1);
 }
 
@@ -17,30 +19,18 @@ async function vkCall(method, values = {}) {
     ...values,
   });
 
-  let response;
-  try {
-    response = await fetch(`https://api.vk.com/method/${method}`, {
-      method: "POST",
-      headers: { "Content-Type": "application/x-www-form-urlencoded" },
-      body: params,
-      signal: AbortSignal.timeout(20_000),
-    });
-  } catch (error) {
-    throw new Error(`Network error calling ${method}: ${error.message}`);
-  }
+  const response = await fetch(`https://api.vk.com/method/${method}`, {
+    method: "POST",
+    headers: { "Content-Type": "application/x-www-form-urlencoded" },
+    body: params,
+    signal: AbortSignal.timeout(20_000),
+  });
 
   if (!response.ok) throw new Error(`VK HTTP error ${response.status} calling ${method}`);
-
-  let payload;
-  try {
-    payload = await response.json();
-  } catch {
-    throw new Error(`VK returned a non-JSON response for ${method}`);
-  }
+  const payload = await response.json();
 
   if (payload.error) {
-    const error = payload.error;
-    throw new Error(`VK API error ${error.error_code} calling ${method}: ${error.error_msg}`);
+    throw new Error(`VK API error ${payload.error.error_code} calling ${method}: ${payload.error.error_msg}`);
   }
   if (!Object.hasOwn(payload, "response")) {
     throw new Error(`VK response for ${method} did not contain a response field`);
@@ -49,36 +39,27 @@ async function vkCall(method, values = {}) {
 }
 
 try {
-  console.log(`Verifying community token for group ${CONFIG.groupId}...`);
-  const groupResult = await vkCall("groups.getById", { group_ids: CONFIG.groupId });
-  const groups = Array.isArray(groupResult) ? groupResult : (groupResult?.groups ?? []);
-  const group = groups.find((item) => String(item.id) === CONFIG.groupId);
-  if (!group) throw new Error("VK token does not resolve to the expected community.");
-  console.log(`Community verified: ${group.name} (${group.id}).`);
+  console.log("Verifying personal VK authorization...");
+  const users = await vkCall("users.get");
+  const user = users?.[0];
+  if (!user || String(user.id) !== CONFIG.expectedUserId) {
+    throw new Error(`Wrong VK account. Expected user ID ${CONFIG.expectedUserId}; received ${user?.id ?? "none"}.`);
+  }
+  console.log(`Personal account verified: user ${user.id}.`);
 
-  console.log(`Read-only diagnostic: requesting conversation ${CONFIG.peerId} via messages.getConversationsById...`);
-  const result = await vkCall("messages.getConversationsById", {
-    peer_ids: CONFIG.peerId,
-    group_id: CONFIG.groupId,
-    extended: "1",
+  console.log(`Sending one-time test message to peer_id ${CONFIG.peerId}...`);
+  const result = await vkCall("messages.send", {
+    peer_id: CONFIG.peerId,
+    random_id: String(Date.now()),
+    message: CONFIG.testMessage,
   });
 
-  console.log(`Conversation lookup result: ${JSON.stringify(result)}`);
-  const items = result.items ?? [];
-  if (items.length === 0) {
-    console.log("VK returned no conversation for this community token. No message was sent.");
-  } else {
-    const conversation = items[0];
-    console.log(`Conversation details: ${JSON.stringify({
-      peer: conversation.conversation?.peer,
-      chat_settings: conversation.conversation?.chat_settings,
-      can_write: conversation.conversation?.can_write,
-      last_message_id: conversation.last_message?.id,
-      last_conversation_message_id: conversation.conversation?.last_conversation_message_id,
-    })}`);
-    console.log("Read-only diagnostic complete. No message was sent.");
+  if (!result || Number(result) === 0) {
+    throw new Error("VK returned message ID 0. Delivery is not confirmed.");
   }
+  console.log(`VK accepted the test message. Message ID: ${result}`);
+  console.log("Now verify that the message is visible in the target VK chat.");
 } catch (error) {
-  console.error(`VK conversation diagnostic failed: ${error.message}`);
+  console.error(`VK personal-account test failed: ${error.message}`);
   process.exit(1);
 }
