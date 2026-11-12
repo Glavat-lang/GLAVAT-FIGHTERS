@@ -56,22 +56,7 @@ try {
   if (!group) throw new Error("VK token does not resolve to the expected community.");
   console.log(`Community verified: ${group.name} (${group.id}).`);
 
-  console.log(`Checking members of target chat ${CONFIG.peerId}...`);
-  const members = await vkCall("messages.getConversationMembers", {
-    peer_id: CONFIG.peerId,
-    group_id: CONFIG.groupId,
-    count: "100",
-    extended: "1",
-  });
-
-  const ids = (members.items ?? []).map((member) => Number(member.member_id));
-  console.log(`Chat member IDs: ${ids.join(", ") || "(none returned)"}`);
-
-  if (!ids.includes(-Number(CONFIG.groupId))) {
-    throw new Error("The community is not listed as a member of this chat. Add the community to the conversation in VK, then run this test again.");
-  }
-
-  console.log("Community membership confirmed. Sending one test message...");
+  console.log(`Sending a one-time test message directly to peer_id ${CONFIG.peerId}...`);
   const sent = await vkCall("messages.send", {
     peer_id: CONFIG.peerId,
     group_id: CONFIG.groupId,
@@ -86,6 +71,6 @@ try {
 
   console.log("VK accepted the test message and returned a non-zero message ID.");
 } catch (error) {
-  console.error(`VK chat test failed: ${error.message}`);
+  console.error(`VK direct-send test failed: ${error.message}`);
   process.exit(1);
 }
