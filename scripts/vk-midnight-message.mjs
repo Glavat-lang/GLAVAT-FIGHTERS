@@ -56,21 +56,29 @@ try {
   if (!group) throw new Error("VK token does not resolve to the expected community.");
   console.log(`Community verified: ${group.name} (${group.id}).`);
 
-  console.log(`Sending a one-time test message directly to peer_id ${CONFIG.peerId}...`);
-  const sent = await vkCall("messages.send", {
-    peer_id: CONFIG.peerId,
+  console.log(`Read-only diagnostic: requesting conversation ${CONFIG.peerId} via messages.getConversationsById...`);
+  const result = await vkCall("messages.getConversationsById", {
+    peer_ids: CONFIG.peerId,
     group_id: CONFIG.groupId,
-    random_id: String(Date.now() % 2147483647),
-    message: "Тест бота «Аркаша». Если ты видишь это сообщение, отправка работает.",
+    extended: "1",
   });
 
-  console.log(`messages.send returned message ID: ${sent}`);
-  if (!sent || Number(sent) === 0) {
-    throw new Error("VK returned message ID 0. Delivery is not confirmed; check the conversation before enabling the schedule.");
+  console.log(`Conversation lookup result: ${JSON.stringify(result)}`);
+  const items = result.items ?? [];
+  if (items.length === 0) {
+    console.log("VK returned no conversation for this community token. No message was sent.");
+  } else {
+    const conversation = items[0];
+    console.log(`Conversation details: ${JSON.stringify({
+      peer: conversation.conversation?.peer,
+      chat_settings: conversation.conversation?.chat_settings,
+      can_write: conversation.conversation?.can_write,
+      last_message_id: conversation.last_message?.id,
+      last_conversation_message_id: conversation.conversation?.last_conversation_message_id,
+    })}`);
+    console.log("Read-only diagnostic complete. No message was sent.");
   }
-
-  console.log("VK accepted the test message and returned a non-zero message ID.");
 } catch (error) {
-  console.error(`VK direct-send test failed: ${error.message}`);
+  console.error(`VK conversation diagnostic failed: ${error.message}`);
   process.exit(1);
 }
