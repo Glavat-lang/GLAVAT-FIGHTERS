@@ -23,7 +23,7 @@ function getDaysTogether() {
 
 function getDailyMessage() {
   const days = getDaysTogether();
-  return `${CONFIG.message}\\n\\nМы вместе уже ${days} дней ❤️`;
+  return `${CONFIG.message}\n\nМы вместе уже ${days} дней ❤️`;
 }
 
 const token = process.env.TELEGRAM_BOT_TOKEN?.trim();
