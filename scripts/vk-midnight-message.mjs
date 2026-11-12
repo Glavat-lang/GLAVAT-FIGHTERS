@@ -30,12 +30,10 @@ async function vkCall(method, values) {
   return result.response;
 }
 
-// First verify that VK's API exposes this conversation to the community token.
-// This prevents sending a test message when the community still has no API access.
+// Verify that VK exposes the conversation to this community token.
 try {
   const members = await vkCall("messages.getConversationMembers", {
     peer_id: "2000000289",
-    group_id: "243224791",
     count: "100",
   });
   console.log(`Conversation access confirmed. Members returned: ${members.items?.length ?? 0}`);
