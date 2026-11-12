@@ -1,9 +1,8 @@
-import { randomInt } from "node:crypto";
-
 const CONFIG = Object.freeze({
   apiVersion: "5.199",
   groupId: "243224791",
-  peerId: "2000000289",
+  screenName: "glavatt",
+  chatTitle: "Тест бота Аркаша",
   message: "Я тебя люблю",
 });
 
@@ -32,9 +31,7 @@ async function vkCall(method, values = {}) {
     throw new Error(`Network error calling ${method}: ${error.message}`);
   }
 
-  if (!response.ok) {
-    throw new Error(`VK HTTP error ${response.status} calling ${method}`);
-  }
+  if (!response.ok) throw new Error(`VK HTTP error ${response.status} calling ${method}`);
 
   let payload;
   try {
@@ -44,73 +41,58 @@ async function vkCall(method, values = {}) {
   }
 
   if (payload.error) {
-    const { error_code: code, error_msg: message } = payload.error;
-    throw new Error(`VK API error ${code} calling ${method}: ${message}`);
+    throw new Error(`VK API error ${payload.error.error_code} calling ${method}: ${payload.error.error_msg}`);
   }
-
   if (!Object.hasOwn(payload, "response")) {
     throw new Error(`VK response for ${method} did not contain a response field`);
   }
-
   return payload.response;
 }
 
-function extractConversations(result) {
-  if (Array.isArray(result)) return result;
-  if (Array.isArray(result?.items)) return result.items;
-  return [];
-}
-
-console.log("Checking community token and target conversation...");
-
 try {
-  const groupsResult = await vkCall("groups.getById", {
+  console.log(`Verifying community token for group ${CONFIG.groupId}...`);
+  const groupResult = await vkCall("groups.getById", {
     group_ids: CONFIG.groupId,
   });
-  const groups = Array.isArray(groupsResult)
-    ? groupsResult
-    : (groupsResult?.groups ?? []);
-  const community = groups.find((group) => String(group.id) === CONFIG.groupId);
+  const groups = Array.isArray(groupResult) ? groupResult : (groupResult?.groups ?? []);
+  const group = groups.find((item) => String(item.id) === CONFIG.groupId);
+  if (!group) throw new Error("VK token does not resolve to the expected community.");
+  console.log(`Community verified: ${group.name} (${group.id}).`);
 
-  if (!community) {
-    throw new Error(`The supplied token cannot verify community ${CONFIG.groupId}`);
+  console.log(`Resolving VK profile @${CONFIG.screenName}...`);
+  const resolved = await vkCall("utils.resolveScreenName", {
+    screen_name: CONFIG.screenName,
+  });
+  if (!resolved || resolved.type !== "user" || !resolved.object_id) {
+    throw new Error("VK did not resolve glavatt to a user profile. No chat was created.");
   }
+  const userId = String(resolved.object_id);
+  console.log(`Profile resolved to numeric user ID ${userId}.`);
 
-  console.log(`Community token verified: ${community.name ?? CONFIG.groupId} (ID ${community.id}).`);
-
-  const lookup = await vkCall("messages.getConversationsById", {
-    peer_ids: CONFIG.peerId,
+  console.log("Creating a separate test chat with the community...");
+  const created = await vkCall("messages.createChat", {
+    user_ids: userId,
+    title: CONFIG.chatTitle,
     group_id: CONFIG.groupId,
   });
-  const conversations = extractConversations(lookup);
-  const target = conversations.find(
-    (item) => String(item.conversation?.peer?.id ?? item.peer?.id ?? "") === CONFIG.peerId,
-  );
 
-  if (!target) {
-    throw new Error(
-      `VK did not return target conversation ${CONFIG.peerId} for this community token. No message was sent.`,
-    );
+  const chatId = Number(created?.chat_id ?? created);
+  if (!Number.isSafeInteger(chatId) || chatId <= 0) {
+    throw new Error("VK did not return a valid chat_id. The test message was not sent.");
   }
 
-  console.log(`Target conversation access confirmed: peer_id ${CONFIG.peerId}.`);
-} catch (error) {
-  console.error(`Pre-send access check failed: ${error.message}`);
-  process.exit(1);
-}
+  const peerId = String(2_000_000_000 + chatId);
+  console.log(`Test chat created. chat_id: ${chatId}; peer_id: ${peerId}.`);
 
-// Do not automatically retry this write request: a timeout can happen after VK
-// has accepted a message, and retrying could create a duplicate.
-try {
   const messageId = await vkCall("messages.send", {
-    peer_id: CONFIG.peerId,
+    peer_id: peerId,
     group_id: CONFIG.groupId,
-    random_id: String(randomInt(1, 2_147_483_647)),
+    random_id: String(Math.floor(Math.random() * 2_147_483_646) + 1),
     message: CONFIG.message,
   });
 
-  console.log(`VK message sent successfully. Message ID: ${messageId}`);
+  console.log(`Test message sent successfully. Message ID: ${messageId}. Test chat peer_id: ${peerId}.`);
 } catch (error) {
-  console.error(`VK message send failed: ${error.message}`);
+  console.error(`VK test-chat operation failed: ${error.message}`);
   process.exit(1);
 }
