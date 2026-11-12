@@ -17,7 +17,7 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: "22"
-      - name: Run one-time VK test chat
+      - name: Send one-time test from personal VK account
         env:
-          VK_TOKEN: ${{ secrets.VK_TOKEN }}
+          VK_USER_TOKEN: ${{ secrets.VK_USER_TOKEN }}
         run: node scripts/vk-midnight-message.mjs
