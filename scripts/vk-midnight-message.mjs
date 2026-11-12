@@ -1,7 +1,9 @@
 const CONFIG = Object.freeze({
   apiVersion: "5.199",
   groupId: "243224791",
+  chatId: "3",
   peerId: "2000000003",
+  userId: "290172143",
 });
 
 const token = process.env.VK_TOKEN?.trim();
@@ -50,47 +52,40 @@ async function vkCall(method, values = {}) {
 
 try {
   console.log(`Verifying community token for group ${CONFIG.groupId}...`);
-  const groupResult = await vkCall("groups.getById", {
-    group_ids: CONFIG.groupId,
-  });
+  const groupResult = await vkCall("groups.getById", { group_ids: CONFIG.groupId });
   const groups = Array.isArray(groupResult) ? groupResult : (groupResult?.groups ?? []);
   const group = groups.find((item) => String(item.id) === CONFIG.groupId);
   if (!group) throw new Error("VK token does not resolve to the expected community.");
   console.log(`Community verified: ${group.name} (${group.id}).`);
 
-  console.log(`Checking existing test chat peer_id ${CONFIG.peerId}; no chat will be created and no message will be sent.`);
-
-  for (const method of ["messages.getConversationsById", "messages.getHistory", "messages.getConversationMembers"]) {
-    try {
-      let result;
-      if (method === "messages.getConversationsById") {
-        result = await vkCall(method, {
-          peer_ids: CONFIG.peerId,
-          group_id: CONFIG.groupId,
-          extended: "1",
-        });
-      } else if (method === "messages.getHistory") {
-        result = await vkCall(method, {
-          peer_id: CONFIG.peerId,
-          group_id: CONFIG.groupId,
-          count: "5",
-        });
-      } else {
-        result = await vkCall(method, {
-          peer_id: CONFIG.peerId,
-          group_id: CONFIG.groupId,
-          count: "20",
-          extended: "1",
-        });
-      }
-      console.log(`${method} result: ${JSON.stringify(result)}`);
-    } catch (error) {
-      console.log(`${method} failed: ${error.message}`);
-    }
+  console.log(`Attempting to add user ${CONFIG.userId} to existing chat ${CONFIG.chatId}...`);
+  try {
+    const addResult = await vkCall("messages.addChatUser", {
+      chat_id: CONFIG.chatId,
+      user_id: CONFIG.userId,
+      group_id: CONFIG.groupId,
+    });
+    console.log(`messages.addChatUser response: ${JSON.stringify(addResult)}`);
+  } catch (error) {
+    console.log(`messages.addChatUser failed: ${error.message}`);
   }
 
-  console.log("Read-only diagnostics finished. No chat was created and no message was sent.");
+  console.log("Checking chat members after add attempt...");
+  const members = await vkCall("messages.getConversationMembers", {
+    peer_id: CONFIG.peerId,
+    group_id: CONFIG.groupId,
+    count: "100",
+    extended: "1",
+  });
+  console.log(`Final member list: ${JSON.stringify(members)}`);
+
+  const ids = (members.items ?? []).map((member) => Number(member.member_id));
+  if (ids.includes(Number(CONFIG.userId))) {
+    console.log("SUCCESS: the personal VK account is now a chat member.");
+  } else {
+    console.log("The personal VK account is still not a chat member. No message was sent.");
+  }
 } catch (error) {
-  console.error(`VK diagnostic failed: ${error.message}`);
+  console.error(`VK add-user diagnostic failed: ${error.message}`);
   process.exit(1);
 }
