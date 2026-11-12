@@ -21,9 +21,18 @@ function getDaysTogether() {
   return Math.floor((today - start) / 86_400_000);
 }
 
+function getDayWord(days) {
+  const lastTwo = days % 100;
+  const lastOne = days % 10;
+  if (lastTwo >= 11 && lastTwo <= 14) return "дней";
+  if (lastOne === 1) return "день";
+  if (lastOne >= 2 && lastOne <= 4) return "дня";
+  return "дней";
+}
+
 function getDailyMessage() {
   const days = getDaysTogether();
-  return `${CONFIG.message}\n\nМы вместе уже ${days} дней ❤️`;
+  return `${CONFIG.message}\n\nМы вместе уже ${days} ${getDayWord(days)} ❤️`;
 }
 
 const token = process.env.TELEGRAM_BOT_TOKEN?.trim();
