@@ -1,6 +1,30 @@
 const CONFIG = Object.freeze({
   message: "Я тебя люблю ❤️",
+  relationshipStartDate: "2023-10-15",
+  timeZone: "Asia/Yekaterinburg",
 });
+
+function getPermDate() {
+  const parts = new Intl.DateTimeFormat("en-CA", {
+    timeZone: CONFIG.timeZone,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).formatToParts(new Date());
+  const values = Object.fromEntries(parts.map(({ type, value }) => [type, value]));
+  return `${values.year}-${values.month}-${values.day}`;
+}
+
+function getDaysTogether() {
+  const start = Date.parse(`${CONFIG.relationshipStartDate}T00:00:00Z`);
+  const today = Date.parse(`${getPermDate()}T00:00:00Z`);
+  return Math.floor((today - start) / 86_400_000);
+}
+
+function getDailyMessage() {
+  const days = getDaysTogether();
+  return `${CONFIG.message}\\n\\nМы вместе уже ${days} дней ❤️`;
+}
 
 const token = process.env.TELEGRAM_BOT_TOKEN?.trim();
 if (!token) {
@@ -56,7 +80,7 @@ try {
   console.log("Sending the scheduled message to the fixed Telegram recipient...");
   const sent = await telegramCall("sendMessage", {
     chat_id: chatId,
-    text: CONFIG.message,
+    text: getDailyMessage(),
   });
 
   if (!sent?.message_id) {
