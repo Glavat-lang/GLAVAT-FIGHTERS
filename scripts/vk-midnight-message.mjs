@@ -32,6 +32,17 @@ const peerId = 2000000289;
 const groupId = "243224791";
 
 // Diagnostic only. Do not send any messages.
+console.log("Checking direct access to the target chat...");
+try {
+  const chat = await vkCall("messages.getChat", {
+    chat_id: "289",
+    group_id: groupId,
+  });
+  console.log(`messages.getChat succeeded. Chat ID: ${chat.id ?? "unknown"}.`);
+} catch (error) {
+  console.log(`messages.getChat failed: ${error.message}`);
+}
+
 console.log("Checking the community's conversation list...");
 try {
   const result = await vkCall("messages.getConversations", {
