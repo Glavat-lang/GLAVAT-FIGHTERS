@@ -6,29 +6,52 @@ if (!token) {
   process.exit(1);
 }
 
-const params = new URLSearchParams({
-  access_token: token,
-  v: "5.199",
-  peer_id: "2000000289",
-  random_id: String(randomInt(1, 2_147_483_647)),
-  message: "Я тебя люблю",
-});
+async function vkCall(method, values) {
+  const params = new URLSearchParams({
+    access_token: token,
+    v: "5.199",
+    ...values,
+  });
 
-const response = await fetch("https://api.vk.com/method/messages.send", {
-  method: "POST",
-  headers: { "Content-Type": "application/x-www-form-urlencoded" },
-  body: params,
-});
+  const response = await fetch(`https://api.vk.com/method/${method}`, {
+    method: "POST",
+    headers: { "Content-Type": "application/x-www-form-urlencoded" },
+    body: params,
+  });
 
-if (!response.ok) {
-  console.error(`VK HTTP error: ${response.status}`);
+  if (!response.ok) {
+    throw new Error(`VK HTTP error: ${response.status}`);
+  }
+
+  const result = await response.json();
+  if (result.error) {
+    throw new Error(`VK API error ${result.error.error_code}: ${result.error.error_msg}`);
+  }
+  return result.response;
+}
+
+// First verify that VK's API exposes this conversation to the community token.
+// This prevents sending a test message when the community still has no API access.
+try {
+  const members = await vkCall("messages.getConversationMembers", {
+    peer_id: "2000000289",
+    group_id: "243224791",
+    count: "100",
+  });
+  console.log(`Conversation access confirmed. Members returned: ${members.items?.length ?? 0}`);
+} catch (error) {
+  console.error(`Conversation access check failed: ${error.message}`);
   process.exit(1);
 }
 
-const result = await response.json();
-if (result.error) {
-  console.error(`VK API error ${result.error.error_code}: ${result.error.error_msg}`);
+try {
+  const messageId = await vkCall("messages.send", {
+    peer_id: "2000000289",
+    random_id: String(randomInt(1, 2_147_483_647)),
+    message: "Я тебя люблю",
+  });
+  console.log(`VK message sent successfully. Message ID: ${messageId}`);
+} catch (error) {
+  console.error(error.message);
   process.exit(1);
 }
-
-console.log(`VK message sent successfully. Message ID: ${result.response}`);
