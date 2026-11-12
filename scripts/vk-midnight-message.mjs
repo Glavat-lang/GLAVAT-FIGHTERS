@@ -1,3 +1,5 @@
+import { randomInt } from "node:crypto";
+
 const CONFIG = Object.freeze({
   apiVersion: "5.199",
   groupId: "243224791",
@@ -87,7 +89,7 @@ try {
   const messageId = await vkCall("messages.send", {
     peer_id: peerId,
     group_id: CONFIG.groupId,
-    random_id: String(Math.floor(Math.random() * 2_147_483_646) + 1),
+    random_id: String(randomInt(1, 2_147_483_647)),
     message: CONFIG.message,
   });
 
