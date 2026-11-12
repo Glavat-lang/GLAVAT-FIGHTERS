@@ -30,18 +30,30 @@ async function telegramCall(method, values = {}) {
 }
 
 try {
-  console.log("Finding the private chat that started this bot...");
-  const updates = await telegramCall("getUpdates", { limit: 100, timeout: 0 });
-  const privateMessages = updates
-    .filter((update) => update.message?.chat?.type === "private")
-    .sort((a, b) => b.update_id - a.update_id);
-  const chatId = privateMessages[0]?.message?.chat?.id;
+  let chatId = process.env.TELEGRAM_CHAT_ID?.trim();
 
   if (!chatId) {
-    throw new Error('No private chat found. Open your bot in Telegram, press "Start", and send it a message, then rerun this workflow.');
+    console.log("TELEGRAM_CHAT_ID is not configured. Detecting the most recent private chat without sending a message...");
+    const updates = await telegramCall("getUpdates", { limit: 100, timeout: 0 });
+    const privateMessages = updates
+      .filter((update) => update.message?.chat?.type === "private")
+      .sort((a, b) => b.update_id - a.update_id);
+    chatId = privateMessages[0]?.message?.chat?.id?.toString();
+
+    if (!chatId) {
+      throw new Error('No private chat found. Ask the recipient to open the bot, press "Start", and send it a message.');
+    }
+
+    console.log(`Detected private chat ID: ${chatId}`);
+    console.log("For safety, no message was sent. Save this value as the GitHub Actions secret TELEGRAM_CHAT_ID, then run the workflow again.");
+    process.exit(2);
   }
 
-  console.log("Private chat found. Sending the message...");
+  if (!/^\d+$/.test(chatId)) {
+    throw new Error("TELEGRAM_CHAT_ID must contain only digits.");
+  }
+
+  console.log("Sending the scheduled message to the fixed Telegram recipient...");
   const sent = await telegramCall("sendMessage", {
     chat_id: chatId,
     text: CONFIG.message,
