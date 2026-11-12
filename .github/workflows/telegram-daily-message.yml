@@ -2,6 +2,8 @@ name: Telegram daily message
 
 on:
   workflow_dispatch:
+  schedule:
+    - cron: "0 19 * * *"
 
 permissions:
   contents: read
