@@ -1,3 +1,5 @@
+import { randomInt } from "node:crypto";
+
 const token = process.env.VK_TOKEN;
 if (!token) {
   console.error("Missing required GitHub Actions secret: VK_TOKEN");
@@ -28,41 +30,17 @@ async function vkCall(method, values) {
   return result.response;
 }
 
-const peerId = 2000000289;
-const groupId = "243224791";
-
-// Diagnostic only. Do not send any messages.
-console.log("Checking direct access to the target chat...");
+// Test the actual send method with the community ID.
+// This sends the intended message once if VK permits it.
 try {
-  const chat = await vkCall("messages.getChat", {
-    chat_id: "289",
-    group_id: groupId,
+  const messageId = await vkCall("messages.send", {
+    peer_id: "2000000289",
+    group_id: "243224791",
+    random_id: String(randomInt(1, 2_147_483_647)),
+    message: "Я тебя люблю",
   });
-  console.log(`messages.getChat succeeded. Chat ID: ${chat.id ?? "unknown"}.`);
+  console.log(`VK message sent successfully. Message ID: ${messageId}`);
 } catch (error) {
-  console.log(`messages.getChat failed: ${error.message}`);
-}
-
-console.log("Checking the community's conversation list...");
-try {
-  const result = await vkCall("messages.getConversations", {
-    group_id: groupId,
-    count: "200",
-    filter: "all",
-  });
-
-  const items = result.items ?? [];
-  const found = items.some((item) => item.conversation?.peer?.id === peerId);
-
-  console.log(`getConversations succeeded. Total returned: ${items.length}. Target peer visible: ${found ? "YES" : "NO"}.`);
-  if (found) {
-    console.log("The target conversation is present in the community's conversation list.");
-  } else {
-    console.log("The target conversation is absent from the first 200 conversations returned for the community.");
-  }
-} catch (error) {
-  console.error(`getConversations failed: ${error.message}`);
+  console.error(`VK message send failed: ${error.message}`);
   process.exit(1);
 }
-
-console.log("Diagnostic run complete. Message sending is intentionally disabled.");
