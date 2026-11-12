@@ -34,6 +34,7 @@ async function vkCall(method, values) {
 try {
   const members = await vkCall("messages.getConversationMembers", {
     peer_id: "2000000289",
+    group_id: "243224791",
     count: "100",
   });
   console.log(`Conversation access confirmed. Members returned: ${members.items?.length ?? 0}`);
@@ -45,6 +46,7 @@ try {
 try {
   const messageId = await vkCall("messages.send", {
     peer_id: "2000000289",
+    group_id: "243224791",
     random_id: String(randomInt(1, 2_147_483_647)),
     message: "Я тебя люблю",
   });
