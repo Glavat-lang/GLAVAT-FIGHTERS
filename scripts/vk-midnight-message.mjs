@@ -1,5 +1,3 @@
-import { randomInt } from "node:crypto";
-
 const token = process.env.VK_TOKEN;
 if (!token) {
   console.error("Missing required GitHub Actions secret: VK_TOKEN");
@@ -30,28 +28,44 @@ async function vkCall(method, values) {
   return result.response;
 }
 
-// Verify that VK exposes the conversation to this community token.
+const peerId = "2000000289";
+const groupId = "243224791";
+
+// Diagnostic only: check whether VK can resolve this exact conversation
+// for the community token. No message is sent by this script.
 try {
-  const members = await vkCall("messages.getConversationMembers", {
-    peer_id: "2000000289",
-    group_id: "243224791",
-    count: "100",
+  const conversations = await vkCall("messages.getConversationsById", {
+    peer_ids: peerId,
+    group_id: groupId,
   });
-  console.log(`Conversation access confirmed. Members returned: ${members.items?.length ?? 0}`);
+
+  const items = conversations.items ?? [];
+  const found = items.some((item) => item.conversation?.peer?.id === Number(peerId));
+
+  console.log(`getConversationsById succeeded. Returned items: ${items.length}. Target conversation visible: ${found ? "YES" : "NO"}.`);
+
+  if (found) {
+    console.log("VK resolved the target peer for this community token.");
+  } else {
+    console.log("VK did not return the target peer for this community token.");
+  }
 } catch (error) {
-  console.error(`Conversation access check failed: ${error.message}`);
+  console.error(`Conversation lookup failed: ${error.message}`);
   process.exit(1);
 }
 
+// Compare with the member-list method that previously returned error 927.
 try {
-  const messageId = await vkCall("messages.send", {
-    peer_id: "2000000289",
-    group_id: "243224791",
-    random_id: String(randomInt(1, 2_147_483_647)),
-    message: "Я тебя люблю",
+  const members = await vkCall("messages.getConversationMembers", {
+    peer_id: peerId,
+    group_id: groupId,
+    count: "100",
   });
-  console.log(`VK message sent successfully. Message ID: ${messageId}`);
+
+  console.log(`getConversationMembers succeeded. Members returned: ${members.items?.length ?? 0}.`);
 } catch (error) {
-  console.error(error.message);
+  console.error(`Conversation members check failed: ${error.message}`);
   process.exit(1);
 }
+
+console.log("Diagnostic run complete. Message sending is intentionally disabled.");
