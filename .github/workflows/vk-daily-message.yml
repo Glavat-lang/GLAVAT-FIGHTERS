@@ -1,9 +1,6 @@
 name: VK daily message
 
 on:
-  schedule:
-    # 00:00 in Perm (Asia/Yekaterinburg, UTC+5)
-    - cron: "0 19 * * *"
   workflow_dispatch:
 
 permissions:
@@ -20,7 +17,7 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: "22"
-      - name: Send VK message
+      - name: Run one-time VK test chat
         env:
           VK_TOKEN: ${{ secrets.VK_TOKEN }}
         run: node scripts/vk-midnight-message.mjs
