@@ -28,43 +28,29 @@ async function vkCall(method, values) {
   return result.response;
 }
 
-const peerId = "2000000289";
+const peerId = 2000000289;
 const groupId = "243224791";
 
-// Diagnostic only: check whether VK can resolve this exact conversation
-// for the community token. No message is sent by this script.
+// Diagnostic only. Do not send any messages.
+console.log("Checking the community's conversation list...");
 try {
-  const conversations = await vkCall("messages.getConversationsById", {
-    peer_ids: peerId,
+  const result = await vkCall("messages.getConversations", {
     group_id: groupId,
+    count: "200",
+    filter: "all",
   });
 
-  const items = conversations.items ?? [];
-  const found = items.some((item) => item.conversation?.peer?.id === Number(peerId));
+  const items = result.items ?? [];
+  const found = items.some((item) => item.conversation?.peer?.id === peerId);
 
-  console.log(`getConversationsById succeeded. Returned items: ${items.length}. Target conversation visible: ${found ? "YES" : "NO"}.`);
-
+  console.log(`getConversations succeeded. Total returned: ${items.length}. Target peer visible: ${found ? "YES" : "NO"}.`);
   if (found) {
-    console.log("VK resolved the target peer for this community token.");
+    console.log("The target conversation is present in the community's conversation list.");
   } else {
-    console.log("VK did not return the target peer for this community token.");
+    console.log("The target conversation is absent from the first 200 conversations returned for the community.");
   }
 } catch (error) {
-  console.error(`Conversation lookup failed: ${error.message}`);
-  process.exit(1);
-}
-
-// Compare with the member-list method that previously returned error 927.
-try {
-  const members = await vkCall("messages.getConversationMembers", {
-    peer_id: peerId,
-    group_id: groupId,
-    count: "100",
-  });
-
-  console.log(`getConversationMembers succeeded. Members returned: ${members.items?.length ?? 0}.`);
-} catch (error) {
-  console.error(`Conversation members check failed: ${error.message}`);
+  console.error(`getConversations failed: ${error.message}`);
   process.exit(1);
 }
 
